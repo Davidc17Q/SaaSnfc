@@ -723,7 +723,10 @@ function renderDevicesTable(filter = '') {
       <td class="td font-mono text-xs max-w-xs truncate" title="${escapeHtml(d.target_url)}">${escapeHtml(d.target_url)}</td>
       <td class="td">${statusBadge(d.status)}</td>
       <td class="td text-right">
-        <button class="btn-primary text-xs edit-btn" data-id="${d.id}">Editar</button>
+        <span class="row-actions">
+          <button class="icon-btn qr-btn" data-id="${d.id}" title="Ver código QR">${icon('qr', { size: 15 })}</button>
+          <button class="btn-primary text-xs edit-btn" data-id="${d.id}">Editar</button>
+        </span>
       </td>
     </tr>`;
 
@@ -772,6 +775,49 @@ function renderDevicesTable(filter = '') {
       openEdit(b.dataset.id);
     })
   );
+
+  // Botones de QR
+  body.querySelectorAll('.qr-btn').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openQr(b.dataset.id);
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Generador de QR dinámico
+// ---------------------------------------------------------------------------
+function openQr(id) {
+  const d = state.devices.find((x) => x.id === id);
+  if (!d) return;
+  const url = `${location.origin}/r/${d.id}`;
+  $('#qrLabel').textContent = `${d.location_name} · ${d.label}`;
+  $('#qrUrl').textContent = url;
+
+  // Generar QR (nivel de corrección 'M', tamaño de celda para nitidez)
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+  const box = $('#qrCanvas');
+  box.innerHTML = qr.createImgTag(6, 8); // (cellSize, margin)
+
+  const m = $('#qrModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+function closeQr() {
+  const m = $('#qrModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+function downloadQr() {
+  const img = $('#qrCanvas img');
+  if (!img) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = 'qr-nfcloud.png';
+  a.click();
 }
 
 function statusBadge(status) {
@@ -1270,6 +1316,13 @@ function setupCreateModals() {
     } catch {
       toast('No se pudo copiar. Cópiala manualmente.', false);
     }
+  });
+
+  // Modal QR
+  $('#closeQrModal').addEventListener('click', closeQr);
+  $('#downloadQr').addEventListener('click', downloadQr);
+  $('#qrModal').addEventListener('click', (e) => {
+    if (e.target.id === 'qrModal') closeQr();
   });
 }
 

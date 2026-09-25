@@ -281,7 +281,14 @@ thead.bg-slate-50 { background: #f8fafc; }
 .dark thead.bg-slate-50 { background: rgba(30,41,59,0.5); }
 
 /* Modales visibles cuando tienen .flex */
-#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex { display: flex; }
+#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex, #qrModal.flex { display: flex; }
+.qr-box {
+  display: inline-flex;
+  padding: 0.85rem;
+  background: #ffffff;
+  border-radius: 0.75rem;
+}
+.qr-box img, .qr-box canvas, .qr-box table { display: block; }
 .block { display: block; }
 
 /* Responsive: sidebar y grids -------------------------------------------- */

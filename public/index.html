@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="/chart.umd.min.js"></script>
+  <script src="/qrcode.min.js"></script>
   <script src="/icons.js"></script>
   <link rel="stylesheet" href="/styles.css" />
 </head>
@@ -338,6 +339,25 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Modal QR -->
+  <div id="qrModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-sm" style="text-align:center">
+      <div class="flex items-center justify-between mb-4" style="text-align:left">
+        <h3 class="font-semibold text-lg">Código QR</h3>
+        <button id="closeQrModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <p id="qrLabel" class="text-sm text-slate-500 mb-3"></p>
+      <div id="qrCanvas" class="qr-box"></div>
+      <p id="qrUrl" class="text-xs font-mono break-all text-slate-400" style="margin-top:0.75rem"></p>
+      <div class="flex justify-center gap-2 mt-4">
+        <button id="downloadQr" class="btn-primary text-sm section-title-icon"><span data-icon="copy"></span> Descargar PNG</button>
+      </div>
+      <p class="text-xs text-slate-500" style="margin-top:0.85rem">
+        Imprime este QR o grábalo en la tarjeta NFC. El destino se cambia desde el panel sin reimprimir.
+      </p>
+    </div>
   </div>
 
   <!-- Modal editar target_url -->
