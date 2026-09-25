@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NFCloud · Analítica NFC B2B</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="/chart.umd.min.js"></script>
+  <script src="/icons.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen font-sans antialiased">
+
+  <!-- Sidebar -->
+  <div class="flex">
+    <aside class="hidden lg:flex flex-col w-64 h-screen sticky top-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-6">
+      <div class="flex items-center gap-3 mb-10">
+        <div class="brand-logo-img"><img src="/logo.png" alt="NFCloud" /></div>
+        <div>
+          <p class="brand-name leading-tight">NFCloud</p>
+          <p class="brand-sub">Plataforma de analítica NFC</p>
+        </div>
+      </div>
+      <nav class="space-y-1 text-sm">
+        <a href="#dashboard" class="nav-link active flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="bar-chart-3"></span> Dashboard
+        </a>
+        <a href="#executive" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="target"></span> Comparativa
+        </a>
+        <a href="#operations" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="stethoscope"></span> Salud operativa
+        </a>
+        <a href="#locations" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="store"></span> Sedes
+        </a>
+        <a href="#devices" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="nfc"></span> Dispositivos NFC
+        </a>
+      </nav>
+      <div class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
+        <div id="healthBadge" class="text-xs text-slate-500 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span> Comprobando…
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 min-w-0">
+      <!-- Topbar -->
+      <header class="sticky top-0 z-20 backdrop-blur bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-6 py-4 space-y-3">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 class="text-xl font-bold">Panel de Control</h1>
+            <p class="text-sm text-slate-500">Cadena corporativa · <span id="locCount">—</span> sedes conectadas</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="combo" id="locationCombo">
+              <input type="text" id="locationSearch" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" />
+              <input type="hidden" id="locationFilter" value="" />
+              <div id="locationOptions" class="combo-list hidden"></div>
+            </div>
+            <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
+              <option value="">Todos los destinos</option>
+            </select>
+            <input type="date" id="fromDate" class="input text-sm" />
+            <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
+            <input type="date" id="toDate" class="input text-sm" />
+            <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
+            <button id="themeToggle" class="btn-ghost" title="Cambiar tema"></button>
+            <div class="user-menu">
+              <button id="userBtn" class="user-btn" title="Cuenta"><span data-icon="user"></span></button>
+              <div id="userDropdown" class="user-dropdown hidden">
+                <div class="user-dropdown-head">
+                  <span data-icon="user"></span>
+                  <span id="userName">admin</span>
+                </div>
+                <button id="logoutBtn" class="user-dropdown-item"><span data-icon="log-out"></span> Cerrar sesión</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Navegación principal (siempre visible, no depende del sidebar) -->
+        <nav class="topnav flex items-center gap-1">
+          <a href="#dashboard" class="topnav-link active"><span data-icon="bar-chart-3"></span> Dashboard</a>
+          <a href="#executive" class="topnav-link"><span data-icon="target"></span> Comparativa</a>
+          <a href="#operations" class="topnav-link"><span data-icon="stethoscope"></span> Salud operativa</a>
+          <a href="#locations" class="topnav-link"><span data-icon="store"></span> Sedes</a>
+          <a href="#devices" class="topnav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
+        </nav>
+      </header>
+
+      <!-- Dashboard view -->
+      <section id="view-dashboard" class="p-6 space-y-6">
+        <!-- KPI cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div class="card">
+            <p class="kpi-label">Total de Escaneos</p>
+            <p id="kpiTotal" class="kpi-value">—</p>
+            <p class="text-xs text-slate-500 mt-1"><span id="kpiWeek">—</span> últimos 7 días</p>
+          </div>
+          <div class="card">
+            <p class="kpi-label">Sede Más Activa</p>
+            <p id="kpiTopLoc" class="kpi-value text-2xl truncate">—</p>
+            <p id="kpiTopLocScans" class="text-xs text-slate-500 mt-1">—</p>
+          </div>
+          <div class="card">
+            <p class="kpi-label">Pico de Hora</p>
+            <p id="kpiPeak" class="kpi-value">—</p>
+            <p id="kpiPeakScans" class="text-xs text-slate-500 mt-1">—</p>
+          </div>
+          <div class="card">
+            <p class="kpi-label">Dispositivos</p>
+            <div class="flex items-end gap-4 mt-2">
+              <div><p id="kpiIos" class="text-2xl font-bold"></p><p class="text-xs text-slate-500"> iOS</p></div>
+              <div><p id="kpiAndroid" class="text-2xl font-bold"></p><p class="text-xs text-slate-500"> Android</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="card xl:col-span-2">
+            <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
+              <div class="flex items-center gap-3">
+                <h3 class="font-semibold">Tendencia de escaneos</h3>
+                <span id="trendVariation" class="variation-badge hidden"></span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-500">
+                <span class="legend-dot" style="background:#6366f1"></span> Selección
+                <span class="legend-dot" style="background:#94a3b8"></span> Promedio cadena
+              </div>
+            </div>
+            <canvas id="trendChart" height="90"></canvas>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold mb-4">Distribución por SO</h3>
+            <div class="donut-wrap">
+              <canvas id="osChart" height="200"></canvas>
+              <div class="donut-center">
+                <span id="osCenterTotal" class="donut-center-total">—</span>
+                <span class="donut-center-label">Escaneos totales</span>
+              </div>
+            </div>
+            <div id="osLegend" class="os-legend"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div class="card">
+            <h3 class="font-semibold mb-4">Top 10 sedes con más tráfico</h3>
+            <canvas id="topChart" height="160"></canvas>
+          </div>
+          <div class="card">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 class="font-semibold">Escaneos por hora del día</h3>
+              <div class="flex items-center gap-3 text-xs text-slate-500">
+                <span class="legend-dot" style="background:#f59e0b"></span> Mañana
+                <span class="legend-dot" style="background:#6366f1"></span> Tarde
+                <span class="legend-dot" style="background:#8b5cf6"></span> Noche
+              </div>
+            </div>
+            <canvas id="hourlyChart" height="160"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 class="font-semibold">Escaneos por destino</h3>
+            <span class="text-xs text-slate-500">Canal al que redirige cada punto NFC</span>
+          </div>
+          <div class="channel-layout">
+            <div class="channel-chart-wrap">
+              <canvas id="channelChart" height="120"></canvas>
+            </div>
+            <div id="channelLegend" class="channel-legend"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Executive / Benchmarking view -->
+      <section id="view-executive" class="p-6 space-y-6 hidden">
+        <!-- Gap de rendimiento -->
+        <div class="card">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 class="font-semibold">Gap de rendimiento</h3>
+              <p class="text-sm text-slate-500">Diferencia entre la sede líder y la de menor rendimiento en el periodo</p>
+            </div>
+            <div class="text-right">
+              <p id="gapValue" class="text-3xl font-extrabold">—</p>
+              <p id="gapDetail" class="text-xs text-slate-500"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top 3 vs Bottom 3 -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div class="card">
+            <h3 class="font-semibold mb-1 section-title-icon"><span data-icon="trophy"></span> Líderes</h3>
+            <p class="text-xs text-slate-500 mb-4">Top 3 sedes con mayor volumen</p>
+            <div id="leadersList" class="space-y-2"></div>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold mb-1 section-title-icon"><span data-icon="alert-triangle"></span> Sedes a auditar</h3>
+            <p class="text-xs text-slate-500 mb-4">3 sedes con menor volumen — posible soporte retirado o dañado</p>
+            <div id="laggardsList" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Comparación A/B -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h3 class="font-semibold">Comparación directa A / B</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="compareA" class="input text-sm"></select>
+              <span class="text-slate-400 text-sm">vs</span>
+              <select id="compareB" class="input text-sm"></select>
+              <button id="compareBtn" class="btn-primary text-sm">Comparar</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 text-xs text-slate-500 mb-3">
+            <span><span class="legend-dot" style="background:#6366f1"></span> <span id="compareLabelA">Sede A</span> · <b id="compareTotalA">—</b></span>
+            <span><span class="legend-dot" style="background:#22c55e"></span> <span id="compareLabelB">Sede B</span> · <b id="compareTotalB">—</b></span>
+          </div>
+          <canvas id="compareChart" height="110"></canvas>
+        </div>
+      </section>
+
+      <!-- Operations / Health view -->
+      <section id="view-operations" class="p-6 space-y-6 hidden">
+        <!-- Resumen de estado -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="card">
+            <p class="kpi-label section-title-icon"><span class="txt-emerald" data-icon="check-circle"></span> Activas</p>
+            <p id="opActive" class="kpi-value">—</p>
+            <p class="text-xs text-slate-500 mt-1">Escaneos en las últimas 24h</p>
+          </div>
+          <div class="card">
+            <p class="kpi-label section-title-icon"><span class="txt-amber" data-icon="circle"></span> Bajo flujo</p>
+            <p id="opLow" class="kpi-value">—</p>
+            <p class="text-xs text-slate-500 mt-1">Sin escaneos entre 24 y 48h</p>
+          </div>
+          <div class="card">
+            <p class="kpi-label section-title-icon"><span class="txt-rose" data-icon="alert-triangle"></span> Alerta / Inactivas</p>
+            <p id="opAlert" class="kpi-value">—</p>
+            <p class="text-xs text-slate-500 mt-1">Más de 48h sin actividad</p>
+          </div>
+        </div>
+
+        <div class="card overflow-hidden p-0">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 class="font-semibold">Estado de soportes NFC por sede</h3>
+              <p class="text-xs text-slate-500">Detecta soportes retirados o dañados por inactividad</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="opSearch" type="text" placeholder="Buscar sede…" class="input text-sm w-56" />
+              <select id="opFilter" class="input text-sm">
+                <option value="">Todos</option>
+                <option value="active">Activas</option>
+                <option value="low">Bajo flujo</option>
+                <option value="alert">Alerta</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
+                <tr>
+                  <th class="th">Sede</th>
+                  <th class="th">Ciudad</th>
+                  <th class="th">Estado</th>
+                  <th class="th">Último escaneo</th>
+                </tr>
+              </thead>
+              <tbody id="opTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Locations view -->
+      <section id="view-locations" class="p-6 hidden">
+        <div class="card overflow-hidden p-0">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+            <h3 class="font-semibold">Sedes</h3>
+            <div class="flex items-center gap-2">
+              <input id="locSearch" type="text" placeholder="Buscar sede o ciudad…" class="input text-sm w-64" />
+              <button id="newLocationBtn" class="btn-primary text-sm">+ Nueva sede</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
+                <tr>
+                  <th class="th">Sede</th>
+                  <th class="th">Marca</th>
+                  <th class="th">Ciudad</th>
+                  <th class="th">Estado</th>
+                  <th class="th text-right">Puntos NFC</th>
+                  <th class="th text-right">Total Clics</th>
+                  <th class="th text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="locTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Devices view -->
+      <section id="view-devices" class="p-6 hidden">
+        <div class="card overflow-hidden p-0">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+            <h3 class="font-semibold">Dispositivos NFC</h3>
+            <div class="flex items-center gap-2">
+              <input id="devSearch" type="text" placeholder="Buscar dispositivo o sede…" class="input text-sm w-64" />
+              <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
+                <tr>
+                  <th class="th">Sede</th>
+                  <th class="th">Punto</th>
+                  <th class="th">Target URL</th>
+                  <th class="th">Estado</th>
+                  <th class="th text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="devTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal editar target_url -->
+  <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Editar destino NFC</h3>
+        <button id="closeModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <p id="editDeviceLabel" class="text-sm text-slate-500 mb-1"></p>
+      <p id="editRedirectUrl" class="text-xs text-slate-400 mb-4 font-mono break-all"></p>
+      <label class="block text-sm font-medium mb-1">Nueva Target URL</label>
+      <input id="editTargetUrl" type="url" class="input w-full" placeholder="https://…" />
+      <div class="flex items-center gap-2 mt-3">
+        <label class="text-sm font-medium">Estado</label>
+        <select id="editStatus" class="input text-sm">
+          <option value="active">active</option>
+          <option value="inactive">inactive</option>
+        </select>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelEdit" class="btn-ghost">Cancelar</button>
+        <button id="saveEdit" class="btn-primary">Guardar cambios</button>
+      </div>
+      <p id="editMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal nueva sede -->
+  <div id="locationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Nueva sede</h3>
+        <button id="closeLocationModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Nombre de la sede</label>
+      <input id="locName" type="text" class="input w-full" placeholder="Ej: Lalico - Centro" />
+      <label class="block text-sm font-medium mb-1 mt-3">Marca / cadena</label>
+      <input id="locBrand" type="text" class="input w-full" placeholder="Ej: Lalico (opcional)" />
+      <label class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
+      <input id="locCity" type="text" class="input w-full" placeholder="Ej: Medellín" />
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelLocation" class="btn-ghost">Cancelar</button>
+        <button id="saveLocation" class="btn-primary">Crear sede</button>
+      </div>
+      <p id="locMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal editar sede -->
+  <div id="editLocationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Editar sede</h3>
+        <button id="closeEditLocation" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Nombre de la sede</label>
+      <input id="editLocName" type="text" class="input w-full" />
+      <label class="block text-sm font-medium mb-1 mt-3">Marca / cadena</label>
+      <input id="editLocBrand" type="text" class="input w-full" />
+      <label class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
+      <input id="editLocCity" type="text" class="input w-full" />
+      <div class="flex items-center gap-2 mt-3">
+        <label class="text-sm font-medium">Estado</label>
+        <select id="editLocStatus" class="input text-sm">
+          <option value="active">active</option>
+          <option value="inactive">inactive</option>
+        </select>
+      </div>
+      <div class="flex justify-between items-center mt-6">
+        <button id="deleteLocation" class="btn-ghost" style="color:#ef4444">Eliminar sede</button>
+        <div class="flex gap-2">
+          <button id="cancelEditLocation" class="btn-ghost">Cancelar</button>
+          <button id="saveEditLocation" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+      <p id="editLocMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal nuevo dispositivo -->
+  <div id="deviceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Nuevo dispositivo NFC</h3>
+        <button id="closeDeviceModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Sede</label>
+      <select id="devLocation" class="input w-full text-sm"></select>
+      <label class="block text-sm font-medium mb-1 mt-3">Etiqueta del punto</label>
+      <input id="devLabel" type="text" class="input w-full" placeholder="Ej: Entrada principal" />
+      <label class="block text-sm font-medium mb-1 mt-3">Target URL (destino)</label>
+      <input id="devTarget" type="url" class="input w-full" placeholder="https://…" />
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelDevice" class="btn-ghost">Cancelar</button>
+        <button id="saveDevice" class="btn-primary">Crear dispositivo</button>
+      </div>
+      <p id="devMsg" class="text-sm mt-3"></p>
+      <!-- Resultado: URL para grabar en la tarjeta -->
+      <div id="devResult" class="hidden mt-4 p-3 rounded-lg" style="background: rgba(99,102,241,0.1);">
+        <p class="text-sm font-medium mb-1 section-title-icon"><span class="txt-emerald" data-icon="check"></span> Dispositivo creado. URL para grabar en la tarjeta NFC:</p>
+        <p id="devResultUrl" class="text-xs font-mono break-all"></p>
+        <button id="copyResultUrl" class="btn-ghost text-sm mt-2 section-title-icon"><span data-icon="copy"></span> Copiar URL</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-lg bg-slate-900 text-white text-sm shadow-lg"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

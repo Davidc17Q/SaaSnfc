@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresar · NFCloud</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/icons.js"></script>
+</head>
+<body class="min-h-screen">
+  <div class="login-split">
+
+    <!-- Hero / Branding -->
+    <aside class="login-hero">
+      <div class="login-hero-glow"></div>
+      <div class="login-hero-content">
+        <div class="login-brand">
+          <div class="login-logo-img"><img src="/logo.png" alt="NFCloud" /></div>
+          <div>
+            <p class="brand-name leading-tight">NFCloud</p>
+            <p class="brand-sub">Plataforma de analítica NFC</p>
+          </div>
+        </div>
+        <h1 class="login-hero-title">Controla y mide tus puntos de interacción física en tiempo real</h1>
+        <p class="login-hero-desc">
+          Redirección dinámica y analítica para tus dispositivos NFC. Cambia destinos al instante,
+          mide cada escaneo y detecta soportes inactivos, todo desde un solo panel.
+        </p>
+        <ul class="login-hero-features">
+          <li><span data-icon="activity" data-icon-size="16"></span> Analítica en tiempo real por sede</li>
+          <li><span data-icon="target" data-icon-size="16"></span> Redirección dinámica sin reimprimir</li>
+          <li><span data-icon="stethoscope" data-icon-size="16"></span> Alertas de soportes inactivos</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Formulario -->
+    <main class="login-form-side">
+      <div class="login-card">
+        <!-- Marca compacta visible en móvil -->
+        <div class="login-brand login-brand-mobile">
+          <div class="login-logo-img"><img src="/logo.png" alt="NFCloud" /></div>
+          <div>
+            <p class="brand-name leading-tight">NFCloud</p>
+            <p class="brand-sub">Plataforma de analítica NFC</p>
+          </div>
+        </div>
+
+        <h2 class="text-xl font-bold" style="margin-bottom:0.25rem">Iniciar sesión</h2>
+        <p class="text-sm text-slate-500" style="margin-bottom:1.5rem">Accede al panel de control</p>
+
+        <label class="block text-sm font-medium mb-1">Usuario</label>
+        <div class="field">
+          <span class="field-icon" data-icon="user"></span>
+          <input id="user" type="text" class="field-input" autocomplete="username" placeholder="Tu usuario" />
+        </div>
+
+        <label class="block text-sm font-medium mb-1 mt-4">Contraseña</label>
+        <div class="field">
+          <span class="field-icon" data-icon="lock"></span>
+          <input id="password" type="password" class="field-input" autocomplete="current-password" placeholder="Tu contraseña" />
+          <button type="button" id="togglePw" class="field-toggle" title="Mostrar u ocultar" data-icon="eye"></button>
+        </div>
+
+        <label class="remember">
+          <input type="checkbox" id="remember" checked />
+          <span class="remember-box"></span>
+          <span class="text-sm">Recordar mi sesión</span>
+        </label>
+
+        <button id="loginBtn" class="btn-login">Ingresar</button>
+        <p id="loginMsg" class="text-sm" style="margin-top:0.85rem;min-height:1.2rem"></p>
+      </div>
+    </main>
+
+  </div>
+  <script src="/login.js"></script>
+</body>
+</html>
