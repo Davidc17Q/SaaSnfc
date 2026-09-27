@@ -41,6 +41,18 @@ function buildFilters(q: any): { where: string; params: any[] } {
   return { where, params };
 }
 
+/** Construye el WHERE para el alcance de un cambio masivo (all | brand | location). */
+function bulkScopeWhere(scope?: string, value?: string): { where: string; params: any[] } {
+  if (scope === 'brand' && value) {
+    return { where: 'WHERE l.brand = $1', params: [value] };
+  }
+  if (scope === 'location' && value) {
+    return { where: 'WHERE l.id = $1', params: [value] };
+  }
+  // 'all' o por defecto: todos los dispositivos
+  return { where: '', params: [] };
+}
+
 export async function apiRoutes(app: FastifyInstance) {
   // ---------- KPIs ----------
   app.get('/api/kpis', async (req) => {
@@ -663,6 +675,172 @@ export async function apiRoutes(app: FastifyInstance) {
       device,
       redirectPath: `/r/${device.device_id}`,
     });
+  });
+
+  // ---------- Marcas disponibles (para el alcance de cambios masivos) ----------
+  app.get('/api/brands', async () => {
+    const rows = await query<{ brand: string; locations: string }>(
+      `SELECT brand, COUNT(*) AS locations FROM locations GROUP BY brand ORDER BY brand ASC`
+    );
+    return rows.map((r) => ({ brand: r.brand, locations: parseInt(r.locations, 10) }));
+  });
+
+  // ---------- Previsualizar alcance de un cambio masivo ----------
+  app.get<{ Querystring: { scope?: string; value?: string } }>(
+    '/api/devices/bulk-preview',
+    async (req) => {
+      const { scope, value } = req.query;
+      const { where, params } = bulkScopeWhere(scope, value);
+      const rows = await query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM devices d
+           JOIN locations l ON l.id = d.location_id ${where}`,
+        params
+      );
+      return { affected: parseInt(rows[0]?.count || '0', 10) };
+    }
+  );
+
+  // ---------- Cambio masivo de destino (campaña) ----------
+  app.post<{
+    Body: { scope?: string; value?: string; target_url?: string };
+  }>('/api/devices/bulk-update', async (req, reply) => {
+    const { scope, value, target_url } = req.body || {};
+
+    if (!target_url) {
+      return reply.code(400).send({ error: 'La nueva URL es obligatoria.' });
+    }
+    try {
+      // eslint-disable-next-line no-new
+      new URL(target_url);
+    } catch {
+      return reply.code(400).send({ error: 'URL inválida.' });
+    }
+    if (scope !== 'all' && scope !== 'brand' && scope !== 'location') {
+      return reply.code(400).send({ error: 'Alcance inválido.' });
+    }
+    if ((scope === 'brand' || scope === 'location') && !value) {
+      return reply.code(400).send({ error: 'Falta el valor del alcance.' });
+    }
+
+    const { where, params } = bulkScopeWhere(scope, value);
+
+    // Snapshot previo (para revertir) de los dispositivos afectados
+    const before = await query<{ device_id: string; target_url: string; location_id: string }>(
+      `SELECT d.id AS device_id, d.target_url, d.location_id
+         FROM devices d JOIN locations l ON l.id = d.location_id ${where}`,
+      params
+    );
+    if (before.length === 0) {
+      return reply.code(404).send({ error: 'No hay dispositivos en ese alcance.' });
+    }
+
+    // Etiqueta legible del alcance
+    let scopeLabel = 'Todas las sedes';
+    if (scope === 'brand') scopeLabel = `Marca: ${value}`;
+    else if (scope === 'location') {
+      const loc = await query<{ name: string }>('SELECT name FROM locations WHERE id = $1', [
+        value,
+      ]);
+      scopeLabel = `Sede: ${loc[0]?.name || value}`;
+    }
+
+    // Actualización en lote
+    const updated = await query<{ device_id: string; location_id: string; status: string }>(
+      `UPDATE devices SET target_url = $1, updated_at = now()
+         WHERE id IN (
+           SELECT d.id FROM devices d JOIN locations l ON l.id = d.location_id ${where}
+         )
+       RETURNING id AS device_id, location_id, status`,
+      [target_url, ...params]
+    );
+
+    // Refrescar caché Redis de todos los afectados
+    try {
+      const pipe = redis.pipeline();
+      for (const d of updated) {
+        pipe.set(
+          deviceCacheKey(d.device_id),
+          JSON.stringify({
+            device_id: d.device_id,
+            location_id: d.location_id,
+            target_url,
+            status: d.status,
+          }),
+          'EX',
+          3600
+        );
+      }
+      await pipe.exec();
+    } catch {
+      /* ignore */
+    }
+
+    // Registrar en el historial con el snapshot para poder revertir
+    const snapshot = before.map((b) => ({ device_id: b.device_id, target_url: b.target_url }));
+    const hist = await query<{ id: string }>(
+      `INSERT INTO bulk_updates (scope, scope_label, new_url, affected, snapshot)
+       VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING id`,
+      [scope, scopeLabel, target_url, updated.length, JSON.stringify(snapshot)]
+    );
+
+    return { ok: true, affected: updated.length, historyId: hist[0]?.id, scopeLabel };
+  });
+
+  // ---------- Historial de cambios masivos ----------
+  app.get('/api/bulk-updates', async () => {
+    const rows = await query(
+      `SELECT id, scope, scope_label, new_url, affected, reverted, created_at
+         FROM bulk_updates ORDER BY created_at DESC LIMIT 30`
+    );
+    return rows;
+  });
+
+  // ---------- Revertir un cambio masivo ----------
+  app.post<{ Params: { id: string } }>('/api/bulk-updates/:id/revert', async (req, reply) => {
+    const { id } = req.params;
+    const rows = await query<{ snapshot: any; reverted: boolean }>(
+      `SELECT snapshot, reverted FROM bulk_updates WHERE id = $1`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return reply.code(404).send({ error: 'Registro no encontrado.' });
+    }
+    if (rows[0].reverted) {
+      return reply.code(400).send({ error: 'Este cambio ya fue revertido.' });
+    }
+
+    const snapshot: { device_id: string; target_url: string }[] = rows[0].snapshot || [];
+    let restored = 0;
+    for (const s of snapshot) {
+      const res = await pool.query(
+        `UPDATE devices SET target_url = $1, updated_at = now()
+           WHERE id = $2
+         RETURNING id AS device_id, location_id, status`,
+        [s.target_url, s.device_id]
+      );
+      if (res.rowCount) {
+        const d = res.rows[0];
+        try {
+          await redis.set(
+            deviceCacheKey(d.device_id),
+            JSON.stringify({
+              device_id: d.device_id,
+              location_id: d.location_id,
+              target_url: s.target_url,
+              status: d.status,
+            }),
+            'EX',
+            3600
+          );
+        } catch {
+          /* ignore */
+        }
+        restored++;
+      }
+    }
+
+    await pool.query('UPDATE bulk_updates SET reverted = true WHERE id = $1', [id]);
+    return { ok: true, restored };
   });
 
   // ---------- Diagnóstico de un dispositivo ----------

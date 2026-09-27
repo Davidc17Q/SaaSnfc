@@ -786,6 +786,133 @@ function renderDevicesTable(filter = '') {
 }
 
 // ---------------------------------------------------------------------------
+// Cambio masivo de destino (campañas)
+// ---------------------------------------------------------------------------
+async function openBulk() {
+  // Poblar marcas
+  const brands = await api('/api/brands');
+  $('#bulkBrand').innerHTML = brands
+    .map((b) => `<option value="${escapeHtml(b.brand)}">${escapeHtml(b.brand)} (${b.locations})</option>`)
+    .join('');
+  // Poblar sedes
+  $('#bulkLocation').innerHTML = state.locations
+    .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+    .join('');
+
+  $('#bulkScope').value = 'all';
+  $('#bulkBrandWrap').classList.add('hidden');
+  $('#bulkLocationWrap').classList.add('hidden');
+  $('#bulkUrl').value = '';
+  $('#bulkMsg').textContent = '';
+  await refreshBulkPreview();
+  await renderBulkHistory();
+
+  const m = $('#bulkModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+function closeBulk() {
+  const m = $('#bulkModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+function bulkScopeValue() {
+  const scope = $('#bulkScope').value;
+  let value = '';
+  if (scope === 'brand') value = $('#bulkBrand').value;
+  else if (scope === 'location') value = $('#bulkLocation').value;
+  return { scope, value };
+}
+async function refreshBulkPreview() {
+  const { scope, value } = bulkScopeValue();
+  try {
+    const p = new URLSearchParams({ scope });
+    if (value) p.set('value', value);
+    const res = await api(`/api/devices/bulk-preview?${p.toString()}`);
+    $('#bulkCount').textContent = fmt(res.affected);
+  } catch {
+    $('#bulkCount').textContent = '—';
+  }
+}
+async function applyBulk() {
+  const { scope, value } = bulkScopeValue();
+  const target_url = $('#bulkUrl').value.trim();
+  const msg = $('#bulkMsg');
+  try {
+    new URL(target_url);
+  } catch {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'URL inválida.';
+    return;
+  }
+  const count = $('#bulkCount').textContent;
+  if (!confirm(`Vas a cambiar el destino de ${count} dispositivos. Esta acción se puede revertir. ¿Continuar?`)) {
+    return;
+  }
+
+  const res = await fetch('/api/devices/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ scope, value, target_url }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    msg.style.color = '#dc2626';
+    msg.textContent = err.error || 'Error al aplicar el cambio.';
+    return;
+  }
+  const data = await res.json();
+  msg.textContent = '';
+  await Promise.all([loadDevices(), renderBulkHistory()]);
+  renderDevicesTable($('#devSearch').value);
+  toast(`Campaña aplicada a ${data.affected} dispositivos`);
+}
+async function renderBulkHistory() {
+  const rows = await api('/api/bulk-updates');
+  const box = $('#bulkHistory');
+  if (!rows.length) {
+    box.innerHTML = '<p class="text-sm text-slate-500">Sin campañas registradas.</p>';
+    return;
+  }
+  box.innerHTML = rows
+    .map((r) => {
+      const date = new Date(r.created_at).toLocaleString('es-CO');
+      const action = r.reverted
+        ? '<span class="reverted-tag">Revertida</span>'
+        : `<button class="revert-btn" data-id="${r.id}">Revertir</button>`;
+      return `
+      <div class="bulk-hist-item">
+        <div style="min-width:0">
+          <div style="font-weight:600">${escapeHtml(r.scope_label)} · ${r.affected} disp.</div>
+          <div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(r.new_url)}</div>
+          <div class="muted">${date}</div>
+        </div>
+        ${action}
+      </div>`;
+    })
+    .join('');
+
+  box.querySelectorAll('.revert-btn').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('¿Revertir esta campaña y restaurar los destinos anteriores?')) return;
+      const res = await fetch(`/api/bulk-updates/${b.dataset.id}/revert`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        toast('No se pudo revertir.', false);
+        return;
+      }
+      const data = await res.json();
+      await Promise.all([loadDevices(), renderBulkHistory()]);
+      renderDevicesTable($('#devSearch').value);
+      toast(`Revertido: ${data.restored} dispositivos restaurados`);
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Generador de QR dinámico
 // ---------------------------------------------------------------------------
 function openQr(id) {
@@ -1324,6 +1451,23 @@ function setupCreateModals() {
   $('#qrModal').addEventListener('click', (e) => {
     if (e.target.id === 'qrModal') closeQr();
   });
+
+  // Modal cambio masivo
+  $('#bulkBtn').addEventListener('click', openBulk);
+  $('#closeBulkModal').addEventListener('click', closeBulk);
+  $('#cancelBulk').addEventListener('click', closeBulk);
+  $('#applyBulk').addEventListener('click', applyBulk);
+  $('#bulkModal').addEventListener('click', (e) => {
+    if (e.target.id === 'bulkModal') closeBulk();
+  });
+  $('#bulkScope').addEventListener('change', () => {
+    const s = $('#bulkScope').value;
+    $('#bulkBrandWrap').classList.toggle('hidden', s !== 'brand');
+    $('#bulkLocationWrap').classList.toggle('hidden', s !== 'location');
+    refreshBulkPreview();
+  });
+  $('#bulkBrand').addEventListener('change', refreshBulkPreview);
+  $('#bulkLocation').addEventListener('change', refreshBulkPreview);
 }
 
 async function init() {

@@ -319,6 +319,7 @@
             <h3 class="font-semibold">Dispositivos NFC</h3>
             <div class="flex items-center gap-2">
               <input id="devSearch" type="text" placeholder="Buscar dispositivo o sede…" class="input text-sm w-64" />
+              <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
               <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
             </div>
           </div>
@@ -357,6 +358,51 @@
       <p class="text-xs text-slate-500" style="margin-top:0.85rem">
         Imprime este QR o grábalo en la tarjeta NFC. El destino se cambia desde el panel sin reimprimir.
       </p>
+    </div>
+  </div>
+
+  <!-- Modal cambio masivo (campaña) -->
+  <div id="bulkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Cambio masivo de destino</h3>
+        <button id="closeBulkModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <p class="text-sm text-slate-500" style="margin-bottom:1rem">
+        Cambia el destino de varios puntos NFC a la vez. Ideal para lanzar una campaña sin tocar las tarjetas.
+      </p>
+
+      <label class="block text-sm font-medium mb-1">Alcance</label>
+      <select id="bulkScope" class="input w-full text-sm">
+        <option value="all">Todas las sedes</option>
+        <option value="brand">Por marca / cadena</option>
+        <option value="location">Una sede específica</option>
+      </select>
+
+      <div id="bulkBrandWrap" class="hidden" style="margin-top:0.75rem">
+        <label class="block text-sm font-medium mb-1">Marca</label>
+        <select id="bulkBrand" class="input w-full text-sm"></select>
+      </div>
+      <div id="bulkLocationWrap" class="hidden" style="margin-top:0.75rem">
+        <label class="block text-sm font-medium mb-1">Sede</label>
+        <select id="bulkLocation" class="input w-full text-sm"></select>
+      </div>
+
+      <label class="block text-sm font-medium mb-1 mt-3">Nueva Target URL</label>
+      <input id="bulkUrl" type="url" class="input w-full" placeholder="https://…" />
+
+      <div class="bulk-preview" id="bulkPreview">Se actualizarán <b id="bulkCount">—</b> dispositivos.</div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="cancelBulk" class="btn-ghost">Cancelar</button>
+        <button id="applyBulk" class="btn-primary">Aplicar cambio</button>
+      </div>
+      <p id="bulkMsg" class="text-sm mt-3"></p>
+
+      <div style="margin-top:1.25rem;border-top:1px solid var(--card-border);padding-top:1rem">
+        <h4 class="font-semibold text-sm" style="margin-bottom:0.5rem">Historial de campañas</h4>
+        <div id="bulkHistory" class="bulk-history"></div>
+      </div>
     </div>
   </div>
 

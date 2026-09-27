@@ -281,7 +281,31 @@ thead.bg-slate-50 { background: #f8fafc; }
 .dark thead.bg-slate-50 { background: rgba(30,41,59,0.5); }
 
 /* Modales visibles cuando tienen .flex */
-#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex, #qrModal.flex { display: flex; }
+#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex, #qrModal.flex, #bulkModal.flex { display: flex; }
+.bulk-preview {
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgba(99,102,241,0.1);
+  font-size: 0.85rem;
+}
+.bulk-history { display: flex; flex-direction: column; gap: 0.4rem; max-height: 12rem; overflow-y: auto; }
+.bulk-hist-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.5rem;
+  background: var(--input-bg);
+  font-size: 0.8rem;
+}
+.bulk-hist-item .muted { color: var(--muted); font-size: 0.72rem; }
+.bulk-hist-item .revert-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--card-border);
+  background: transparent; color: var(--input-text);
+  border-radius: 0.45rem; padding: 0.25rem 0.6rem; font-size: 0.72rem; cursor: pointer;
+}
+.bulk-hist-item .revert-btn:hover { background: var(--hover); }
+.bulk-hist-item .reverted-tag { color: var(--muted); font-size: 0.72rem; }
 .qr-box {
   display: inline-flex;
   padding: 0.85rem;

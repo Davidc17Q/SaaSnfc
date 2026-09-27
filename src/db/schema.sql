@@ -37,6 +37,20 @@ CREATE TABLE IF NOT EXISTS scan_events (
 -- Migración segura para bases existentes
 ALTER TABLE scan_events ADD COLUMN IF NOT EXISTS channel TEXT NOT NULL DEFAULT 'Otro';
 
+-- Historial de campañas / cambios masivos de destino (para poder revertir)
+CREATE TABLE IF NOT EXISTS bulk_updates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope       TEXT        NOT NULL,              -- all | brand | location
+  scope_label TEXT        NOT NULL,              -- descripción legible del alcance
+  new_url     TEXT        NOT NULL,
+  affected    INT         NOT NULL DEFAULT 0,
+  -- snapshot previo: [{ device_id, target_url }] para revertir
+  snapshot    JSONB       NOT NULL DEFAULT '[]',
+  reverted    BOOLEAN     NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bulk_created ON bulk_updates(created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_devices_location   ON devices(location_id);
 CREATE INDEX IF NOT EXISTS idx_scan_device        ON scan_events(device_id);
 CREATE INDEX IF NOT EXISTS idx_scan_location      ON scan_events(location_id);
