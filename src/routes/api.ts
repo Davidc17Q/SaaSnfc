@@ -41,13 +41,21 @@ function buildFilters(q: any): { where: string; params: any[] } {
   return { where, params };
 }
 
-/** Construye el WHERE para el alcance de un cambio masivo (all | brand | location). */
-function bulkScopeWhere(scope?: string, value?: string): { where: string; params: any[] } {
+/**
+ * Construye el WHERE para el alcance de un cambio masivo (all | brand | location).
+ * `startAt` indica el número de placeholder inicial ($1 por defecto), para poder
+ * anteponer otros parámetros (ej. target_url) en la misma consulta.
+ */
+function bulkScopeWhere(
+  scope?: string,
+  value?: string,
+  startAt = 1
+): { where: string; params: any[] } {
   if (scope === 'brand' && value) {
-    return { where: 'WHERE l.brand = $1', params: [value] };
+    return { where: `WHERE l.brand = $${startAt}`, params: [value] };
   }
   if (scope === 'location' && value) {
-    return { where: 'WHERE l.id = $1', params: [value] };
+    return { where: `WHERE l.id = $${startAt}`, params: [value] };
   }
   // 'all' o por defecto: todos los dispositivos
   return { where: '', params: [] };
@@ -722,7 +730,8 @@ export async function apiRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: 'Falta el valor del alcance.' });
     }
 
-    const { where, params } = bulkScopeWhere(scope, value);
+    // Para el SELECT/preview el scope empieza en $1.
+    const { where, params } = bulkScopeWhere(scope, value, 1);
 
     // Snapshot previo (para revertir) de los dispositivos afectados
     const before = await query<{ device_id: string; target_url: string; location_id: string }>(
@@ -744,14 +753,15 @@ export async function apiRoutes(app: FastifyInstance) {
       scopeLabel = `Sede: ${loc[0]?.name || value}`;
     }
 
-    // Actualización en lote
+    // Actualización en lote. Aquí $1 es target_url, así que el scope empieza en $2.
+    const upd = bulkScopeWhere(scope, value, 2);
     const updated = await query<{ device_id: string; location_id: string; status: string }>(
       `UPDATE devices SET target_url = $1, updated_at = now()
          WHERE id IN (
-           SELECT d.id FROM devices d JOIN locations l ON l.id = d.location_id ${where}
+           SELECT d.id FROM devices d JOIN locations l ON l.id = d.location_id ${upd.where}
          )
        RETURNING id AS device_id, location_id, status`,
-      [target_url, ...params]
+      [target_url, ...upd.params]
     );
 
     // Refrescar caché Redis de todos los afectados
