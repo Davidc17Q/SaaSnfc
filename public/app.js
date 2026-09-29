@@ -1652,6 +1652,16 @@ function setupCreateModals() {
   $('#bulkBrand').addEventListener('change', refreshBulkPreview);
   $('#bulkLocation').addEventListener('change', refreshBulkPreview);
 
+  // Botón de respaldo: adjuntar la empresa seleccionada en el selector.
+  const backupBtn = $('#backupBtn');
+  if (backupBtn) {
+    backupBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+      window.location.href = `/api/export${cq}`;
+    });
+  }
+
   // Modal empresa
   $('#newCompanyBtn').addEventListener('click', openCompanyModal);
   $('#closeCompanyModal').addEventListener('click', closeCompanyModal);
