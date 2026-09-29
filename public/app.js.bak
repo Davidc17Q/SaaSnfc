@@ -97,15 +97,6 @@ function shiftOf(hour) {
 // ---------------------------------------------------------------------------
 // Navegación entre vistas
 // ---------------------------------------------------------------------------
-const VIEW_TITLES = {
-  dashboard: 'Panel de Control',
-  executive: 'Comparativa ejecutiva',
-  operations: 'Salud operativa',
-  locations: 'Sedes',
-  devices: 'Dispositivos NFC',
-  admin: 'Empresas y usuarios',
-};
-
 function setupNav() {
   const views = ['dashboard', 'executive', 'operations', 'locations', 'devices', 'admin'];
 
@@ -113,14 +104,10 @@ function setupNav() {
     views.forEach((v) => {
       $(`#view-${v}`).classList.toggle('hidden', v !== target);
     });
-    document.querySelectorAll('.nav-link').forEach((l) => {
+    // Sincronizar estado activo en sidebar Y en la barra superior
+    document.querySelectorAll('.nav-link, .topnav-link').forEach((l) => {
       l.classList.toggle('active', l.getAttribute('href') === `#${target}`);
     });
-    // Título de página dinámico
-    const t = $('#pageTitle');
-    if (t && VIEW_TITLES[target]) t.textContent = VIEW_TITLES[target];
-    // Cerrar el sidebar en móvil al navegar
-    closeSidebar();
     if (target === 'locations') renderLocationsTable($('#locSearch').value);
     if (target === 'devices') renderDevicesTable($('#devSearch').value);
     if (target === 'executive') loadExecutive();
@@ -128,31 +115,12 @@ function setupNav() {
     if (target === 'admin') loadAdmin();
   }
 
-  document.querySelectorAll('.nav-link').forEach((link) => {
+  document.querySelectorAll('.nav-link, .topnav-link').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       activate(link.getAttribute('href').slice(1));
     });
   });
-
-  // Toggle del sidebar (móvil)
-  const toggle = $('#sidebarToggle');
-  const overlay = $('#sidebarOverlay');
-  if (toggle) toggle.addEventListener('click', openSidebar);
-  if (overlay) overlay.addEventListener('click', closeSidebar);
-}
-
-function openSidebar() {
-  const sb = $('#appSidebar');
-  const ov = $('#sidebarOverlay');
-  if (sb) sb.classList.add('open');
-  if (ov) ov.classList.add('open');
-}
-function closeSidebar() {
-  const sb = $('#appSidebar');
-  const ov = $('#sidebarOverlay');
-  if (sb) sb.classList.remove('open');
-  if (ov) ov.classList.remove('open');
 }
 
 // ---------------------------------------------------------------------------

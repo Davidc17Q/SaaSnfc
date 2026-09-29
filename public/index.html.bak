@@ -16,74 +16,92 @@
   <script src="/icons.js"></script>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans antialiased">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen font-sans antialiased">
 
-  <!-- Layout: sidebar fija + contenido con scroll propio -->
-  <div class="app-shell">
-    <aside class="app-sidebar" id="appSidebar">
-      <div class="sidebar-brand">
+  <!-- Sidebar -->
+  <div class="flex">
+    <aside class="hidden lg:flex flex-col w-64 h-screen sticky top-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-6">
+      <div class="flex items-center gap-3 mb-10">
         <div class="brand-logo-plain"><img src="/logo-icono.png" alt="NFCloud" /></div>
         <div>
           <p class="brand-name leading-tight">NFCloud</p>
           <p class="brand-sub">Plataforma de analítica NFC</p>
         </div>
       </div>
-      <nav class="sidebar-nav">
-        <a href="#dashboard" class="nav-link active"><span data-icon="bar-chart-3"></span> Dashboard</a>
-        <a href="#executive" class="nav-link"><span data-icon="target"></span> Comparativa</a>
-        <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Salud operativa</a>
-        <a href="#locations" class="nav-link"><span data-icon="store"></span> Sedes</a>
-        <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
-        <a href="#admin" class="nav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
+      <nav class="space-y-1 text-sm">
+        <a href="#dashboard" class="nav-link active flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="bar-chart-3"></span> Dashboard
+        </a>
+        <a href="#executive" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="target"></span> Comparativa
+        </a>
+        <a href="#operations" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="stethoscope"></span> Salud operativa
+        </a>
+        <a href="#locations" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="store"></span> Sedes
+        </a>
+        <a href="#devices" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="nfc"></span> Dispositivos NFC
+        </a>
+        <a href="#admin" class="nav-link superadmin-only hidden flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="building"></span> Empresas
+        </a>
       </nav>
-      <div class="sidebar-footer">
+      <div class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
         <div id="healthBadge" class="text-xs text-slate-500 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-slate-400"></span> Comprobando…
         </div>
       </div>
     </aside>
 
-    <!-- Overlay para cerrar el sidebar en móvil -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Contenido principal -->
-    <main class="app-main">
-      <header class="app-header">
-        <div class="flex items-center gap-3 min-w-0">
-          <button id="sidebarToggle" class="btn-ghost sidebar-toggle" title="Menú"><span data-icon="menu"></span></button>
-          <div class="min-w-0">
-            <h1 class="text-xl font-bold" id="pageTitle">Panel de Control</h1>
-            <p class="text-sm text-slate-500 truncate">Cadena corporativa · <span id="locCount">—</span> sedes conectadas</p>
+    <!-- Main -->
+    <main class="flex-1 min-w-0">
+      <!-- Topbar -->
+      <header class="sticky top-0 z-20 backdrop-blur bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 px-6 py-4 space-y-3">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 class="text-xl font-bold">Panel de Control</h1>
+            <p class="text-sm text-slate-500">Cadena corporativa · <span id="locCount">—</span> sedes conectadas</p>
           </div>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap header-tools">
-          <div class="combo" id="locationCombo">
-            <input type="text" id="locationSearch" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" />
-            <input type="hidden" id="locationFilter" value="" />
-            <div id="locationOptions" class="combo-list hidden"></div>
-          </div>
-          <select id="companyFilter" class="input text-sm hidden" title="Empresa">
-            <option value="">Todas las empresas</option>
-          </select>
-          <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
-            <option value="">Todos los destinos</option>
-          </select>
-          <input type="date" id="fromDate" class="input text-sm" />
-          <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
-          <input type="date" id="toDate" class="input text-sm" />
-          <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
-          <button id="themeToggle" class="btn-ghost" title="Cambiar tema"></button>
-          <div class="user-menu">
-            <button id="userBtn" class="user-btn" title="Cuenta"><span data-icon="user"></span></button>
-            <div id="userDropdown" class="user-dropdown hidden">
-              <div class="user-dropdown-head">
-                <span data-icon="user"></span>
-                <span id="userName">admin</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="combo" id="locationCombo">
+              <input type="text" id="locationSearch" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" />
+              <input type="hidden" id="locationFilter" value="" />
+              <div id="locationOptions" class="combo-list hidden"></div>
+            </div>
+            <select id="companyFilter" class="input text-sm hidden" title="Empresa">
+              <option value="">Todas las empresas</option>
+            </select>
+            <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
+              <option value="">Todos los destinos</option>
+            </select>
+            <input type="date" id="fromDate" class="input text-sm" />
+            <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
+            <input type="date" id="toDate" class="input text-sm" />
+            <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
+            <button id="themeToggle" class="btn-ghost" title="Cambiar tema"></button>
+            <div class="user-menu">
+              <button id="userBtn" class="user-btn" title="Cuenta"><span data-icon="user"></span></button>
+              <div id="userDropdown" class="user-dropdown hidden">
+                <div class="user-dropdown-head">
+                  <span data-icon="user"></span>
+                  <span id="userName">admin</span>
+                </div>
+                <button id="logoutBtn" class="user-dropdown-item"><span data-icon="log-out"></span> Cerrar sesión</button>
               </div>
-              <button id="logoutBtn" class="user-dropdown-item"><span data-icon="log-out"></span> Cerrar sesión</button>
             </div>
           </div>
         </div>
+        <!-- Navegación principal (siempre visible, no depende del sidebar) -->
+        <nav class="topnav flex items-center gap-1">
+          <a href="#dashboard" class="topnav-link active"><span data-icon="bar-chart-3"></span> Dashboard</a>
+          <a href="#executive" class="topnav-link"><span data-icon="target"></span> Comparativa</a>
+          <a href="#operations" class="topnav-link"><span data-icon="stethoscope"></span> Salud operativa</a>
+          <a href="#locations" class="topnav-link"><span data-icon="store"></span> Sedes</a>
+          <a href="#devices" class="topnav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
+          <a href="#admin" class="topnav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
+        </nav>
       </header>
 
       <!-- Dashboard view -->
