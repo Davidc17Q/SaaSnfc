@@ -503,7 +503,8 @@ async function renderChannels() {
 // Tabla de sedes
 // ---------------------------------------------------------------------------
 async function loadLocations() {
-  state.locations = await api('/api/locations');
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  state.locations = await api(`/api/locations${cq}`);
   const cnt = $('#locCount');
   if (cnt) cnt.textContent = fmt(state.locations.length);
   renderComboOptions('');
@@ -687,7 +688,8 @@ async function deleteLocation(id) {
 // Tabla de dispositivos
 // ---------------------------------------------------------------------------
 async function loadDevices() {
-  state.devices = await api('/api/devices');
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  state.devices = await api(`/api/devices${cq}`);
 }
 
 function renderDevicesTable(filter = '') {
@@ -1169,7 +1171,8 @@ async function runCompare() {
 // Módulo de salud operativa
 // ---------------------------------------------------------------------------
 async function loadOperations() {
-  const res = await api('/api/health-status');
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  const res = await api(`/api/health-status${cq}`);
   state.opItems = res.items || [];
   $('#opActive').textContent = fmt(res.summary.active);
   $('#opLow').textContent = fmt(res.summary.low);
