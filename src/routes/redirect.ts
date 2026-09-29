@@ -1,8 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { pool } from '../db/pool';
-import { redis, deviceCacheKey } from '../db/redis';
+import { redis, deviceCacheKey, dedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
 import { detectChannel } from '../lib/channel';
+import { config } from '../config';
 import type { DeviceCache } from '../types';
 
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
@@ -105,14 +106,28 @@ export async function redirectRoutes(app: FastifyInstance) {
     const channel = detectChannel(device.target_url);
     const ua = req.headers['user-agent'] || null;
     const ip = req.ip;
-    setImmediate(() => {
-      pool
-        .query(
+    setImmediate(async () => {
+      try {
+        // Anti-doble-conteo: si el mismo dispositivo+IP escaneó hace poco,
+        // no se registra otro evento. Ventana configurable (SCAN_DEDUPE_SECONDS).
+        if (config.scanDedupeSeconds > 0) {
+          try {
+            const key = dedupeKey(device.device_id, ip || 'unknown');
+            // SET key con NX + EX: solo tiene éxito si no existe la clave.
+            const ok = await redis.set(key, '1', 'EX', config.scanDedupeSeconds, 'NX');
+            if (ok === null) return; // ya hubo un escaneo reciente: se ignora
+          } catch {
+            // Si Redis falla, seguimos y registramos igual (no perder datos).
+          }
+        }
+        await pool.query(
           `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [device.device_id, device.location_id, os, channel, ua, ip]
-        )
-        .catch((err) => console.error('[scan_event] insert error:', err.message));
+        );
+      } catch (err: any) {
+        console.error('[scan_event] insert error:', err.message);
+      }
     });
   });
 }

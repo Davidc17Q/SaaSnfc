@@ -13,3 +13,6 @@ redis.on('error', (err) => {
 
 /** Clave de caché para un dispositivo NFC. */
 export const deviceCacheKey = (deviceId: string) => `device:${deviceId}`;
+
+/** Clave para el anti-doble-conteo (dedupe) de escaneos por dispositivo+IP. */
+export const dedupeKey = (deviceId: string, ip: string) => `dedupe:${deviceId}:${ip}`;
