@@ -1307,6 +1307,34 @@ async function saveUser() {
   toast('Usuario creado');
 }
 
+// Cambio de empresa (superadmin): recarga y re-renderiza TODAS las vistas
+// para que sedes, dispositivos, comparativa y salud operativa muestren solo
+// la empresa seleccionada, sin importar cuál esté abierta.
+async function switchCompany() {
+  // Reiniciar filtros dependientes de empresa
+  state.locationId = '';
+  const ls = $('#locationSearch');
+  if (ls) ls.value = '';
+  const lf = $('#locationFilter');
+  if (lf) lf.value = '';
+  const os = $('#opSearch');
+  if (os) os.value = '';
+  const of = $('#opFilter');
+  if (of) of.value = '';
+
+  // Recargar datos base con el nuevo alcance de empresa.
+  await loadLocations();
+  await loadDevices();
+
+  // Re-renderizar todas las vistas para que ninguna quede con datos viejos.
+  await loadDashboard();
+  renderLocationsTable($('#locSearch') ? $('#locSearch').value : '');
+  renderDevicesTable($('#devSearch') ? $('#devSearch').value : '');
+  await renderBenchmark();
+  populateCompareSelectors(true);
+  await loadOperations();
+}
+
 // Refresca el selector de empresa de la barra superior tras crear una empresa.
 async function refreshCompanySelector() {
   const sel = $('#companyFilter');
@@ -1712,24 +1740,7 @@ async function initSession() {
       sel.classList.remove('hidden');
       sel.addEventListener('change', async () => {
         state.companyId = sel.value;
-        // Reiniciar filtros dependientes de empresa
-        state.locationId = '';
-        const ls = $('#locationSearch');
-        if (ls) ls.value = '';
-        const lf = $('#locationFilter');
-        if (lf) lf.value = '';
-        // Recargar todos los datos con el nuevo alcance de empresa.
-        await loadLocations();
-        await loadDevices();
-        await loadDashboard();
-        // Re-renderizar las tablas/vistas que dependen de los datos recargados.
-        renderLocationsTable($('#locSearch') ? $('#locSearch').value : '');
-        renderDevicesTable($('#devSearch') ? $('#devSearch').value : '');
-        if (!$('#view-executive').classList.contains('hidden')) {
-          await renderBenchmark();
-          populateCompareSelectors(true);
-        }
-        if (!$('#view-operations').classList.contains('hidden')) await loadOperations();
+        await switchCompany();
       });
     }
   } catch {
