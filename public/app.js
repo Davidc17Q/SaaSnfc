@@ -8,6 +8,7 @@ const state = {
   channel: '',
   companyId: '',
   role: null,
+  companies: [],
   charts: {},
   locations: [],
   devices: [],
@@ -97,7 +98,7 @@ function shiftOf(hour) {
 // Navegación entre vistas
 // ---------------------------------------------------------------------------
 function setupNav() {
-  const views = ['dashboard', 'executive', 'operations', 'locations', 'devices'];
+  const views = ['dashboard', 'executive', 'operations', 'locations', 'devices', 'admin'];
 
   function activate(target) {
     views.forEach((v) => {
@@ -111,6 +112,7 @@ function setupNav() {
     if (target === 'devices') renderDevicesTable($('#devSearch').value);
     if (target === 'executive') loadExecutive();
     if (target === 'operations') loadOperations();
+    if (target === 'admin') loadAdmin();
   }
 
   document.querySelectorAll('.nav-link, .topnav-link').forEach((link) => {
@@ -1084,17 +1086,16 @@ function renderRankList(sel, items, kind) {
     .join('');
 }
 
-function populateCompareSelectors() {
+function populateCompareSelectors(force = false) {
   const optsHtml = state.locations
     .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
     .join('');
   const a = $('#compareA');
   const bSel = $('#compareB');
-  // Solo poblar una vez para no perder la selección del usuario
-  if (a.options.length === 0) {
+  // Repoblar si se fuerza (cambio de empresa) o si aún no hay opciones.
+  if (force || a.options.length === 0) {
     a.innerHTML = optsHtml;
     bSel.innerHTML = optsHtml;
-    // Preseleccionar dos sedes distintas por defecto
     if (state.locations.length > 1) {
       a.selectedIndex = 0;
       bSel.selectedIndex = 1;
@@ -1174,6 +1175,154 @@ async function loadOperations() {
   $('#opLow').textContent = fmt(res.summary.low);
   $('#opAlert').textContent = fmt(res.summary.alert);
   renderOpTable();
+}
+
+// ---------------------------------------------------------------------------
+// Módulo admin: empresas y usuarios (solo superadmin)
+// ---------------------------------------------------------------------------
+async function loadAdmin() {
+  try {
+    const [companies, users] = await Promise.all([
+      api('/api/companies'),
+      api('/api/users'),
+    ]);
+    state.companies = companies;
+
+    const cbody = $('#companyTableBody');
+    cbody.innerHTML = companies.length
+      ? companies
+          .map(
+            (c) => `
+        <tr>
+          <td class="td font-medium">${escapeHtml(c.name)}</td>
+          <td class="td text-slate-500">${escapeHtml(c.slug)}</td>
+          <td class="td text-right">${fmt(c.locations ?? 0)}</td>
+        </tr>`
+          )
+          .join('')
+      : '<tr><td class="td text-slate-500" colspan="3">Sin empresas.</td></tr>';
+
+    const ubody = $('#userTableBody');
+    ubody.innerHTML = users.length
+      ? users
+          .map(
+            (u) => `
+        <tr>
+          <td class="td font-medium">${escapeHtml(u.username)}</td>
+          <td class="td text-slate-500">${escapeHtml(u.role)}</td>
+          <td class="td">${escapeHtml(u.company_name || '—')}</td>
+        </tr>`
+          )
+          .join('')
+      : '<tr><td class="td text-slate-500" colspan="3">Sin usuarios de cliente.</td></tr>';
+  } catch {
+    /* ignore */
+  }
+}
+
+function openCompanyModal() {
+  $('#companyName').value = '';
+  $('#companyMsg').textContent = '';
+  const m = $('#companyModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+function closeCompanyModal() {
+  const m = $('#companyModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+async function saveCompany() {
+  const name = $('#companyName').value.trim();
+  const msg = $('#companyMsg');
+  if (!name) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'El nombre es obligatorio.';
+    return;
+  }
+  const res = await fetch('/api/companies', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    msg.style.color = '#dc2626';
+    msg.textContent = err.error || 'Error al crear la empresa.';
+    return;
+  }
+  closeCompanyModal();
+  await loadAdmin();
+  await refreshCompanySelector();
+  toast('Empresa creada');
+}
+
+function openUserModal() {
+  const sel = $('#userCompany');
+  sel.innerHTML = (state.companies || [])
+    .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
+    .join('');
+  $('#userUsername').value = '';
+  $('#userPassword').value = '';
+  $('#userMsg').textContent = '';
+  const m = $('#userModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+function closeUserModal() {
+  const m = $('#userModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+async function saveUser() {
+  const company_id = $('#userCompany').value;
+  const username = $('#userUsername').value.trim();
+  const password = $('#userPassword').value;
+  const msg = $('#userMsg');
+  if (!company_id) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Selecciona una empresa.';
+    return;
+  }
+  if (!username || password.length < 6) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Usuario y contraseña (mín. 6 caracteres) requeridos.';
+    return;
+  }
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ username, password, company_id, role: 'company_admin' }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    msg.style.color = '#dc2626';
+    msg.textContent = err.error || 'Error al crear el usuario.';
+    return;
+  }
+  closeUserModal();
+  await loadAdmin();
+  toast('Usuario creado');
+}
+
+// Refresca el selector de empresa de la barra superior tras crear una empresa.
+async function refreshCompanySelector() {
+  const sel = $('#companyFilter');
+  if (!sel || state.role !== 'superadmin') return;
+  try {
+    const companies = await api('/api/companies');
+    const current = sel.value;
+    sel.innerHTML =
+      '<option value="">Todas las empresas</option>' +
+      companies
+        .map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${c.locations})</option>`)
+        .join('');
+    sel.value = current;
+  } catch {
+    /* ignore */
+  }
 }
 
 function renderOpTable() {
@@ -1471,6 +1620,24 @@ function setupCreateModals() {
   });
   $('#bulkBrand').addEventListener('change', refreshBulkPreview);
   $('#bulkLocation').addEventListener('change', refreshBulkPreview);
+
+  // Modal empresa
+  $('#newCompanyBtn').addEventListener('click', openCompanyModal);
+  $('#closeCompanyModal').addEventListener('click', closeCompanyModal);
+  $('#cancelCompany').addEventListener('click', closeCompanyModal);
+  $('#saveCompany').addEventListener('click', saveCompany);
+  $('#companyModal').addEventListener('click', (e) => {
+    if (e.target.id === 'companyModal') closeCompanyModal();
+  });
+
+  // Modal usuario
+  $('#newUserBtn').addEventListener('click', openUserModal);
+  $('#closeUserModal').addEventListener('click', closeUserModal);
+  $('#cancelUser').addEventListener('click', closeUserModal);
+  $('#saveUser').addEventListener('click', saveUser);
+  $('#userModal').addEventListener('click', (e) => {
+    if (e.target.id === 'userModal') closeUserModal();
+  });
 }
 
 async function init() {
@@ -1533,7 +1700,10 @@ async function initSession() {
 
     const sel = $('#companyFilter');
     if (me.role === 'superadmin' && sel) {
+      // Mostrar enlaces exclusivos de superadmin (pestaña Empresas)
+      document.querySelectorAll('.superadmin-only').forEach((el) => el.classList.remove('hidden'));
       const companies = await api('/api/companies');
+      state.companies = companies;
       sel.innerHTML =
         '<option value="">Todas las empresas</option>' +
         companies
@@ -1542,10 +1712,24 @@ async function initSession() {
       sel.classList.remove('hidden');
       sel.addEventListener('change', async () => {
         state.companyId = sel.value;
-        // Recargar todo el panel con el nuevo alcance de empresa.
+        // Reiniciar filtros dependientes de empresa
+        state.locationId = '';
+        const ls = $('#locationSearch');
+        if (ls) ls.value = '';
+        const lf = $('#locationFilter');
+        if (lf) lf.value = '';
+        // Recargar todos los datos con el nuevo alcance de empresa.
         await loadLocations();
         await loadDevices();
         await loadDashboard();
+        // Re-renderizar las tablas/vistas que dependen de los datos recargados.
+        renderLocationsTable($('#locSearch') ? $('#locSearch').value : '');
+        renderDevicesTable($('#devSearch') ? $('#devSearch').value : '');
+        if (!$('#view-executive').classList.contains('hidden')) {
+          await renderBenchmark();
+          populateCompareSelectors(true);
+        }
+        if (!$('#view-operations').classList.contains('hidden')) await loadOperations();
       });
     }
   } catch {

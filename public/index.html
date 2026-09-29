@@ -40,6 +40,9 @@
         <a href="#devices" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
           <span data-icon="nfc"></span> Dispositivos NFC
         </a>
+        <a href="#admin" class="nav-link superadmin-only hidden flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium">
+          <span data-icon="building"></span> Empresas
+        </a>
       </nav>
       <div class="mt-auto pt-6 border-t border-slate-200 dark:border-slate-800">
         <div id="healthBadge" class="text-xs text-slate-500 flex items-center gap-2">
@@ -93,6 +96,7 @@
           <a href="#operations" class="topnav-link"><span data-icon="stethoscope"></span> Salud operativa</a>
           <a href="#locations" class="topnav-link"><span data-icon="store"></span> Sedes</a>
           <a href="#devices" class="topnav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
+          <a href="#admin" class="topnav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
         </nav>
       </header>
 
@@ -342,7 +346,88 @@
           </div>
         </div>
       </section>
+
+      <!-- Admin: empresas y usuarios (solo superadmin) -->
+      <section id="view-admin" class="p-6 space-y-6 hidden">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div class="card overflow-hidden p-0">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+              <h3 class="font-semibold">Empresas</h3>
+              <button id="newCompanyBtn" class="btn-primary text-sm">+ Nueva empresa</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
+                  <tr>
+                    <th class="th">Empresa</th>
+                    <th class="th">Slug</th>
+                    <th class="th text-right">Sedes</th>
+                  </tr>
+                </thead>
+                <tbody id="companyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card overflow-hidden p-0">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+              <h3 class="font-semibold">Usuarios de cliente</h3>
+              <button id="newUserBtn" class="btn-primary text-sm">+ Nuevo usuario</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
+                  <tr>
+                    <th class="th">Usuario</th>
+                    <th class="th">Rol</th>
+                    <th class="th">Empresa</th>
+                  </tr>
+                </thead>
+                <tbody id="userTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
+  </div>
+
+  <!-- Modal nueva empresa -->
+  <div id="companyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Nueva empresa</h3>
+        <button id="closeCompanyModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Nombre de la empresa</label>
+      <input id="companyName" type="text" class="input w-full" placeholder="Ej: Hogar y Moda" />
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelCompany" class="btn-ghost">Cancelar</button>
+        <button id="saveCompany" class="btn-primary">Crear empresa</button>
+      </div>
+      <p id="companyMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal nuevo usuario -->
+  <div id="userModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Nuevo usuario de cliente</h3>
+        <button id="closeUserModal" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Empresa</label>
+      <select id="userCompany" class="input w-full text-sm"></select>
+      <label class="block text-sm font-medium mb-1 mt-3">Usuario</label>
+      <input id="userUsername" type="text" class="input w-full" placeholder="Ej: hogarymoda" autocomplete="off" />
+      <label class="block text-sm font-medium mb-1 mt-3">Contraseña</label>
+      <input id="userPassword" type="text" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="off" />
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelUser" class="btn-ghost">Cancelar</button>
+        <button id="saveUser" class="btn-primary">Crear usuario</button>
+      </div>
+      <p id="userMsg" class="text-sm mt-3"></p>
+    </div>
   </div>
 
   <!-- Modal QR -->

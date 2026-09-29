@@ -281,7 +281,7 @@ thead.bg-slate-50 { background: #f8fafc; }
 .dark thead.bg-slate-50 { background: rgba(30,41,59,0.5); }
 
 /* Modales visibles cuando tienen .flex */
-#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex, #qrModal.flex, #bulkModal.flex { display: flex; }
+#editModal.flex, #locationModal.flex, #deviceModal.flex, #editLocationModal.flex, #qrModal.flex, #bulkModal.flex, #companyModal.flex, #userModal.flex { display: flex; }
 .bulk-preview {
   margin-top: 0.85rem;
   padding: 0.6rem 0.8rem;
