@@ -1078,6 +1078,70 @@ export async function apiRoutes(app: FastifyInstance) {
     return rows;
   });
 
+  // ---------- Exportar datos (backup manual en JSON) ----------
+  app.get('/api/export', async (req, reply) => {
+    const s = getSession(req);
+    // Solo superadmin puede exportar todo; company_admin exporta solo su empresa.
+    const companyId = resolveCompanyId(req);
+
+    const locParams: any[] = [];
+    let locWhere = '';
+    if (companyId !== undefined) {
+      locParams.push(companyId);
+      locWhere = 'WHERE company_id = $1';
+    }
+
+    const companies =
+      s?.role === 'superadmin'
+        ? await query(`SELECT id, name, slug, status, created_at FROM companies ORDER BY name`)
+        : await query(`SELECT id, name, slug, status, created_at FROM companies WHERE id = $1`, [
+            companyId,
+          ]);
+
+    const locations = await query(
+      `SELECT id, name, brand, city, status, company_id, created_at
+         FROM locations ${locWhere} ORDER BY name`,
+      locParams
+    );
+
+    const devices = await query(
+      `SELECT d.id, d.location_id, d.label, d.target_url, d.status, d.created_at, d.updated_at
+         FROM devices d JOIN locations l ON l.id = d.location_id
+         ${locWhere ? 'WHERE l.company_id = $1' : ''}
+         ORDER BY d.location_id, d.label`,
+      locParams
+    );
+
+    const scans = await query(
+      `SELECT se.id, se.device_id, se.location_id, se.os, se.channel, se.scanned_at
+         FROM scan_events se JOIN locations l ON l.id = se.location_id
+         ${locWhere ? 'WHERE l.company_id = $1' : ''}
+         ORDER BY se.scanned_at`,
+      locParams
+    );
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      scope: companyId ?? 'all',
+      counts: {
+        companies: companies.length,
+        locations: locations.length,
+        devices: devices.length,
+        scan_events: scans.length,
+      },
+      companies,
+      locations,
+      devices,
+      scan_events: scans,
+    };
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    reply
+      .header('Content-Type', 'application/json; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="nfcloud-backup-${stamp}.json"`)
+      .send(JSON.stringify(payload, null, 2));
+  });
+
   // ---------- Health ----------
   app.get('/api/health', async () => {
     let db = false;

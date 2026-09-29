@@ -349,6 +349,15 @@
 
       <!-- Admin: empresas y usuarios (solo superadmin) -->
       <section id="view-admin" class="p-6 space-y-6 hidden">
+        <div class="card">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h3 class="font-semibold">Copia de seguridad de datos</h3>
+              <p class="text-sm text-slate-500">Descarga un respaldo (JSON) con empresas, sedes, dispositivos y escaneos.</p>
+            </div>
+            <a id="backupBtn" href="/api/export" class="btn-primary text-sm section-title-icon"><span data-icon="download"></span> Descargar respaldo</a>
+          </div>
+        </div>
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div class="card overflow-hidden p-0">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
