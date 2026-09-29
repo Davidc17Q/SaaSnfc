@@ -1,9 +1,26 @@
+export interface Company {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  created_at: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  role: 'superadmin' | 'company_admin';
+  company_id: string | null;
+  created_at: string;
+}
+
 export interface Location {
   id: string;
   name: string;
   brand: string;
   city: string;
   status: string;
+  company_id: string | null;
   created_at: string;
 }
 

@@ -1,18 +1,45 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes, scryptSync } from 'crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config';
+import { pool } from '../db/pool';
 
 const COOKIE_NAME = 'nfc_session';
 
-/** Firma un payload con HMAC-SHA256 -> "<payloadBase64>.<firma>". */
+export interface Session {
+  userId: string | null; // null = superadmin por env (bootstrap)
+  user: string;
+  role: 'superadmin' | 'company_admin';
+  companyId: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Hash de contraseñas (scrypt, sin dependencias externas)
+// ---------------------------------------------------------------------------
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = (stored || '').split(':');
+  if (!salt || !hash) return false;
+  const test = scryptSync(password, salt, 64).toString('hex');
+  const a = Buffer.from(test, 'hex');
+  const b = Buffer.from(hash, 'hex');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// ---------------------------------------------------------------------------
+// Firma y verificación del token de sesión
+// ---------------------------------------------------------------------------
 function sign(payload: string): string {
   const data = Buffer.from(payload).toString('base64url');
   const sig = createHmac('sha256', config.sessionSecret).update(data).digest('base64url');
   return `${data}.${sig}`;
 }
 
-/** Verifica el token; devuelve el payload si es válido y no ha expirado. */
-function verify(token: string | undefined): { user: string } | null {
+function verify(token: string | undefined): Session | null {
   if (!token || !token.includes('.')) return null;
   const [data, sig] = token.split('.');
   const expected = createHmac('sha256', config.sessionSecret).update(data).digest('base64url');
@@ -24,15 +51,19 @@ function verify(token: string | undefined): { user: string } | null {
     return null;
   }
   try {
-    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf-8'));
-    if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null;
-    return { user: payload.user };
+    const p = JSON.parse(Buffer.from(data, 'base64url').toString('utf-8'));
+    if (typeof p.exp !== 'number' || Date.now() > p.exp) return null;
+    return {
+      userId: p.userId ?? null,
+      user: p.user,
+      role: p.role,
+      companyId: p.companyId ?? null,
+    };
   } catch {
     return null;
   }
 }
 
-/** Lee la cookie de sesión del request (parseo manual, sin dependencias). */
 function readCookie(req: FastifyRequest): string | undefined {
   const raw = req.headers['cookie'];
   if (!raw) return undefined;
@@ -43,12 +74,13 @@ function readCookie(req: FastifyRequest): string | undefined {
   return undefined;
 }
 
-function isAuthenticated(req: FastifyRequest): boolean {
-  return verify(readCookie(req)) !== null;
+/** Devuelve la sesión del request (o null). Se expone para uso en las rutas. */
+export function getSession(req: FastifyRequest): Session | null {
+  return verify(readCookie(req));
 }
 
-/** Comparación de credenciales resistente a timing. */
-function credentialsMatch(user: string, pass: string): boolean {
+/** Bootstrap: ¿coincide con el superadmin definido por variables de entorno? */
+function matchesEnvSuperadmin(user: string, pass: string): boolean {
   const u = Buffer.from(user);
   const eu = Buffer.from(config.authUser);
   const p = Buffer.from(pass);
@@ -64,54 +96,88 @@ export async function authRoutes(app: FastifyInstance) {
     '/api/login',
     async (req, reply) => {
       const { user, password, remember } = req.body || {};
-      if (!user || !password || !credentialsMatch(user, password)) {
+      if (!user || !password) {
         return reply.code(401).send({ error: 'Usuario o contraseña incorrectos.' });
       }
+
+      let session: Session | null = null;
+
+      // 1) Superadmin por variables de entorno (bootstrap, siempre disponible)
+      if (matchesEnvSuperadmin(user, password)) {
+        session = { userId: null, user, role: 'superadmin', companyId: null };
+      } else {
+        // 2) Usuario en base de datos
+        try {
+          const rows = await pool.query(
+            `SELECT id, username, password_hash, role, company_id FROM users WHERE username = $1`,
+            [user]
+          );
+          const u = rows.rows[0];
+          if (u && verifyPassword(password, u.password_hash)) {
+            session = {
+              userId: u.id,
+              user: u.username,
+              role: u.role,
+              companyId: u.company_id,
+            };
+          }
+        } catch {
+          /* si la tabla users aún no existe, solo funciona el superadmin env */
+        }
+      }
+
+      if (!session) {
+        return reply.code(401).send({ error: 'Usuario o contraseña incorrectos.' });
+      }
+
       const exp = Date.now() + config.sessionHours * 3600 * 1000;
-      const token = sign(JSON.stringify({ user, exp }));
+      const token = sign(JSON.stringify({ ...session, exp }));
       const secure = config.publicBaseUrl.startsWith('https');
-      // Con "recordar": cookie persistente (Max-Age). Sin él: cookie de sesión.
-      const persist =
-        remember === false
-          ? ''
-          : `; Max-Age=${config.sessionHours * 3600}`;
+      const persist = remember === false ? '' : `; Max-Age=${config.sessionHours * 3600}`;
       reply.header(
         'Set-Cookie',
         `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${persist}${
           secure ? '; Secure' : ''
         }`
       );
-      return { ok: true };
+      return { ok: true, role: session.role };
     }
   );
 
   // Logout
   app.post('/api/logout', async (_req, reply) => {
-    reply.header(
-      'Set-Cookie',
-      `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`
-    );
+    reply.header('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
     return { ok: true };
   });
 
   // Estado de sesión
   app.get('/api/me', async (req) => {
-    const session = verify(readCookie(req));
-    return { authenticated: !!session, user: session?.user || null };
+    const s = getSession(req);
+    if (!s) return { authenticated: false, user: null };
+    // Nombre de empresa para company_admin
+    let companyName: string | null = null;
+    if (s.companyId) {
+      try {
+        const r = await pool.query('SELECT name FROM companies WHERE id = $1', [s.companyId]);
+        companyName = r.rows[0]?.name || null;
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      authenticated: true,
+      user: s.user,
+      role: s.role,
+      companyId: s.companyId,
+      companyName,
+    };
   });
 }
 
-/**
- * Hook global que protege el panel y la API de gestión, dejando públicos:
- * - el motor de redirección (/r/:id)
- * - los endpoints y la página de login
- * - los estáticos del login
- */
 export function registerAuthGuard(app: FastifyInstance) {
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
     const url = req.url.split('?')[0];
 
-    // Rutas públicas
     if (
       url.startsWith('/r/') ||
       url === '/api/login' ||
@@ -123,19 +189,18 @@ export function registerAuthGuard(app: FastifyInstance) {
       url === '/styles.css' ||
       url === '/icons.js' ||
       url === '/chart.umd.min.js' ||
+      url === '/qrcode.min.js' ||
       url === '/favicon.ico' ||
       /\.(png|jpe?g|svg|gif|webp|ico|woff2?|ttf)$/i.test(url)
     ) {
       return;
     }
 
-    if (isAuthenticated(req)) return;
+    if (getSession(req)) return;
 
-    // API protegida -> 401 JSON
     if (url.startsWith('/api/')) {
       return reply.code(401).send({ error: 'No autenticado.' });
     }
-    // Páginas -> redirigir al login
     return reply.redirect('/login');
   });
 }

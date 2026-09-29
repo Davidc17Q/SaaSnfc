@@ -1,6 +1,25 @@
 -- Esquema de la plataforma SaaS NFC B2B
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Empresas (tenants). Cada empresa agrupa sus propias sedes y usuarios.
+CREATE TABLE IF NOT EXISTS companies (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT        NOT NULL,
+  slug        TEXT        UNIQUE NOT NULL,       -- identificador legible (ej: hogar-y-moda)
+  status      TEXT        NOT NULL DEFAULT 'active',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Usuarios del panel. company_id NULL = superadmin (ve todo).
+CREATE TABLE IF NOT EXISTS users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username      TEXT UNIQUE NOT NULL,
+  password_hash TEXT        NOT NULL,            -- scrypt: salt:hash (hex)
+  role          TEXT        NOT NULL DEFAULT 'company_admin', -- superadmin | company_admin
+  company_id    UUID        REFERENCES companies(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Sedes / tiendas del cliente corporativo
 CREATE TABLE IF NOT EXISTS locations (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -8,8 +27,12 @@ CREATE TABLE IF NOT EXISTS locations (
   brand       TEXT        NOT NULL,              -- Marca / cadena a la que pertenece
   city        TEXT        NOT NULL,
   status      TEXT        NOT NULL DEFAULT 'active', -- active | inactive
+  company_id  UUID        REFERENCES companies(id) ON DELETE CASCADE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migración segura: añadir company_id a bases existentes
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
 
 -- Puntos / dispositivos NFC físicos
 CREATE TABLE IF NOT EXISTS devices (
@@ -57,3 +80,26 @@ CREATE INDEX IF NOT EXISTS idx_scan_location      ON scan_events(location_id);
 CREATE INDEX IF NOT EXISTS idx_scan_scanned_at    ON scan_events(scanned_at);
 CREATE INDEX IF NOT EXISTS idx_scan_os            ON scan_events(os);
 CREATE INDEX IF NOT EXISTS idx_scan_channel       ON scan_events(channel);
+CREATE INDEX IF NOT EXISTS idx_locations_company  ON locations(company_id);
+CREATE INDEX IF NOT EXISTS idx_users_company      ON users(company_id);
+
+-- ============================================================================
+-- BACKFILL MULTI-EMPRESA (idempotente y seguro para datos existentes)
+-- Crea una empresa por cada marca distinta y asigna las sedes sin empresa.
+-- ============================================================================
+INSERT INTO companies (name, slug)
+SELECT DISTINCT l.brand,
+       lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
+  FROM locations l
+ WHERE l.brand IS NOT NULL AND l.brand <> ''
+   AND NOT EXISTS (
+     SELECT 1 FROM companies c
+      WHERE c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
+   );
+
+-- Asignar cada sede a la empresa que corresponde a su marca
+UPDATE locations l
+   SET company_id = c.id
+  FROM companies c
+ WHERE l.company_id IS NULL
+   AND c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'));

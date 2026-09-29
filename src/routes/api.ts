@@ -2,19 +2,36 @@ import { FastifyInstance } from 'fastify';
 import { pool, query } from '../db/pool';
 import { redis, deviceCacheKey } from '../db/redis';
 import type { DeviceCache } from '../types';
+import { getSession, hashPassword } from '../lib/auth';
 
 // Zona horaria del negocio. Los escaneos se guardan en UTC (timestamptz),
 // pero los filtros de fecha del dashboard se interpretan en hora local.
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
-/** Construye cláusula de filtros comunes (rango de fechas + sede). */
-function buildFilters(q: any): { where: string; params: any[] } {
+/**
+ * Resuelve el company_id que debe aplicarse a la petición.
+ * - company_admin: SIEMPRE su propia empresa (no puede ver otras).
+ * - superadmin: la que pida por ?companyId=, o null = todas.
+ * Devuelve `undefined` cuando no hay que filtrar (superadmin viendo todo).
+ */
+function resolveCompanyId(req: any): string | undefined {
+  const s = getSession(req);
+  if (!s) return undefined;
+  if (s.role === 'company_admin') return s.companyId || '__none__';
+  // superadmin
+  const q = req.query as any;
+  return q.companyId ? String(q.companyId) : undefined;
+}
+
+/**
+ * Construye cláusula de filtros comunes.
+ * Requiere que la consulta una scan_events (se) con locations (l) cuando se
+ * filtra por empresa, ya que company_id vive en locations.
+ */
+function buildFilters(q: any, companyId?: string): { where: string; params: any[] } {
   const clauses: string[] = [];
   const params: any[] = [];
 
-  // Las fechas 'from'/'to' llegan como 'YYYY-MM-DD' y representan días en la
-  // zona horaria del negocio. Convertimos el inicio de cada día local al
-  // instante UTC correcto para comparar contra scanned_at (timestamptz).
   if (q.from) {
     params.push(q.from);
     clauses.push(
@@ -23,7 +40,6 @@ function buildFilters(q: any): { where: string; params: any[] } {
   }
   if (q.to) {
     params.push(q.to);
-    // Incluir todo el día 'to': hasta el inicio del día siguiente (hora local).
     clauses.push(
       `se.scanned_at < ((($${params.length}::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')`
     );
@@ -35,6 +51,12 @@ function buildFilters(q: any): { where: string; params: any[] } {
   if (q.channel) {
     params.push(q.channel);
     clauses.push(`se.channel = $${params.length}`);
+  }
+  if (companyId !== undefined) {
+    params.push(companyId);
+    clauses.push(
+      `se.location_id IN (SELECT id FROM locations WHERE company_id = $${params.length})`
+    );
   }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -49,30 +71,49 @@ function buildFilters(q: any): { where: string; params: any[] } {
 function bulkScopeWhere(
   scope?: string,
   value?: string,
-  startAt = 1
+  startAt = 1,
+  companyId?: string
 ): { where: string; params: any[] } {
+  const clauses: string[] = [];
+  const params: any[] = [];
   if (scope === 'brand' && value) {
-    return { where: `WHERE l.brand = $${startAt}`, params: [value] };
+    params.push(value);
+    clauses.push(`l.brand = $${startAt + params.length - 1}`);
+  } else if (scope === 'location' && value) {
+    params.push(value);
+    clauses.push(`l.id = $${startAt + params.length - 1}`);
   }
-  if (scope === 'location' && value) {
-    return { where: `WHERE l.id = $${startAt}`, params: [value] };
+  if (companyId !== undefined) {
+    params.push(companyId);
+    clauses.push(`l.company_id = $${startAt + params.length - 1}`);
   }
-  // 'all' o por defecto: todos los dispositivos
-  return { where: '', params: [] };
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return { where, params };
 }
 
 export async function apiRoutes(app: FastifyInstance) {
   // ---------- KPIs ----------
   app.get('/api/kpis', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const companyId = resolveCompanyId(req);
+    const { where, params } = buildFilters(q, companyId);
 
-    // Filtro de sede para las ventanas relativas de 7/30 días.
-    // (semana y mes son ventanas fijas de tiempo, pero sí deben respetar la sede)
-    const locClause = q.locationId ? `AND location_id = $1` : '';
-    const locParams = q.locationId ? [q.locationId] : [];
+    // Filtros para las ventanas relativas de 7/30 días (sede y/o empresa).
+    const winClauses: string[] = [];
+    const winParams: any[] = [];
+    if (q.locationId) {
+      winParams.push(q.locationId);
+      winClauses.push(`location_id = $${winParams.length}`);
+    }
+    if (companyId !== undefined) {
+      winParams.push(companyId);
+      winClauses.push(
+        `location_id IN (SELECT id FROM locations WHERE company_id = $${winParams.length})`
+      );
+    }
+    const winExtra = winClauses.length ? `AND ${winClauses.join(' AND ')}` : '';
 
-    // Total escaneos (según filtro completo), semana y mes (por sede si aplica)
+    // Total escaneos (según filtro completo), semana y mes
     const totalRow = await query<{ total: string }>(
       `SELECT COUNT(*) AS total FROM scan_events se ${where}`,
       params
@@ -82,8 +123,8 @@ export async function apiRoutes(app: FastifyInstance) {
          COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '7 days')  AS week,
          COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '30 days') AS month
        FROM scan_events
-       WHERE scanned_at >= now() - INTERVAL '30 days' ${locClause}`,
-      locParams
+       WHERE scanned_at >= now() - INTERVAL '30 days' ${winExtra}`,
+      winParams
     );
     const totals = [
       {
@@ -150,7 +191,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Tendencia diaria (gráfico de líneas) ----------
   app.get('/api/trend', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
 
     const rows = await query<{ day: string; scans: string }>(
       `SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
@@ -168,7 +209,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Top 10 sedes (gráfico de barras) ----------
   app.get('/api/top-locations', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
 
     const rows = await query<{ id: string; name: string; city: string; scans: string }>(
       `SELECT l.id, l.name, l.city, COUNT(*) AS scans
@@ -192,7 +233,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Distribución por hora (opcional para heatmap simple) ----------
   app.get('/api/hourly', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
 
     const rows = await query<{ hour: string; scans: string }>(
       `SELECT EXTRACT(HOUR FROM se.scanned_at AT TIME ZONE '${APP_TZ}')::int AS hour, COUNT(*) AS scans
@@ -211,7 +252,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Desglose por canal / destino (WhatsApp, Instagram, ...) ----------
   app.get('/api/channels', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
     const rows = await query<{ channel: string; scans: string }>(
       `SELECT se.channel, COUNT(*) AS scans
          FROM scan_events se
@@ -226,7 +267,8 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Tendencia avanzada (variación % + promedio de la cadena) ----------
   app.get('/api/trend-advanced', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const companyId = resolveCompanyId(req);
+    const { where, params } = buildFilters(q, companyId);
 
     // Serie diaria de la selección actual
     const series = await query<{ day: string; scans: string }>(
@@ -240,23 +282,33 @@ export async function apiRoutes(app: FastifyInstance) {
     );
 
     // Promedio de la cadena por día = escaneos totales del día / número de sedes activas.
-    // (contexto para saber si la selección está por encima o debajo de la media)
-    const avgFilters = buildFilters({ from: q.from, to: q.to }); // sin locationId
-    const chainAvg = await query<{ day: string; avg_scans: string }>(
-      `SELECT day, (total::numeric / NULLIF(loc_count, 0)) AS avg_scans
-         FROM (
-           SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
-                  COUNT(*) AS total
-             FROM scan_events se
-             ${avgFilters.where}
-             GROUP BY day
-         ) d
-         CROSS JOIN (SELECT COUNT(*) AS loc_count FROM locations WHERE status = 'active') c
+    // Acotado a la empresa (para company_admin y superadmin filtrando por empresa).
+    const avgFilters = buildFilters({ from: q.from, to: q.to }, companyId); // sin locationId
+    // Conteo de sedes activas del mismo alcance de empresa
+    const locCountParams: any[] = [];
+    let locCountWhere = `WHERE status = 'active'`;
+    if (companyId !== undefined) {
+      locCountParams.push(companyId);
+      locCountWhere += ` AND company_id = $1`;
+    }
+    const locCountRow = await query<{ c: string }>(
+      `SELECT COUNT(*) AS c FROM locations ${locCountWhere}`,
+      locCountParams
+    );
+    const locCount = parseInt(locCountRow[0]?.c || '0', 10) || 1;
+    const chainAvg = await query<{ day: string; total: string }>(
+      `SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
+              COUNT(*) AS total
+         FROM scan_events se
+         ${avgFilters.where}
+         GROUP BY day
          ORDER BY day ASC`,
       avgFilters.params
     );
     const avgMap: Record<string, number> = {};
-    for (const r of chainAvg) avgMap[r.day] = Math.round(parseFloat(r.avg_scans) || 0);
+    for (const r of chainAvg) {
+      avgMap[r.day] = Math.round((parseInt(r.total, 10) / locCount) || 0);
+    }
 
     // Total del periodo actual
     const currentTotal = series.reduce((a, r) => a + parseInt(r.scans, 10), 0);
@@ -271,6 +323,10 @@ export async function apiRoutes(app: FastifyInstance) {
       if (q.locationId) {
         prevParams.push(q.locationId);
         prevWhere += ` AND se.location_id = $${prevParams.length}`;
+      }
+      if (companyId !== undefined) {
+        prevParams.push(companyId);
+        prevWhere += ` AND se.location_id IN (SELECT id FROM locations WHERE company_id = $${prevParams.length})`;
       }
       const prevRow = await query<{ total: string }>(
         `SELECT COUNT(*) AS total FROM scan_events se WHERE ${prevWhere}`,
@@ -301,7 +357,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Benchmarking: Top 3 vs Bottom 3 + gap ----------
   app.get('/api/benchmark', async (req) => {
     const q = req.query as any;
-    const { where, params } = buildFilters(q);
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
 
     // Ranking de sedes por volumen en el periodo (solo sedes con actividad).
     const ranked = await query<{ id: string; name: string; city: string; scans: string }>(
@@ -345,9 +401,10 @@ export async function apiRoutes(app: FastifyInstance) {
       if (!q.a || !q.b) {
         return { error: 'Debes indicar dos sedes (a y b).' };
       }
+      const companyId = resolveCompanyId(req);
 
       async function seriesFor(locationId: string) {
-        const f = buildFilters({ from: q.from, to: q.to, locationId });
+        const f = buildFilters({ from: q.from, to: q.to, locationId }, companyId);
         const rows = await query<{ day: string; scans: string }>(
           `SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
                   COUNT(*) AS scans
@@ -393,7 +450,14 @@ export async function apiRoutes(app: FastifyInstance) {
   );
 
   // ---------- Salud operativa de sedes (alertas de inactividad) ----------
-  app.get('/api/health-status', async () => {
+  app.get('/api/health-status', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = `WHERE l.company_id = $1`;
+    }
     const rows = await query<{
       id: string;
       name: string;
@@ -407,8 +471,10 @@ export async function apiRoutes(app: FastifyInstance) {
               EXTRACT(EPOCH FROM (now() - MAX(se.scanned_at))) / 3600 AS hours_since
          FROM locations l
          LEFT JOIN scan_events se ON se.location_id = l.id
+         ${cWhere}
          GROUP BY l.id, l.name, l.city, l.status
-         ORDER BY hours_since DESC NULLS FIRST`
+         ORDER BY hours_since DESC NULLS FIRST`,
+      cParams
     );
 
     function classify(hoursSince: number | null): 'active' | 'low' | 'alert' {
@@ -441,7 +507,14 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ---------- Lista de sedes (tabla de gestión) ----------
-  app.get('/api/locations', async () => {
+  app.get('/api/locations', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = `WHERE l.company_id = $1`;
+    }
     const rows = await query(
       `SELECT
          l.id, l.name, l.brand, l.city, l.status,
@@ -453,8 +526,10 @@ export async function apiRoutes(app: FastifyInstance) {
          SELECT location_id, COUNT(*) AS total_clicks
            FROM scan_events GROUP BY location_id
        ) sc ON sc.location_id = l.id
+       ${cWhere}
        GROUP BY l.id, l.name, l.brand, l.city, l.status, sc.total_clicks
-       ORDER BY total_clicks DESC`
+       ORDER BY total_clicks DESC`,
+      cParams
     );
 
     return rows.map((r: any) => ({
@@ -480,13 +555,22 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ---------- Todos los dispositivos (para el selector de gestión) ----------
-  app.get('/api/devices', async () => {
+  app.get('/api/devices', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = `WHERE l.company_id = $1`;
+    }
     const rows = await query(
       `SELECT d.id, d.label, d.target_url, d.status, d.updated_at,
               l.name AS location_name, l.city AS location_city, l.id AS location_id
          FROM devices d
          JOIN locations l ON l.id = d.location_id
-         ORDER BY l.name ASC, d.label ASC`
+         ${cWhere}
+         ORDER BY l.name ASC, d.label ASC`,
+      cParams
     );
     return rows;
   });
@@ -548,9 +632,9 @@ export async function apiRoutes(app: FastifyInstance) {
 
   // ---------- Crear sede ----------
   app.post<{
-    Body: { name?: string; brand?: string; city?: string; status?: string };
+    Body: { name?: string; brand?: string; city?: string; status?: string; company_id?: string };
   }>('/api/locations', async (req, reply) => {
-    const { name, brand, city, status } = req.body || {};
+    const { name, brand, city, status, company_id } = req.body || {};
 
     if (!name || !name.trim()) {
       return reply.code(400).send({ error: 'El nombre es obligatorio.' });
@@ -560,11 +644,17 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const st = status === 'inactive' ? 'inactive' : 'active';
 
+    // Empresa: company_admin usa la suya; superadmin usa la enviada (o la del query).
+    const s = getSession(req);
+    let companyId: string | null = null;
+    if (s?.role === 'company_admin') companyId = s.companyId;
+    else companyId = company_id || (req.query as any).companyId || null;
+
     const result = await pool.query(
-      `INSERT INTO locations (name, brand, city, status)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, brand, city, status`,
-      [name.trim(), (brand || name).trim(), city.trim(), st]
+      `INSERT INTO locations (name, brand, city, status, company_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, brand, city, status, company_id`,
+      [name.trim(), (brand || name).trim(), city.trim(), st, companyId]
     );
 
     return reply.code(201).send({ ok: true, location: result.rows[0] });
@@ -657,10 +747,16 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const st = status === 'inactive' ? 'inactive' : 'active';
 
-    // Verificar que la sede exista
-    const loc = await pool.query('SELECT id FROM locations WHERE id = $1', [location_id]);
+    // Verificar que la sede exista y, si es company_admin, que sea de su empresa.
+    const s = getSession(req);
+    const loc = await pool.query('SELECT id, company_id FROM locations WHERE id = $1', [
+      location_id,
+    ]);
     if (loc.rowCount === 0) {
       return reply.code(404).send({ error: 'La sede indicada no existe.' });
+    }
+    if (s?.role === 'company_admin' && loc.rows[0].company_id !== s.companyId) {
+      return reply.code(403).send({ error: 'No autorizado para esta sede.' });
     }
 
     const result = await pool.query(
@@ -686,7 +782,15 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ---------- Marcas disponibles (para el alcance de cambios masivos) ----------
-  app.get('/api/brands', async () => {
+  app.get('/api/brands', async (req) => {
+    const companyId = resolveCompanyId(req);
+    if (companyId !== undefined) {
+      const rows = await query<{ brand: string; locations: string }>(
+        `SELECT brand, COUNT(*) AS locations FROM locations WHERE company_id = $1 GROUP BY brand ORDER BY brand ASC`,
+        [companyId]
+      );
+      return rows.map((r) => ({ brand: r.brand, locations: parseInt(r.locations, 10) }));
+    }
     const rows = await query<{ brand: string; locations: string }>(
       `SELECT brand, COUNT(*) AS locations FROM locations GROUP BY brand ORDER BY brand ASC`
     );
@@ -698,7 +802,7 @@ export async function apiRoutes(app: FastifyInstance) {
     '/api/devices/bulk-preview',
     async (req) => {
       const { scope, value } = req.query;
-      const { where, params } = bulkScopeWhere(scope, value);
+      const { where, params } = bulkScopeWhere(scope, value, 1, resolveCompanyId(req));
       const rows = await query<{ count: string }>(
         `SELECT COUNT(*) AS count FROM devices d
            JOIN locations l ON l.id = d.location_id ${where}`,
@@ -730,8 +834,11 @@ export async function apiRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: 'Falta el valor del alcance.' });
     }
 
+    // Alcance acotado por empresa cuando aplica.
+    const companyId = resolveCompanyId(req);
+
     // Para el SELECT/preview el scope empieza en $1.
-    const { where, params } = bulkScopeWhere(scope, value, 1);
+    const { where, params } = bulkScopeWhere(scope, value, 1, companyId);
 
     // Snapshot previo (para revertir) de los dispositivos afectados
     const before = await query<{ device_id: string; target_url: string; location_id: string }>(
@@ -754,7 +861,7 @@ export async function apiRoutes(app: FastifyInstance) {
     }
 
     // Actualización en lote. Aquí $1 es target_url, así que el scope empieza en $2.
-    const upd = bulkScopeWhere(scope, value, 2);
+    const upd = bulkScopeWhere(scope, value, 2, companyId);
     const updated = await query<{ device_id: string; location_id: string; status: string }>(
       `UPDATE devices SET target_url = $1, updated_at = now()
          WHERE id IN (
@@ -883,6 +990,92 @@ export async function apiRoutes(app: FastifyInstance) {
       serverNow: nowRow[0]?.now,
       serverTimezone: nowRow[0]?.tz,
     };
+  });
+
+  // ---------- Empresas: listar (superadmin ve todas; company_admin la suya) ----------
+  app.get('/api/companies', async (req) => {
+    const s = getSession(req);
+    if (s?.role === 'company_admin') {
+      const rows = await query(
+        `SELECT id, name, slug, status FROM companies WHERE id = $1`,
+        [s.companyId]
+      );
+      return rows;
+    }
+    const rows = await query(
+      `SELECT c.id, c.name, c.slug, c.status,
+              COUNT(DISTINCT l.id) AS locations
+         FROM companies c
+         LEFT JOIN locations l ON l.company_id = c.id
+         GROUP BY c.id, c.name, c.slug, c.status
+         ORDER BY c.name ASC`
+    );
+    return rows.map((r: any) => ({ ...r, locations: parseInt(r.locations, 10) }));
+  });
+
+  // ---------- Empresas: crear (solo superadmin) ----------
+  app.post<{ Body: { name?: string } }>('/api/companies', async (req, reply) => {
+    const s = getSession(req);
+    if (s?.role !== 'superadmin') {
+      return reply.code(403).send({ error: 'Solo el superadmin puede crear empresas.' });
+    }
+    const name = (req.body?.name || '').trim();
+    if (!name) return reply.code(400).send({ error: 'El nombre es obligatorio.' });
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    try {
+      const r = await pool.query(
+        `INSERT INTO companies (name, slug) VALUES ($1, $2) RETURNING id, name, slug, status`,
+        [name, slug]
+      );
+      return reply.code(201).send({ ok: true, company: r.rows[0] });
+    } catch (e: any) {
+      if (e.code === '23505') return reply.code(409).send({ error: 'Ya existe una empresa con ese nombre.' });
+      throw e;
+    }
+  });
+
+  // ---------- Usuarios: crear admin de empresa (solo superadmin) ----------
+  app.post<{ Body: { username?: string; password?: string; company_id?: string; role?: string } }>(
+    '/api/users',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (s?.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede crear usuarios.' });
+      }
+      const username = (req.body?.username || '').trim();
+      const password = req.body?.password || '';
+      const role = req.body?.role === 'superadmin' ? 'superadmin' : 'company_admin';
+      const company_id = role === 'company_admin' ? req.body?.company_id || null : null;
+      if (!username || password.length < 6) {
+        return reply.code(400).send({ error: 'Usuario y contraseña (mín. 6) requeridos.' });
+      }
+      if (role === 'company_admin' && !company_id) {
+        return reply.code(400).send({ error: 'Debe indicar la empresa del usuario.' });
+      }
+      try {
+        const r = await pool.query(
+          `INSERT INTO users (username, password_hash, role, company_id)
+           VALUES ($1, $2, $3, $4) RETURNING id, username, role, company_id`,
+          [username, hashPassword(password), role, company_id]
+        );
+        return reply.code(201).send({ ok: true, user: r.rows[0] });
+      } catch (e: any) {
+        if (e.code === '23505') return reply.code(409).send({ error: 'Ese usuario ya existe.' });
+        throw e;
+      }
+    }
+  );
+
+  // ---------- Usuarios: listar (solo superadmin) ----------
+  app.get('/api/users', async (req) => {
+    const s = getSession(req);
+    if (s?.role !== 'superadmin') return [];
+    const rows = await query(
+      `SELECT u.id, u.username, u.role, u.company_id, c.name AS company_name
+         FROM users u LEFT JOIN companies c ON c.id = u.company_id
+         ORDER BY u.created_at DESC`
+    );
+    return rows;
   });
 
   // ---------- Health ----------

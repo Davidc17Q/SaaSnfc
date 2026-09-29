@@ -6,6 +6,8 @@ const state = {
   to: '',
   locationId: '',
   channel: '',
+  companyId: '',
+  role: null,
   charts: {},
   locations: [],
   devices: [],
@@ -38,6 +40,7 @@ function qs() {
   if (state.to) p.set('to', state.to);
   if (state.locationId) p.set('locationId', state.locationId);
   if (state.channel) p.set('channel', state.channel);
+  if (state.companyId) p.set('companyId', state.companyId);
   const s = p.toString();
   return s ? `?${s}` : '';
 }
@@ -1499,13 +1502,8 @@ async function init() {
     document.addEventListener('click', (e) => {
       if (!$('.user-menu').contains(e.target)) userDropdown.classList.add('hidden');
     });
-    fetch('/api/me', { credentials: 'same-origin' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.user) $('#userName').textContent = d.user;
-      })
-      .catch(() => {});
   }
+  // El nombre de usuario, rol y selector de empresa se cargan en initSession().
   const logoutBtn = $('#logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
@@ -1514,6 +1512,8 @@ async function init() {
     });
   }
 
+  await initSession();
+
   await loadLocations();
   await loadDevices();
   await loadDashboard();
@@ -1521,6 +1521,36 @@ async function init() {
   setInterval(loadHealth, 15000);
   // Auto-refresco de datos cada 8 segundos (tiempo casi real, sin recargar la página).
   setInterval(autoRefresh, 8000);
+}
+
+// Carga la sesión: nombre de usuario, rol y (si es superadmin) el selector de empresa.
+async function initSession() {
+  try {
+    const me = await api('/api/me');
+    state.role = me.role || null;
+    const nameEl = $('#userName');
+    if (nameEl) nameEl.textContent = me.companyName ? `${me.user} · ${me.companyName}` : me.user;
+
+    const sel = $('#companyFilter');
+    if (me.role === 'superadmin' && sel) {
+      const companies = await api('/api/companies');
+      sel.innerHTML =
+        '<option value="">Todas las empresas</option>' +
+        companies
+          .map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${c.locations})</option>`)
+          .join('');
+      sel.classList.remove('hidden');
+      sel.addEventListener('change', async () => {
+        state.companyId = sel.value;
+        // Recargar todo el panel con el nuevo alcance de empresa.
+        await loadLocations();
+        await loadDevices();
+        await loadDashboard();
+      });
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 init().catch((err) => {

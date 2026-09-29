@@ -108,6 +108,8 @@ async function seed() {
 
   console.log('[seed] Limpiando datos anteriores...');
   await pool.query('TRUNCATE scan_events, devices, locations RESTART IDENTITY CASCADE');
+  // Limpiar empresas de demo (no borra usuarios superadmin por env).
+  await pool.query('DELETE FROM companies');
 
   const base = config.publicBaseUrl;
 
@@ -189,6 +191,25 @@ async function seed() {
   }
 
   console.log(`[seed] Dispositivos activos disponibles: ${deviceCatalog.length}`);
+
+  // --- Backfill de empresas: una por marca y asignación de sedes -------------
+  console.log('[seed] Creando empresas por marca y asignando sedes...');
+  await pool.query(
+    `INSERT INTO companies (name, slug)
+     SELECT DISTINCT l.brand, lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
+       FROM locations l
+      WHERE l.brand IS NOT NULL AND l.brand <> ''
+        AND NOT EXISTS (
+          SELECT 1 FROM companies c
+           WHERE c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
+        )`
+  );
+  await pool.query(
+    `UPDATE locations l SET company_id = c.id
+       FROM companies c
+      WHERE l.company_id IS NULL
+        AND c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))`
+  );
 
   // --- c) 15.000 eventos de escaneo -----------------------------------------
   console.log(`[seed] Generando ${TOTAL_SCAN_EVENTS} eventos de escaneo...`);
