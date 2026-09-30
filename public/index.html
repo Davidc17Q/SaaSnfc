@@ -80,6 +80,7 @@
                 <span data-icon="user"></span>
                 <span id="userName">admin</span>
               </div>
+              <button id="changePwBtn" class="user-dropdown-item"><span data-icon="lock"></span> Cambiar contraseña</button>
               <button id="logoutBtn" class="user-dropdown-item"><span data-icon="log-out"></span> Cerrar sesión</button>
             </div>
           </div>
@@ -355,8 +356,9 @@
                 <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 text-left">
                   <tr>
                     <th class="th">Empresa</th>
-                    <th class="th">Slug</th>
+                    <th class="th">Estado</th>
                     <th class="th text-right">Sedes</th>
+                    <th class="th text-right">Suscripción</th>
                   </tr>
                 </thead>
                 <tbody id="companyTableBody"></tbody>
@@ -422,6 +424,27 @@
         <button id="saveUser" class="btn-primary">Crear usuario</button>
       </div>
       <p id="userMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal cambiar contraseña -->
+  <div id="changePwModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-lg">Cambiar contraseña</h3>
+        <button id="closeChangePw" class="btn-ghost" data-icon="x"></button>
+      </div>
+      <label class="block text-sm font-medium mb-1">Contraseña actual</label>
+      <input id="pwCurrent" type="password" class="input w-full" autocomplete="current-password" />
+      <label class="block text-sm font-medium mb-1 mt-3">Nueva contraseña</label>
+      <input id="pwNext" type="password" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+      <label class="block text-sm font-medium mb-1 mt-3">Repetir nueva contraseña</label>
+      <input id="pwConfirm" type="password" class="input w-full" autocomplete="new-password" />
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelChangePw" class="btn-ghost">Cancelar</button>
+        <button id="saveChangePw" class="btn-primary">Guardar</button>
+      </div>
+      <p id="pwMsg" class="text-sm mt-3"></p>
     </div>
   </div>
 

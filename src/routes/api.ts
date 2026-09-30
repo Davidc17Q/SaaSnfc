@@ -1034,6 +1034,24 @@ export async function apiRoutes(app: FastifyInstance) {
     }
   });
 
+  // ---------- Empresas: activar/suspender (control de suscripción, solo superadmin) ----------
+  app.patch<{ Params: { id: string }; Body: { status?: string } }>(
+    '/api/companies/:id',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (s?.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede cambiar el estado.' });
+      }
+      const status = req.body?.status === 'inactive' ? 'inactive' : 'active';
+      const r = await pool.query(
+        `UPDATE companies SET status = $1 WHERE id = $2 RETURNING id, name, slug, status`,
+        [status, req.params.id]
+      );
+      if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
+      return { ok: true, company: r.rows[0] };
+    }
+  );
+
   // ---------- Usuarios: crear admin de empresa (solo superadmin) ----------
   app.post<{ Body: { username?: string; password?: string; company_id?: string; role?: string } }>(
     '/api/users',

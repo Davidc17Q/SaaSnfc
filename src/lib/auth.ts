@@ -109,11 +109,21 @@ export async function authRoutes(app: FastifyInstance) {
         // 2) Usuario en base de datos
         try {
           const rows = await pool.query(
-            `SELECT id, username, password_hash, role, company_id FROM users WHERE username = $1`,
+            `SELECT u.id, u.username, u.password_hash, u.role, u.company_id,
+                    c.status AS company_status
+               FROM users u
+               LEFT JOIN companies c ON c.id = u.company_id
+              WHERE u.username = $1`,
             [user]
           );
           const u = rows.rows[0];
           if (u && verifyPassword(password, u.password_hash)) {
+            // Suscripción: si la empresa del cliente está inactiva, se bloquea el acceso.
+            if (u.role === 'company_admin' && u.company_status === 'inactive') {
+              return reply.code(403).send({
+                error: 'Tu cuenta está suspendida. Contacta al administrador de la plataforma.',
+              });
+            }
             session = {
               userId: u.id,
               user: u.username,
@@ -172,6 +182,35 @@ export async function authRoutes(app: FastifyInstance) {
       companyName,
     };
   });
+
+  // Cambiar la propia contraseña (usuarios en BD; el superadmin por env no aplica).
+  app.post<{ Body: { current?: string; next?: string } }>(
+    '/api/change-password',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (!s) return reply.code(401).send({ error: 'No autenticado.' });
+      if (!s.userId) {
+        return reply.code(400).send({
+          error: 'El superadministrador cambia su clave desde las variables de entorno.',
+        });
+      }
+      const current = req.body?.current || '';
+      const next = req.body?.next || '';
+      if (next.length < 6) {
+        return reply.code(400).send({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+      }
+      const rows = await pool.query('SELECT password_hash FROM users WHERE id = $1', [s.userId]);
+      const u = rows.rows[0];
+      if (!u || !verifyPassword(current, u.password_hash)) {
+        return reply.code(400).send({ error: 'La contraseña actual no es correcta.' });
+      }
+      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+        hashPassword(next),
+        s.userId,
+      ]);
+      return { ok: true };
+    }
+  );
 }
 
 export function registerAuthGuard(app: FastifyInstance) {

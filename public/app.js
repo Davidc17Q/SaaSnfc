@@ -1226,16 +1226,28 @@ async function loadAdmin() {
     const cbody = $('#companyTableBody');
     cbody.innerHTML = companies.length
       ? companies
-          .map(
-            (c) => `
+          .map((c) => {
+            const active = c.status !== 'inactive';
+            const badge = active
+              ? '<span class="state-badge state-active"><span class="dot"></span> Activa</span>'
+              : '<span class="state-badge state-alert"><span class="dot"></span> Suspendida</span>';
+            const btn = active
+              ? `<button class="btn-ghost text-xs sub-toggle" data-id="${c.id}" data-next="inactive" style="border:1px solid var(--card-border)">Suspender</button>`
+              : `<button class="btn-primary text-xs sub-toggle" data-id="${c.id}" data-next="active">Activar</button>`;
+            return `
         <tr>
           <td class="td font-medium">${escapeHtml(c.name)}</td>
-          <td class="td text-slate-500">${escapeHtml(c.slug)}</td>
+          <td class="td">${badge}</td>
           <td class="td text-right">${fmt(c.locations ?? 0)}</td>
-        </tr>`
-          )
+          <td class="td text-right">${btn}</td>
+        </tr>`;
+          })
           .join('')
-      : '<tr><td class="td text-slate-500" colspan="3">Sin empresas.</td></tr>';
+      : '<tr><td class="td text-slate-500" colspan="4">Sin empresas.</td></tr>';
+
+    cbody.querySelectorAll('.sub-toggle').forEach((b) =>
+      b.addEventListener('click', () => toggleSubscription(b.dataset.id, b.dataset.next))
+    );
 
     const ubody = $('#userTableBody');
     ubody.innerHTML = users.length
@@ -1253,6 +1265,85 @@ async function loadAdmin() {
   } catch {
     /* ignore */
   }
+}
+
+async function toggleSubscription(id, next) {
+  const verbo = next === 'inactive' ? 'suspender' : 'reactivar';
+  const c = (state.companies || []).find((x) => x.id === id);
+  const nombre = c ? c.name : 'esta empresa';
+  if (next === 'inactive' && !confirm(`¿Suspender "${nombre}"? Sus usuarios no podrán iniciar sesión hasta reactivarla.`)) {
+    return;
+  }
+  const res = await fetch(`/api/companies/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ status: next }),
+  });
+  if (!res.ok) {
+    toast(`No se pudo ${verbo} la empresa.`, false);
+    return;
+  }
+  await loadAdmin();
+  toast(next === 'inactive' ? 'Empresa suspendida' : 'Empresa reactivada');
+}
+
+function setupChangePassword() {
+  const open = () => {
+    $('#pwCurrent').value = '';
+    $('#pwNext').value = '';
+    $('#pwConfirm').value = '';
+    $('#pwMsg').textContent = '';
+    $('#userDropdown').classList.add('hidden');
+    const m = $('#changePwModal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  };
+  const close = () => {
+    const m = $('#changePwModal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+  };
+  const btn = $('#changePwBtn');
+  if (btn) btn.addEventListener('click', open);
+  const c1 = $('#closeChangePw');
+  if (c1) c1.addEventListener('click', close);
+  const c2 = $('#cancelChangePw');
+  if (c2) c2.addEventListener('click', close);
+  const m = $('#changePwModal');
+  if (m) m.addEventListener('click', (e) => { if (e.target.id === 'changePwModal') close(); });
+  const save = $('#saveChangePw');
+  if (save)
+    save.addEventListener('click', async () => {
+      const current = $('#pwCurrent').value;
+      const next = $('#pwNext').value;
+      const confirmv = $('#pwConfirm').value;
+      const msg = $('#pwMsg');
+      if (next.length < 6) {
+        msg.style.color = '#dc2626';
+        msg.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
+        return;
+      }
+      if (next !== confirmv) {
+        msg.style.color = '#dc2626';
+        msg.textContent = 'Las contraseñas nuevas no coinciden.';
+        return;
+      }
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ current, next }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        msg.style.color = '#dc2626';
+        msg.textContent = err.error || 'No se pudo cambiar la contraseña.';
+        return;
+      }
+      close();
+      toast('Contraseña actualizada');
+    });
 }
 
 function openCompanyModal() {
@@ -1751,6 +1842,7 @@ async function init() {
       window.location.href = '/login';
     });
   }
+  setupChangePassword();
 
   await initSession();
 
