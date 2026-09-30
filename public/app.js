@@ -1863,6 +1863,17 @@ async function initSession() {
     const nameEl = $('#userName');
     if (nameEl) nameEl.textContent = me.companyName ? `${me.user} · ${me.companyName}` : me.user;
 
+    // Tarjeta de usuario en el pie del sidebar
+    const sbName = $('#sidebarUserName');
+    const sbRole = $('#sidebarUserRole');
+    if (sbName) sbName.textContent = me.user || '—';
+    if (sbRole) {
+      sbRole.textContent =
+        me.role === 'superadmin'
+          ? 'Superadmin'
+          : me.companyName || 'Administrador';
+    }
+
     const sel = $('#companyFilter');
     if (me.role === 'superadmin' && sel) {
       // Mostrar enlaces exclusivos de superadmin (pestaña Empresas)

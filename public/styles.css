@@ -127,6 +127,39 @@
   padding-top: 1.25rem;
   border-top: 1px solid var(--card-border);
 }
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--input-bg);
+}
+.sidebar-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+}
+.dark .sidebar-user-avatar { color: #818cf8; }
+.sidebar-user-info { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
 .app-main {
   flex: 1;
   min-width: 0;
