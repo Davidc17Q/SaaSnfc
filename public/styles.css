@@ -106,6 +106,9 @@
   background: var(--card-bg);
   border-right: 1px solid var(--card-border);
   z-index: 40;
+  /* Aislar el sidebar en su propia capa de GPU para evitar repintados */
+  will-change: transform;
+  transform: translateZ(0);
 }
 .sidebar-brand {
   display: flex;
@@ -129,6 +132,10 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  /* Aislar recálculos de layout del contenido principal */
+  contain: layout style;
 }
 .app-header {
   position: sticky;
