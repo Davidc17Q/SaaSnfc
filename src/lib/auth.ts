@@ -140,7 +140,10 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.code(401).send({ error: 'Usuario o contraseña incorrectos.' });
       }
 
-      const exp = Date.now() + config.sessionHours * 3600 * 1000;
+      // Con "recordar": la sesión dura sessionHours. Sin él: caduca pronto (2h) y la
+      // cookie es de sesión de navegador (sin Max-Age).
+      const hours = remember === false ? 2 : config.sessionHours;
+      const exp = Date.now() + hours * 3600 * 1000;
       const token = sign(JSON.stringify({ ...session, exp }));
       const secure = config.publicBaseUrl.startsWith('https');
       const persist = remember === false ? '' : `; Max-Age=${config.sessionHours * 3600}`;
