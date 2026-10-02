@@ -37,6 +37,7 @@ ALTER TABLE locations ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES compan
 -- Puntos / dispositivos NFC físicos
 CREATE TABLE IF NOT EXISTS devices (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        TEXT        UNIQUE,                -- código corto para la URL (ej: k9X2pQ8m)
   location_id UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
   label       TEXT        NOT NULL,              -- Ej: "Entrada principal"
   target_url  TEXT        NOT NULL,
@@ -44,6 +45,9 @@ CREATE TABLE IF NOT EXISTS devices (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migración segura: añadir code a bases existentes
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS code TEXT UNIQUE;
 
 -- Eventos de escaneo NFC (analítica)
 CREATE TABLE IF NOT EXISTS scan_events (
@@ -75,6 +79,7 @@ CREATE TABLE IF NOT EXISTS bulk_updates (
 CREATE INDEX IF NOT EXISTS idx_bulk_created ON bulk_updates(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_devices_location   ON devices(location_id);
+CREATE INDEX IF NOT EXISTS idx_devices_code        ON devices(code);
 CREATE INDEX IF NOT EXISTS idx_scan_device        ON scan_events(device_id);
 CREATE INDEX IF NOT EXISTS idx_scan_location      ON scan_events(location_id);
 CREATE INDEX IF NOT EXISTS idx_scan_scanned_at    ON scan_events(scanned_at);

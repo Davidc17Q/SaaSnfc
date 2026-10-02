@@ -50,4 +50,5 @@ export interface DeviceCache {
   location_id: string;
   target_url: string;
   status: string;
+  code?: string;
 }

@@ -5,6 +5,7 @@ import { pool } from './pool';
 import { redis, deviceCacheKey } from './redis';
 import { config } from '../config';
 import { detectChannel } from '../lib/channel';
+import { generateShortCode } from '../lib/shortcode';
 
 // ----------------------------------------------------------------------------
 // Configuración de la simulación
@@ -120,7 +121,7 @@ async function seed() {
   ];
 
   // Estructura para acumular device ids por location
-  const deviceCatalog: { deviceId: string; locationId: string; targetUrl: string }[] = [];
+  const deviceCatalog: { deviceId: string; code: string; locationId: string; targetUrl: string }[] = [];
 
   // Destinos predefinidos por marca. El Punto NFC 1 de Lalico apunta al
   // Instagram real para el ejemplo de demostración con tarjeta física.
@@ -147,13 +148,14 @@ async function seed() {
     const targets = realTargets[loc.brand] || ['https://example.com'];
     for (let p = 0; p < targets.length; p++) {
       const deviceId = randomUUID();
+      const code = generateShortCode();
       const targetUrl = targets[p];
       await pool.query(
-        `INSERT INTO devices (id, location_id, label, target_url, status)
-         VALUES ($1,$2,$3,$4,'active')`,
-        [deviceId, locationId, `Punto NFC ${p + 1}`, targetUrl]
+        `INSERT INTO devices (id, code, location_id, label, target_url, status)
+         VALUES ($1,$2,$3,$4,$5,'active')`,
+        [deviceId, code, locationId, `Punto NFC ${p + 1}`, targetUrl]
       );
-      deviceCatalog.push({ deviceId, locationId, targetUrl });
+      deviceCatalog.push({ deviceId, code, locationId, targetUrl });
     }
 
     console.log(`   ✓ ${loc.name}  (sede real)  ->  ${base}/r/{deviceId}`);
@@ -178,14 +180,15 @@ async function seed() {
     const points = 1 + Math.floor(Math.random() * 4);
     for (let p = 0; p < points; p++) {
       const deviceId = randomUUID();
+      const code = generateShortCode();
       const targetUrl = `https://hogarymoda.example.com/tienda/${i + 1}/ofertas`;
       await pool.query(
-        `INSERT INTO devices (id, location_id, label, target_url, status)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [deviceId, locationId, `Punto NFC ${p + 1}`, targetUrl, status]
+        `INSERT INTO devices (id, code, location_id, label, target_url, status)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [deviceId, code, locationId, `Punto NFC ${p + 1}`, targetUrl, status]
       );
       if (status === 'active') {
-        deviceCatalog.push({ deviceId, locationId, targetUrl });
+        deviceCatalog.push({ deviceId, code, locationId, targetUrl });
       }
     }
   }
@@ -270,11 +273,13 @@ async function seed() {
   console.log('[seed] Calentando caché Redis...');
   try {
     const devs = await pool.query(
-      `SELECT id AS device_id, location_id, target_url, status FROM devices`
+      `SELECT id AS device_id, code, location_id, target_url, status FROM devices`
     );
     const pipe = redis.pipeline();
     for (const d of devs.rows) {
-      pipe.set(deviceCacheKey(d.device_id), JSON.stringify(d), 'EX', 3600);
+      const payload = JSON.stringify(d);
+      if (d.code) pipe.set(deviceCacheKey(d.code), payload, 'EX', 3600);
+      pipe.set(deviceCacheKey(d.device_id), payload, 'EX', 3600);
     }
     await pipe.exec();
     console.log(`   ✓ ${devs.rowCount} dispositivos cacheados`);
@@ -284,7 +289,7 @@ async function seed() {
 
   // --- Resumen y URLs de demo -----------------------------------------------
   const sample = await pool.query(
-    `SELECT d.id, d.label, l.name, l.brand
+    `SELECT d.id, d.code, d.label, l.name, l.brand
        FROM devices d JOIN locations l ON l.id = d.location_id
        WHERE l.brand IN ('Lalico','Celumóvil')
        ORDER BY l.name`
@@ -299,21 +304,19 @@ async function seed() {
   console.log('\n URLs de demostración (redirección real):');
   for (const s of sample.rows) {
     console.log(`   ${s.name} / ${s.label}:`);
-    console.log(`     ${base}/r/${s.id}`);
+    console.log(`     ${base}/r/${s.code}`);
   }
 
   // Resaltar el punto de Instagram de Lalico (ejemplo con tarjeta física)
   const igPoint = await pool.query(
-    `SELECT d.id FROM devices d JOIN locations l ON l.id = d.location_id
+    `SELECT d.code FROM devices d JOIN locations l ON l.id = d.location_id
        WHERE l.brand = 'Lalico' AND d.label = 'Punto NFC 1' LIMIT 1`
   );
   if (igPoint.rowCount) {
     console.log('\n  >>> EJEMPLO TARJETA REAL (Instagram de Lalico) <<<');
     console.log('  Destino configurado: https://www.instagram.com/lalico.virtual/');
     console.log('  URL que va en la tarjeta NFC (local):');
-    console.log(`     ${base}/r/${igPoint.rows[0].id}`);
-    console.log('  Si usas ngrok, reemplaza el inicio por tu URL de ngrok:');
-    console.log(`     https://TU-SUBDOMINIO.ngrok-free.app/r/${igPoint.rows[0].id}`);
+    console.log(`     ${base}/r/${igPoint.rows[0].code}`);
   }
   console.log('========================================================\n');
 

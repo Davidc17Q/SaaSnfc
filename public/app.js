@@ -957,7 +957,7 @@ async function renderBulkHistory() {
 function openQr(id) {
   const d = state.devices.find((x) => x.id === id);
   if (!d) return;
-  const url = `${location.origin}/r/${d.id}`;
+  const url = `${location.origin}/r/${d.code || d.id}`;
   $('#qrLabel').textContent = `${d.location_name} · ${d.label}`;
   $('#qrUrl').textContent = url;
 
@@ -1008,7 +1008,7 @@ function openEdit(id) {
   if (!d) return;
   editingId = id;
   $('#editDeviceLabel').textContent = `${d.location_name} · ${d.label}`;
-  $('#editRedirectUrl').textContent = `${location.origin}/r/${d.id}`;
+  $('#editRedirectUrl').textContent = `${location.origin}/r/${d.code || d.id}`;
   $('#editTargetUrl').value = d.target_url;
   $('#editStatus').value = d.status;
   $('#editMsg').textContent = '';

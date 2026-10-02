@@ -3,6 +3,7 @@ import { pool, query } from '../db/pool';
 import { redis, deviceCacheKey } from '../db/redis';
 import type { DeviceCache } from '../types';
 import { getSession, hashPassword } from '../lib/auth';
+import { uniqueShortCode } from '../lib/shortcode';
 
 // Zona horaria del negocio. Los escaneos se guardan en UTC (timestamptz),
 // pero los filtros de fecha del dashboard se interpretan en hora local.
@@ -547,7 +548,7 @@ export async function apiRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/locations/:id/devices', async (req) => {
     const { id } = req.params;
     const rows = await query(
-      `SELECT id, label, target_url, status, updated_at
+      `SELECT id, code, label, target_url, status, updated_at
          FROM devices WHERE location_id = $1 ORDER BY label ASC`,
       [id]
     );
@@ -564,7 +565,7 @@ export async function apiRoutes(app: FastifyInstance) {
       cWhere = `WHERE l.company_id = $1`;
     }
     const rows = await query(
-      `SELECT d.id, d.label, d.target_url, d.status, d.updated_at,
+      `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at,
               l.name AS location_name, l.city AS location_city, l.id AS location_id
          FROM devices d
          JOIN locations l ON l.id = d.location_id
@@ -610,7 +611,7 @@ export async function apiRoutes(app: FastifyInstance) {
       const result = await pool.query(
         `UPDATE devices SET ${fields.join(', ')}, updated_at = now()
            WHERE id = $${params.length}
-         RETURNING id AS device_id, location_id, target_url, status`,
+         RETURNING id AS device_id, code, location_id, target_url, status`,
         params
       );
 
@@ -618,10 +619,12 @@ export async function apiRoutes(app: FastifyInstance) {
         return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
       }
 
-      const device = result.rows[0] as DeviceCache;
-      // Invalidar / refrescar caché Redis para que el cambio surta efecto al instante.
+      const device = result.rows[0] as DeviceCache & { code: string | null };
+      // Refrescar caché Redis bajo el código corto Y el UUID (compatibilidad).
       try {
-        await redis.set(deviceCacheKey(device.device_id), JSON.stringify(device), 'EX', 3600);
+        const payload = JSON.stringify(device);
+        if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
+        await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
       } catch {
         /* ignore */
       }
@@ -759,17 +762,18 @@ export async function apiRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: 'No autorizado para esta sede.' });
     }
 
+    const code = await uniqueShortCode();
     const result = await pool.query(
-      `INSERT INTO devices (location_id, label, target_url, status)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id AS device_id, location_id, target_url, status`,
-      [location_id, label.trim(), target_url, st]
+      `INSERT INTO devices (location_id, label, target_url, status, code)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id AS device_id, code, location_id, target_url, status`,
+      [location_id, label.trim(), target_url, st, code]
     );
 
-    const device = result.rows[0] as DeviceCache;
-    // Precargar la caché para que la redirección funcione de inmediato.
+    const device = result.rows[0] as DeviceCache & { code: string };
+    // Precargar la caché bajo el código corto (que es lo que irá en la tarjeta/QR).
     try {
-      await redis.set(deviceCacheKey(device.device_id), JSON.stringify(device), 'EX', 3600);
+      await redis.set(deviceCacheKey(device.code), JSON.stringify(device), 'EX', 3600);
     } catch {
       /* ignore */
     }
@@ -777,7 +781,7 @@ export async function apiRoutes(app: FastifyInstance) {
     return reply.code(201).send({
       ok: true,
       device,
-      redirectPath: `/r/${device.device_id}`,
+      redirectPath: `/r/${device.code}`,
     });
   });
 
@@ -862,30 +866,28 @@ export async function apiRoutes(app: FastifyInstance) {
 
     // Actualización en lote. Aquí $1 es target_url, así que el scope empieza en $2.
     const upd = bulkScopeWhere(scope, value, 2, companyId);
-    const updated = await query<{ device_id: string; location_id: string; status: string }>(
+    const updated = await query<{ device_id: string; code: string | null; location_id: string; status: string }>(
       `UPDATE devices SET target_url = $1, updated_at = now()
          WHERE id IN (
            SELECT d.id FROM devices d JOIN locations l ON l.id = d.location_id ${upd.where}
          )
-       RETURNING id AS device_id, location_id, status`,
+       RETURNING id AS device_id, code, location_id, status`,
       [target_url, ...upd.params]
     );
 
-    // Refrescar caché Redis de todos los afectados
+    // Refrescar caché Redis de todos los afectados (por código y por UUID)
     try {
       const pipe = redis.pipeline();
       for (const d of updated) {
-        pipe.set(
-          deviceCacheKey(d.device_id),
-          JSON.stringify({
-            device_id: d.device_id,
-            location_id: d.location_id,
-            target_url,
-            status: d.status,
-          }),
-          'EX',
-          3600
-        );
+        const payload = JSON.stringify({
+          device_id: d.device_id,
+          location_id: d.location_id,
+          target_url,
+          status: d.status,
+          code: d.code,
+        });
+        if (d.code) pipe.set(deviceCacheKey(d.code), payload, 'EX', 3600);
+        pipe.set(deviceCacheKey(d.device_id), payload, 'EX', 3600);
       }
       await pipe.exec();
     } catch {

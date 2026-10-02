@@ -50,27 +50,36 @@ const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
 </body>
 </html>`;
 
-async function resolveDevice(deviceId: string): Promise<DeviceCache | null> {
-  // 1) Intentar caché Redis (ruta rápida <50ms)
+// Acepta tanto el código corto (nuevos) como el UUID (compatibilidad).
+async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
+  // 1) Intentar caché Redis (ruta rápida <50ms). La clave usa el valor tal cual.
   try {
-    const cached = await redis.get(deviceCacheKey(deviceId));
+    const cached = await redis.get(deviceCacheKey(idOrCode));
     if (cached) return JSON.parse(cached) as DeviceCache;
   } catch {
     // Redis caído: seguimos con Postgres.
   }
 
-  // 2) Fallback a Postgres
-  const rows = await pool.query(
-    `SELECT id AS device_id, location_id, target_url, status
-       FROM devices WHERE id = $1 LIMIT 1`,
-    [deviceId]
-  );
+  // 2) Fallback a Postgres. Busca por code o por id (UUID).
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
+  const rows = isUuid
+    ? await pool.query(
+        `SELECT id AS device_id, location_id, target_url, status
+           FROM devices WHERE id = $1 LIMIT 1`,
+        [idOrCode]
+      )
+    : await pool.query(
+        `SELECT id AS device_id, location_id, target_url, status
+           FROM devices WHERE code = $1 LIMIT 1`,
+        [idOrCode]
+      );
   if (rows.rowCount === 0) return null;
 
   const device = rows.rows[0] as DeviceCache;
-  // Rellenar caché para próximas lecturas.
+  // Rellenar caché para próximas lecturas (bajo la clave consultada).
   try {
-    await redis.set(deviceCacheKey(deviceId), JSON.stringify(device), 'EX', 3600);
+    await redis.set(deviceCacheKey(idOrCode), JSON.stringify(device), 'EX', 3600);
   } catch {
     /* ignore */
   }
@@ -81,11 +90,12 @@ export async function redirectRoutes(app: FastifyInstance) {
   app.get<{ Params: { deviceId: string } }>('/r/:deviceId', async (req, reply) => {
     const { deviceId } = req.params;
 
-    // Validación básica de UUID para evitar consultas inválidas.
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId);
+    // Acepta UUID (compatibilidad) o código corto alfanumérico (6-12 chars).
+    const valido =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId) ||
+      /^[A-Za-z0-9]{6,12}$/.test(deviceId);
 
-    const device = isUuid ? await resolveDevice(deviceId) : null;
+    const device = valido ? await resolveDevice(deviceId) : null;
 
     if (!device || device.status !== 'active') {
       return reply
