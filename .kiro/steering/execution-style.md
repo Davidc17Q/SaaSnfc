@@ -11,6 +11,14 @@ inclusion: always
 - **Batch tool calls:** Execute all necessary file modifications directly using tool calls without intermediate text chatter.
 - **Final response only:** After ALL tool calls are finished, emit exactly one brief summary of the completed changes in 1-2 bullet points. This is the only text you output for a code/file task.
 
+## Prohibited Output During Code Tasks (Strict)
+
+- **Absolutely no text during implementation:** During any task that requires code or file changes, you are forbidden from generating any text while implementing — no warnings, no announcements, no notices, no advisories, no status updates, no reassurances.
+- **No stating intent:** You are forbidden from saying what you are going to do next, what you need now, what file you need, what you are about to read, or what you are about to change. Just do it with the tool call.
+- **No "I need / I will / let me" phrasing:** Do not emit phrases like "ahora voy a", "necesito", "voy a cambiar", "primero reviso", "déjame", "I'll", "I need to", "let me", "next I will", "now I'm going to", or any equivalent in any language.
+- **All languages restricted:** These restrictions apply in every language, not only English and not only Spanish. Never switch languages to bypass the no-narration rules. No warnings, announcements, or narration in English, Spanish, or any other language at any point.
+- **Only the final summary is allowed:** The sole permitted prose in a code/file task remains the single brief summary emitted after all tool calls complete.
+
 ## Conceptual & Analytical Questions
 
 - **Standalone conceptual/analytical questions:** If a request is purely conceptual or analytical (no code change involved), answer normally and at full length, as you would by default.

@@ -65,7 +65,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap header-tools">
           <div class="combo" id="locationCombo">
-            <input type="search" id="locationSearch" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" />
+            <input type="search" id="locationSearch" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
             <input type="hidden" id="locationFilter" value="" />
             <div id="locationOptions" class="combo-list hidden"></div>
           </div>
@@ -259,7 +259,7 @@
               <p class="text-xs text-slate-500">Detecta soportes retirados o dañados por inactividad</p>
             </div>
             <div class="flex items-center gap-2">
-              <input id="opSearch" type="text" placeholder="Buscar sede…" class="input text-sm w-56" />
+              <input id="opSearch" type="search" name="nfc-op-search" placeholder="Buscar sede…" class="input text-sm w-56" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <select id="opFilter" class="input text-sm">
                 <option value="">Todos</option>
                 <option value="active">Activas</option>
@@ -290,7 +290,7 @@
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Sedes</h3>
             <div class="flex items-center gap-2">
-              <input id="locSearch" type="text" placeholder="Buscar sede o ciudad…" class="input text-sm w-64" />
+              <input id="locSearch" type="search" name="nfc-loc-search" placeholder="Buscar sede o ciudad…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="newLocationBtn" class="btn-primary text-sm">+ Nueva sede</button>
             </div>
           </div>
@@ -319,7 +319,7 @@
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Dispositivos NFC</h3>
             <div class="flex items-center gap-2">
-              <input id="devSearch" type="text" placeholder="Buscar dispositivo o sede…" class="input text-sm w-64" />
+              <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Buscar dispositivo o sede…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
               <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
             </div>
@@ -423,9 +423,9 @@
       <label class="block text-sm font-medium mb-1">Empresa</label>
       <select id="userCompany" class="input w-full text-sm"></select>
       <label class="block text-sm font-medium mb-1 mt-3">Usuario</label>
-      <input id="userUsername" type="text" class="input w-full" placeholder="Ej: hogarymoda" autocomplete="off" />
+      <input id="userUsername" type="text" class="input w-full" placeholder="Ej: hogarymoda" autocomplete="off" data-lpignore="true" data-1p-ignore />
       <label class="block text-sm font-medium mb-1 mt-3">Contraseña</label>
-      <input id="userPassword" type="text" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="off" />
+      <input id="userPassword" type="text" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="off" data-lpignore="true" data-1p-ignore />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelUser" class="btn-ghost">Cancelar</button>
         <button id="saveUser" class="btn-primary">Crear usuario</button>
@@ -441,12 +441,14 @@
         <h3 class="font-semibold text-lg">Cambiar contraseña</h3>
         <button id="closeChangePw" class="btn-ghost" data-icon="x"></button>
       </div>
+      <form autocomplete="off" onsubmit="return false">
       <label class="block text-sm font-medium mb-1">Contraseña actual</label>
       <input id="pwCurrent" type="password" class="input w-full" autocomplete="current-password" />
       <label class="block text-sm font-medium mb-1 mt-3">Nueva contraseña</label>
       <input id="pwNext" type="password" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
       <label class="block text-sm font-medium mb-1 mt-3">Repetir nueva contraseña</label>
       <input id="pwConfirm" type="password" class="input w-full" autocomplete="new-password" />
+      </form>
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelChangePw" class="btn-ghost">Cancelar</button>
         <button id="saveChangePw" class="btn-primary">Guardar</button>
