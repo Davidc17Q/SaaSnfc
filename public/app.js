@@ -547,18 +547,27 @@ function renderComboOptions(filter) {
   const list = $('#locationOptions');
   const f = norm(filter.trim());
   const matches = state.locations.filter(
-    (l) => !f || norm(l.name).includes(f) || norm(l.city).includes(f)
+    (l) =>
+      !f ||
+      norm(l.name).includes(f) ||
+      norm(l.city).includes(f) ||
+      norm(l.companyName || '').includes(f)
   );
 
   const items = [
     `<div class="combo-opt" data-id="">Todas las sedes</div>`,
     ...matches
       .slice(0, 50)
-      .map(
-        (l) =>
-          `<div class="combo-opt" data-id="${l.id}">${escapeHtml(l.name)}
-             <span class="muted">· ${escapeHtml(l.city)}</span></div>`
-      ),
+      .map((l) => {
+        // Para superadmin viendo todas las empresas, mostrar la empresa para
+        // distinguir sedes homónimas de distintos clientes.
+        const co =
+          state.role === 'superadmin' && !state.companyId && l.companyName
+            ? ` · ${escapeHtml(l.companyName)}`
+            : '';
+        return `<div class="combo-opt" data-id="${l.id}">${escapeHtml(l.name)}
+             <span class="muted">· ${escapeHtml(l.city)}${co}</span></div>`;
+      }),
   ];
 
   list.innerHTML =
@@ -613,14 +622,23 @@ function setupCombo() {
 function renderLocationsTable(filter = '') {
   const body = $('#locTableBody');
   const f = norm(filter);
+  const showCompany = state.role === 'superadmin' && !state.companyId;
   const rows = state.locations.filter(
-    (l) => !f || norm(l.name).includes(f) || norm(l.city).includes(f)
+    (l) =>
+      !f ||
+      norm(l.name).includes(f) ||
+      norm(l.city).includes(f) ||
+      norm(l.companyName || '').includes(f)
   );
   body.innerHTML = rows
     .map(
       (l) => `
       <tr>
-        <td class="td font-medium">${escapeHtml(l.name)}</td>
+        <td class="td font-medium">${escapeHtml(l.name)}${
+          showCompany && l.companyName
+            ? `<br><span class="text-xs text-slate-500">${escapeHtml(l.companyName)}</span>`
+            : ''
+        }</td>
         <td class="td text-slate-500">${escapeHtml(l.brand)}</td>
         <td class="td">${escapeHtml(l.city)}</td>
         <td class="td">${statusBadge(l.status)}</td>
@@ -1447,6 +1465,12 @@ async function switchCompany() {
   if (os) os.value = '';
   const of = $('#opFilter');
   if (of) of.value = '';
+  // Limpiar buscadores de las tablas para que no hereden un filtro de la
+  // empresa anterior (si no, la tabla parece "no actualizarse").
+  const ds = $('#devSearch');
+  if (ds) ds.value = '';
+  const lcs = $('#locSearch');
+  if (lcs) lcs.value = '';
 
   // Recargar datos base con el nuevo alcance de empresa.
   await loadLocations();
@@ -1603,6 +1627,21 @@ function openLocationModal() {
   $('#locBrand').value = '';
   $('#locCity').value = '';
   $('#locMsg').textContent = '';
+
+  // Selector de empresa: solo visible para superadmin, obligatorio al crear.
+  const wrap = $('#locCompanyWrap');
+  const sel = $('#locCompany');
+  if (state.role === 'superadmin' && sel) {
+    sel.innerHTML = (state.companies || [])
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
+      .join('');
+    // Precargar con la empresa filtrada en el header, si hay una.
+    if (state.companyId) sel.value = state.companyId;
+    if (wrap) wrap.classList.remove('hidden');
+  } else if (wrap) {
+    wrap.classList.add('hidden');
+  }
+
   const m = $('#locationModal');
   m.classList.remove('hidden');
   m.classList.add('flex');
@@ -1624,10 +1663,23 @@ async function saveLocation() {
     return;
   }
 
+  const payload = { name, brand, city };
+  // Superadmin debe asignar la sede a una empresa; company_admin la hereda del backend.
+  if (state.role === 'superadmin') {
+    const company_id = $('#locCompany') ? $('#locCompany').value : '';
+    if (!company_id) {
+      msg.textContent = 'Selecciona la empresa a la que pertenece la sede.';
+      msg.style.color = '#dc2626';
+      return;
+    }
+    payload.company_id = company_id;
+  }
+
   const res = await fetch('/api/locations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, brand, city }),
+    credentials: 'same-origin',
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

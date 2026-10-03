@@ -554,7 +554,11 @@
         <h3 class="font-semibold text-lg">Nueva sede</h3>
         <button id="closeLocationModal" class="btn-ghost" data-icon="x"></button>
       </div>
-      <label class="block text-sm font-medium mb-1">Nombre de la sede</label>
+      <div id="locCompanyWrap" class="hidden">
+        <label class="block text-sm font-medium mb-1">Empresa</label>
+        <select id="locCompany" class="input w-full text-sm"></select>
+      </div>
+      <label class="block text-sm font-medium mb-1 mt-3">Nombre de la sede</label>
       <input id="locName" type="text" class="input w-full" placeholder="Ej: Lalico - Centro" />
       <label class="block text-sm font-medium mb-1 mt-3">Marca / cadena</label>
       <input id="locBrand" type="text" class="input w-full" placeholder="Ej: Lalico (opcional)" />

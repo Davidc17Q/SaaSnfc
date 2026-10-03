@@ -518,17 +518,19 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT
-         l.id, l.name, l.brand, l.city, l.status,
+         l.id, l.name, l.brand, l.city, l.status, l.company_id,
+         co.name AS company_name,
          COUNT(DISTINCT d.id) AS nfc_points,
          COALESCE(sc.total_clicks, 0) AS total_clicks
        FROM locations l
+       LEFT JOIN companies co ON co.id = l.company_id
        LEFT JOIN devices d ON d.location_id = l.id
        LEFT JOIN (
          SELECT location_id, COUNT(*) AS total_clicks
            FROM scan_events GROUP BY location_id
        ) sc ON sc.location_id = l.id
        ${cWhere}
-       GROUP BY l.id, l.name, l.brand, l.city, l.status, sc.total_clicks
+       GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, co.name, sc.total_clicks
        ORDER BY total_clicks DESC`,
       cParams
     );
@@ -539,6 +541,8 @@ export async function apiRoutes(app: FastifyInstance) {
       brand: r.brand,
       city: r.city,
       status: r.status,
+      companyId: r.company_id,
+      companyName: r.company_name,
       nfcPoints: parseInt(r.nfc_points, 10),
       totalClicks: parseInt(r.total_clicks, 10),
     }));
