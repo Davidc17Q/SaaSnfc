@@ -715,8 +715,8 @@ function renderLocationsTable(filter = '') {
         <td class="td text-right font-semibold">${fmt(l.totalClicks)}</td>
         <td class="td text-right">
           <span class="row-actions">
-            <button class="icon-btn loc-edit-btn" data-id="${l.id}" title="Editar sede">${icon('pencil', { size: 15 })}</button>
-            <button class="icon-btn danger loc-del-btn" data-id="${l.id}" title="Eliminar sede">${icon('trash', { size: 15 })}</button>
+            <button class="icon-btn loc-edit-btn" data-id="${l.id}" title="Editar sede" aria-label="Editar sede ${escapeHtml(l.name)}">${icon('pencil', { size: 15 })}</button>
+            <button class="icon-btn danger loc-del-btn" data-id="${l.id}" title="Eliminar sede" aria-label="Eliminar sede ${escapeHtml(l.name)}">${icon('trash', { size: 15 })}</button>
           </span>
         </td>
       </tr>`
@@ -850,8 +850,8 @@ function renderDevicesTable(filter = '') {
       <td class="td">${statusBadge(d.status)}</td>
       <td class="td text-right">
         <span class="row-actions">
-          <button class="icon-btn qr-btn" data-id="${d.id}" title="Ver código QR">${icon('qr', { size: 15 })}</button>
-          <button class="btn-primary text-xs edit-btn" data-id="${d.id}">Editar</button>
+          <button class="icon-btn qr-btn" data-id="${d.id}" title="Ver código QR" aria-label="Ver código QR de ${escapeHtml(d.label)}">${icon('qr', { size: 15 })}</button>
+          <button class="btn-primary text-xs edit-btn" data-id="${d.id}" aria-label="Editar destino de ${escapeHtml(d.label)}">Editar</button>
         </span>
       </td>
     </tr>`;
@@ -1746,17 +1746,48 @@ async function loadHealth() {
 // ---------------------------------------------------------------------------
 // Orquestación
 // ---------------------------------------------------------------------------
-async function loadDashboard() {
-  const k = await loadKpis();
-  await Promise.all([renderTrend(), renderTop(), renderHourly(), renderChannels()]);
-  renderOs(k);
+// Marca/desmarca contenedores con el shimmer de carga. Recibe selectores.
+function setLoading(selectors, on) {
+  selectors.forEach((sel) => {
+    const el = $(sel);
+    if (el) el.classList.toggle('is-loading', on);
+  });
+}
+
+// Tarjetas de gráficos del dashboard que muestran el loader al cargar.
+const DASHBOARD_CARDS = [
+  '#trendChart',
+  '#topChart',
+  '#hourlyChart',
+  '#channelChart',
+  '#osChart',
+];
+// Resuelve la .card contenedora de cada canvas para marcarla como cargando.
+function dashboardLoadingTargets() {
+  return DASHBOARD_CARDS.map((sel) => {
+    const canvas = $(sel);
+    return canvas ? canvas.closest('.card') : null;
+  }).filter(Boolean);
+}
+
+// silent=true (auto-refresco) omite el loader para no distraer cada 8s.
+async function loadDashboard({ silent = false } = {}) {
+  const cards = silent ? [] : dashboardLoadingTargets();
+  cards.forEach((c) => c.classList.add('is-loading'));
+  try {
+    const k = await loadKpis();
+    await Promise.all([renderTrend(), renderTop(), renderHourly(), renderChannels()]);
+    renderOs(k);
+  } finally {
+    cards.forEach((c) => c.classList.remove('is-loading'));
+  }
 }
 
 // Auto-refresco: recarga los datos de la vista visible sin recargar la página.
 async function autoRefresh() {
   try {
     if (!$('#view-dashboard').classList.contains('hidden')) {
-      await loadDashboard();
+      await loadDashboard({ silent: true });
     } else if (!$('#view-executive').classList.contains('hidden')) {
       await renderBenchmark();
     } else if (!$('#view-operations').classList.contains('hidden')) {

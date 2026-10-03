@@ -57,7 +57,7 @@
     <main class="app-main">
       <header class="app-header">
         <div class="flex items-center gap-3 min-w-0">
-          <button id="sidebarToggle" class="btn-ghost sidebar-toggle" title="Menú"><span data-icon="menu"></span></button>
+          <button id="sidebarToggle" class="btn-ghost sidebar-toggle" title="Menú" aria-label="Abrir menú de navegación"><span data-icon="menu"></span></button>
           <div class="min-w-0">
             <h1 class="text-xl font-bold" id="pageTitle">Panel de Control</h1>
             <p class="text-sm text-slate-500 truncate">Cadena corporativa · <span id="locCount">—</span> sedes conectadas</p>
@@ -82,9 +82,9 @@
           <select id="companyFilter" class="input text-sm hidden" title="Empresa">
             <option value="">Todas las empresas</option>
           </select>
-          <button id="themeToggle" class="btn-ghost" title="Cambiar tema"></button>
+          <button id="themeToggle" class="btn-ghost" title="Cambiar tema" aria-label="Cambiar tema claro u oscuro"></button>
           <div class="user-menu">
-            <button id="userBtn" class="user-btn" title="Cuenta"><span data-icon="user"></span></button>
+            <button id="userBtn" class="user-btn" title="Cuenta" aria-label="Menú de cuenta" aria-haspopup="true"><span data-icon="user"></span></button>
             <div id="userDropdown" class="user-dropdown hidden">
               <div class="user-dropdown-head">
                 <span data-icon="user"></span>
@@ -409,7 +409,7 @@
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Nueva empresa</h3>
-        <button id="closeCompanyModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeCompanyModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Nombre de la empresa</label>
       <input id="companyName" type="text" class="input w-full" placeholder="Ej: Hogar y Moda" />
@@ -426,7 +426,7 @@
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Nuevo usuario de cliente</h3>
-        <button id="closeUserModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeUserModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Empresa</label>
       <select id="userCompany" class="input w-full text-sm"></select>
@@ -447,7 +447,7 @@
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Cambiar contraseña</h3>
-        <button id="closeChangePw" class="btn-ghost" data-icon="x"></button>
+        <button id="closeChangePw" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <form autocomplete="off" onsubmit="return false">
       <label class="block text-sm font-medium mb-1">Contraseña actual</label>
@@ -470,7 +470,7 @@
     <div class="card w-full max-w-sm" style="text-align:center">
       <div class="flex items-center justify-between mb-4" style="text-align:left">
         <h3 class="font-semibold text-lg">Código QR</h3>
-        <button id="closeQrModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeQrModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="qrLabel" class="text-sm text-slate-500 mb-3"></p>
       <div id="qrCanvas" class="qr-box"></div>
@@ -489,7 +489,7 @@
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Cambio masivo de destino</h3>
-        <button id="closeBulkModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeBulkModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p class="text-sm text-slate-500" style="margin-bottom:1rem">
         Cambia el destino de varios puntos NFC a la vez. Ideal para lanzar una campaña sin tocar las tarjetas.
@@ -534,7 +534,7 @@
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Editar destino NFC</h3>
-        <button id="closeModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="editDeviceLabel" class="text-sm text-slate-500 mb-1"></p>
       <p id="editRedirectUrl" class="text-xs text-slate-400 mb-4 font-mono break-all"></p>
@@ -560,7 +560,7 @@
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Nueva sede</h3>
-        <button id="closeLocationModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeLocationModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <div id="locCompanyWrap" class="hidden">
         <label class="block text-sm font-medium mb-1">Empresa</label>
@@ -585,7 +585,7 @@
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Editar sede</h3>
-        <button id="closeEditLocation" class="btn-ghost" data-icon="x"></button>
+        <button id="closeEditLocation" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Nombre de la sede</label>
       <input id="editLocName" type="text" class="input w-full" />
@@ -616,7 +616,7 @@
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-lg">Nuevo dispositivo NFC</h3>
-        <button id="closeDeviceModal" class="btn-ghost" data-icon="x"></button>
+        <button id="closeDeviceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Sede</label>
       <select id="devLocation" class="input w-full text-sm"></select>

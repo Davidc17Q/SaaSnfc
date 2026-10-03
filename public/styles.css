@@ -1098,3 +1098,47 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
    llenar toda la altura de la tarjeta (que el grid iguala con la vecina
    "Distribución por SO") y no queda ni hueco gris ni vacío debajo. */
 .charts-row-top > .card { display: flex; flex-direction: column; }
+
+/* Estados de carga (loaders) ----------------------------------------------- */
+/* Overlay sutil con shimmer sobre una tarjeta mientras se cargan sus datos.
+   Se activa añadiendo la clase .is-loading al contenedor (position: relative). */
+.is-loading { position: relative; }
+.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(148, 163, 184, 0.12) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.1s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+/* Respeta la preferencia de reducir movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .is-loading::after { animation: none; }
+}
+
+/* Accesibilidad: foco visible por teclado -------------------------------- */
+.icon-btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible,
+.user-btn:focus-visible,
+.nav-link:focus-visible,
+.topnav-link:focus-visible,
+.chip-x:focus-visible,
+.af-clear:focus-visible,
+.input:focus-visible,
+.combo-opt:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
