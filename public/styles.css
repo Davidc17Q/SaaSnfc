@@ -1090,10 +1090,11 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
    Chart.js al calcular el aspect ratio sobre una tarjeta muy ancha). */
 .trend-chart-wrap {
   position: relative;
-  height: 300px;
+  flex: 1 1 auto;
+  min-height: 280px;
 }
 .trend-chart-wrap canvas { height: 100% !important; }
-/* Evitar que las tarjetas de esta fila se estiren a la altura de la más alta
-   (el grid por defecto usa align-items: stretch), lo que dejaba un hueco gris
-   bajo el gráfico de tendencia. */
-.charts-row-top { align-items: start; }
+/* La tarjeta de tendencia es una columna flexible: así el gráfico crece para
+   llenar toda la altura de la tarjeta (que el grid iguala con la vecina
+   "Distribución por SO") y no queda ni hueco gris ni vacío debajo. */
+.charts-row-top > .card { display: flex; flex-direction: column; }
