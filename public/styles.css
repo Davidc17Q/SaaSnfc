@@ -1085,3 +1085,11 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
 .empty-state .empty-hint { font-size: 0.8rem; color: var(--muted); }
 /* Canvas oculto cuando su contenedor muestra un estado vacío */
 .chart-hidden { display: none !important; }
+
+/* Altura controlada para el gráfico de tendencia (evita el hueco que deja
+   Chart.js al calcular el aspect ratio sobre una tarjeta muy ancha). */
+.trend-chart-wrap {
+  position: relative;
+  height: 300px;
+}
+.trend-chart-wrap canvas { height: 100% !important; }
