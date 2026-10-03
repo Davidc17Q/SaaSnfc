@@ -1093,3 +1093,7 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
   height: 300px;
 }
 .trend-chart-wrap canvas { height: 100% !important; }
+/* Evitar que las tarjetas de esta fila se estiren a la altura de la más alta
+   (el grid por defecto usa align-items: stretch), lo que dejaba un hueco gris
+   bajo el gráfico de tendencia. */
+.charts-row-top { align-items: start; }
