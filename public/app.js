@@ -255,9 +255,26 @@ async function renderTrend() {
     }
   }
 
-  const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 260);
-  grad.addColorStop(0, 'rgba(99,102,241,0.35)');
-  grad.addColorStop(1, 'rgba(99,102,241,0)');
+  // El relleno usa un gradiente calculado sobre la altura REAL del área del
+  // gráfico. Al ser una función, Chart.js lo recalcula en cada render, así el
+  // degradado cubre todo el alto aunque la tarjeta cambie de tamaño.
+  const trendFill = (context) => {
+    const { chart } = context;
+    const { ctx: c, chartArea } = chart;
+    // En el primer frame aún no hay chartArea; devolver undefined hace que
+    // Chart.js reintente en el siguiente render (no deja un color plano fijo).
+    if (!chartArea) return undefined;
+    const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    // Paradas intermedias para que el morado conserve cuerpo en casi toda la
+    // altura y solo se desvanezca cerca del fondo (replica el look previo, que
+    // repartía el gradiente sobre ~260px). Sin esto, al estirarse la tarjeta el
+    // degradado llegaba a transparente demasiado arriba.
+    g.addColorStop(0, 'rgba(99,102,241,0.38)');
+    g.addColorStop(0.55, 'rgba(99,102,241,0.22)');
+    g.addColorStop(0.85, 'rgba(99,102,241,0.08)');
+    g.addColorStop(1, 'rgba(99,102,241,0)');
+    return g;
+  };
 
   state.charts.trend = new Chart(ctx, {
     type: 'line',
@@ -268,7 +285,7 @@ async function renderTrend() {
           label: 'Selección',
           data: data.map((d) => d.scans),
           borderColor: '#6366f1',
-          backgroundColor: grad,
+          backgroundColor: trendFill,
           fill: true,
           tension: 0.35,
           pointRadius: 0,
