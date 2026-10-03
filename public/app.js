@@ -35,11 +35,13 @@ async function api(path) {
   return res.json();
 }
 
-function qs() {
+function qs(opts = {}) {
   const p = new URLSearchParams();
   if (state.from) p.set('from', state.from);
   if (state.to) p.set('to', state.to);
-  if (state.locationId) p.set('locationId', state.locationId);
+  // La comparativa ejecutiva compara sedes entre sí: filtrar por una sola
+  // sede no tiene sentido y colapsa el ranking. opts.ignoreLocation lo omite.
+  if (state.locationId && !opts.ignoreLocation) p.set('locationId', state.locationId);
   if (state.channel) p.set('channel', state.channel);
   if (state.companyId) p.set('companyId', state.companyId);
   const s = p.toString();
@@ -119,6 +121,14 @@ function setupNav() {
     // Título de página dinámico
     const t = $('#pageTitle');
     if (t && VIEW_TITLES[target]) t.textContent = VIEW_TITLES[target];
+
+    // Los filtros de analítica (sede/fecha/canal) solo tienen sentido en las
+    // vistas de reportes. En gestión (Sedes, Dispositivos, Empresas) se ocultan
+    // para no competir visualmente con los buscadores propios de cada tabla.
+    const analyticsViews = ['dashboard', 'executive', 'operations'];
+    const af = $('#analyticsFilters');
+    if (af) af.classList.toggle('hidden', !analyticsViews.includes(target));
+
     // Cerrar el sidebar en móvil al navegar
     closeSidebar();
     if (target === 'locations') renderLocationsTable($('#locSearch').value);
@@ -1089,7 +1099,9 @@ async function loadExecutive() {
 }
 
 async function renderBenchmark() {
-  const b = await api(`/api/benchmark${qs()}`);
+  // El ranking compara todas las sedes del alcance; se ignora la sede
+  // seleccionada en el filtro global para no colapsar el Top 3 a una sola.
+  const b = await api(`/api/benchmark${qs({ ignoreLocation: true })}`);
 
   // Gap de rendimiento
   const gapVal = $('#gapValue');

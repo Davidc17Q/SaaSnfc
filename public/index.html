@@ -64,21 +64,24 @@
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap header-tools">
-          <div class="combo" id="locationCombo">
-            <input type="search" id="locationSearch" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
-            <input type="hidden" id="locationFilter" value="" />
-            <div id="locationOptions" class="combo-list hidden"></div>
+          <!-- Filtros de analítica: solo aplican en vistas de reportes, no en gestión -->
+          <div id="analyticsFilters" class="flex items-center gap-2 flex-wrap">
+            <div class="combo" id="locationCombo">
+              <input type="search" id="locationSearch" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input type="hidden" id="locationFilter" value="" />
+              <div id="locationOptions" class="combo-list hidden"></div>
+            </div>
+            <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
+              <option value="">Todos los destinos</option>
+            </select>
+            <input type="date" id="fromDate" class="input text-sm" />
+            <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
+            <input type="date" id="toDate" class="input text-sm" />
+            <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
           </div>
           <select id="companyFilter" class="input text-sm hidden" title="Empresa">
             <option value="">Todas las empresas</option>
           </select>
-          <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
-            <option value="">Todos los destinos</option>
-          </select>
-          <input type="date" id="fromDate" class="input text-sm" />
-          <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
-          <input type="date" id="toDate" class="input text-sm" />
-          <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
           <button id="themeToggle" class="btn-ghost" title="Cambiar tema"></button>
           <div class="user-menu">
             <button id="userBtn" class="user-btn" title="Cuenta"><span data-icon="user"></span></button>
@@ -290,7 +293,7 @@
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Sedes</h3>
             <div class="flex items-center gap-2">
-              <input id="locSearch" type="search" name="nfc-loc-search" placeholder="Buscar sede o ciudad…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input id="locSearch" type="search" name="nfc-loc-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="newLocationBtn" class="btn-primary text-sm">+ Nueva sede</button>
             </div>
           </div>
@@ -319,7 +322,7 @@
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Dispositivos NFC</h3>
             <div class="flex items-center gap-2">
-              <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Buscar dispositivo o sede…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
               <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
             </div>
