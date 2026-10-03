@@ -1008,3 +1008,80 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
   transition: background 0.15s ease, color 0.15s ease;
 }
 .user-dropdown-item:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+/* Chips de filtros activos -------------------------------------------------- */
+.active-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.5rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+}
+.active-filters .af-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--input-text);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+.filter-chip .chip-key { color: var(--muted); font-weight: 500; }
+.filter-chip .chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+  line-height: 1;
+}
+.filter-chip .chip-x:hover { background: rgba(99, 102, 241, 0.25); color: var(--input-text); }
+.af-clear {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #6366f1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.4rem;
+}
+.af-clear:hover { background: var(--hover); }
+
+/* Estados vacíos ------------------------------------------------------------ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  color: var(--muted);
+}
+.empty-state .empty-icon {
+  display: inline-flex;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.empty-state .empty-title { font-weight: 600; font-size: 0.9rem; color: var(--input-text); }
+.empty-state .empty-hint { font-size: 0.8rem; color: var(--muted); }
+/* Canvas oculto cuando su contenedor muestra un estado vacío */
+.chart-hidden { display: none !important; }

@@ -128,6 +128,8 @@ function setupNav() {
     const analyticsViews = ['dashboard', 'executive', 'operations'];
     const af = $('#analyticsFilters');
     if (af) af.classList.toggle('hidden', !analyticsViews.includes(target));
+    // Actualizar chips de filtros activos según la vista.
+    renderActiveFilters();
 
     // Cerrar el sidebar en móvil al navegar
     closeSidebar();
@@ -223,6 +225,17 @@ async function renderTrend() {
   const ctx = $('#trendChart');
   destroyChart('trend');
 
+  const empty = data.every((d) => !d.scans);
+  toggleChartEmpty('#trendChart', data.length === 0 || empty, {
+    icon: 'activity',
+    title: 'Sin escaneos en este periodo',
+    hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
+  });
+  if (data.length === 0 || empty) {
+    $('#trendVariation').classList.add('hidden');
+    return;
+  }
+
   // Badge de variación % vs periodo anterior
   const badge = $('#trendVariation');
   if (res.variationPct === null || res.variationPct === undefined) {
@@ -295,6 +308,13 @@ async function renderTop() {
   const data = await api(`/api/top-locations${qs()}`);
   const ctx = $('#topChart');
   destroyChart('top');
+
+  toggleChartEmpty('#topChart', data.length === 0, {
+    icon: 'store',
+    title: 'Sin sedes con tráfico',
+    hint: 'No hay escaneos registrados para los filtros actuales.',
+  });
+  if (data.length === 0) return;
 
   state.charts.top = new Chart(ctx, {
     type: 'bar',
@@ -392,6 +412,14 @@ async function renderHourly() {
   const data = await api(`/api/hourly${qs()}`);
   const ctx = $('#hourlyChart');
   destroyChart('hourly');
+
+  const empty = !data.length || data.every((d) => !d.scans);
+  toggleChartEmpty('#hourlyChart', empty, {
+    icon: 'activity',
+    title: 'Sin escaneos en este periodo',
+    hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
+  });
+  if (empty) return;
   // Cada barra se colorea según su turno operativo.
   const colors = data.map((d) => shiftOf(d.hour).color);
   state.charts.hourly = new Chart(ctx, {
@@ -452,6 +480,17 @@ async function renderChannels() {
   destroyChart('channel');
 
   const total = data.reduce((a, d) => a + d.scans, 0);
+
+  toggleChartEmpty('#channelChart', data.length === 0, {
+    icon: 'activity',
+    title: 'Sin escaneos por destino',
+    hint: 'No hay redirecciones registradas para los filtros actuales.',
+  });
+  if (data.length === 0) {
+    const legend = $('#channelLegend');
+    if (legend) legend.innerHTML = '';
+    return;
+  }
 
   // Gradientes suaves por canal (mismo estilo que el doughnut de SO)
   const g2d = ctx.getContext('2d');
@@ -593,7 +632,9 @@ function renderComboOptions(filter) {
         ? opt.textContent.replace(/\s+/g, ' ').trim()
         : '';
       closeCombo();
+      renderActiveFilters();
       loadDashboard();
+      if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
     })
   );
 }
@@ -1024,6 +1065,114 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   );
+}
+
+// ---------------------------------------------------------------------------
+// Estados vacíos: muestra un mensaje cuando una gráfica no tiene datos.
+// Oculta el <canvas> indicado y pinta un placeholder en su lugar; al volver a
+// haber datos, remueve el placeholder y muestra el canvas de nuevo.
+// ---------------------------------------------------------------------------
+function toggleChartEmpty(canvasSel, isEmpty, opts = {}) {
+  const canvas = $(canvasSel);
+  if (!canvas) return;
+  const parent = canvas.parentElement;
+  const existing = parent.querySelector('.empty-state');
+  if (isEmpty) {
+    canvas.classList.add('chart-hidden');
+    if (!existing) {
+      const el = document.createElement('div');
+      el.className = 'empty-state';
+      el.innerHTML = `
+        <span class="empty-icon">${icon(opts.icon || 'bar-chart-3', { size: 28 })}</span>
+        <span class="empty-title">${escapeHtml(opts.title || 'Sin datos en este periodo')}</span>
+        ${opts.hint ? `<span class="empty-hint">${escapeHtml(opts.hint)}</span>` : ''}`;
+      parent.appendChild(el);
+    }
+  } else {
+    canvas.classList.remove('chart-hidden');
+    if (existing) existing.remove();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chips de filtros activos: hace visible qué filtros (sede/fecha/canal) están
+// aplicados y permite quitarlos de un clic. Solo se muestran en vistas de
+// analítica (en gestión los filtros globales están ocultos).
+// ---------------------------------------------------------------------------
+function renderActiveFilters() {
+  const bar = $('#activeFilters');
+  if (!bar) return;
+
+  // Si los filtros globales están ocultos (vista de gestión), no mostrar chips.
+  const af = $('#analyticsFilters');
+  const inAnalyticsView = af && !af.classList.contains('hidden');
+
+  const chips = [];
+  if (state.locationId) {
+    const loc = state.locations.find((l) => l.id === state.locationId);
+    const name = loc ? loc.name : 'Sede';
+    chips.push({ key: 'Sede', label: name, type: 'location' });
+  }
+  if (state.channel) chips.push({ key: 'Canal', label: state.channel, type: 'channel' });
+  if (state.from || state.to) {
+    const label = `${state.from || '…'} → ${state.to || '…'}`;
+    chips.push({ key: 'Fechas', label, type: 'dates' });
+  }
+
+  if (!inAnalyticsView || chips.length === 0) {
+    bar.classList.add('hidden');
+    bar.innerHTML = '';
+    return;
+  }
+
+  bar.classList.remove('hidden');
+  bar.innerHTML =
+    `<span class="af-label">Filtros activos</span>` +
+    chips
+      .map(
+        (c) => `
+      <span class="filter-chip">
+        <span class="chip-key">${escapeHtml(c.key)}:</span> ${escapeHtml(c.label)}
+        <button class="chip-x" data-type="${c.type}" title="Quitar filtro" aria-label="Quitar filtro ${escapeHtml(c.key)}">${icon('x', { size: 12 })}</button>
+      </span>`
+      )
+      .join('') +
+    `<button class="af-clear" id="clearAllFilters">Limpiar todo</button>`;
+
+  bar.querySelectorAll('.chip-x').forEach((btn) =>
+    btn.addEventListener('click', () => clearFilter(btn.dataset.type))
+  );
+  const clearAll = $('#clearAllFilters');
+  if (clearAll) clearAll.addEventListener('click', () => clearFilter('all'));
+}
+
+// Quita un filtro concreto (o todos) y recarga la vista analítica visible.
+function clearFilter(type) {
+  if (type === 'location' || type === 'all') {
+    state.locationId = '';
+    const lf = $('#locationFilter');
+    if (lf) lf.value = '';
+    const ls = $('#locationSearch');
+    if (ls) ls.value = '';
+  }
+  if (type === 'channel' || type === 'all') {
+    state.channel = '';
+    const cf = $('#channelFilter');
+    if (cf) cf.value = '';
+  }
+  if (type === 'dates' || type === 'all') {
+    state.from = '';
+    state.to = '';
+    const fd = $('#fromDate');
+    if (fd) fd.value = '';
+    const td = $('#toDate');
+    if (td) td.value = '';
+  }
+
+  renderActiveFilters();
+  if (!$('#view-dashboard').classList.contains('hidden')) loadDashboard();
+  else if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
+  else if (!$('#view-operations').classList.contains('hidden')) loadOperations();
 }
 
 // ---------------------------------------------------------------------------
@@ -1495,6 +1644,7 @@ async function switchCompany() {
   await renderBenchmark();
   populateCompareSelectors(true);
   await loadOperations();
+  renderActiveFilters();
 }
 
 // Refresca el selector de empresa de la barra superior tras crear una empresa.
@@ -1608,6 +1758,7 @@ function setupFilters() {
     state.to = $('#toDate').value;
     state.locationId = $('#locationFilter').value;
     state.channel = $('#channelFilter').value;
+    renderActiveFilters();
     loadDashboard();
     // Si la vista ejecutiva está abierta, refrescar su benchmarking con el nuevo rango.
     if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
