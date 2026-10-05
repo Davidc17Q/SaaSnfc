@@ -1142,3 +1142,23 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
+
+/* Modal de confirmación -------------------------------------------------- */
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+/* Botón de acción destructiva dentro de modales de confirmación. */
+.btn-danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #fff !important;
+}
+.btn-danger:hover { background: #b91c1c !important; border-color: #b91c1c !important; }

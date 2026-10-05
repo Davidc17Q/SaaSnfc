@@ -57,6 +57,53 @@ function toast(msg, ok = true) {
   setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
+// Modal de confirmación con estética propia (reemplaza el confirm() nativo).
+// Devuelve una promesa que resuelve true (aceptar) o false (cancelar/cerrar).
+// opts: { title, message, confirmText, cancelText, danger }
+function confirmDialog(opts = {}) {
+  const modal = $('#confirmModal');
+  const titleEl = $('#confirmTitle');
+  const msgEl = $('#confirmMessage');
+  const acceptBtn = $('#confirmAccept');
+  const cancelBtn = $('#confirmCancel');
+
+  titleEl.textContent = opts.title || 'Confirmar acción';
+  msgEl.textContent = opts.message || '¿Deseas continuar?';
+  acceptBtn.textContent = opts.confirmText || 'Confirmar';
+  cancelBtn.textContent = opts.cancelText || 'Cancelar';
+  // Botón rojo para acciones destructivas.
+  acceptBtn.classList.toggle('btn-danger', !!opts.danger);
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  return new Promise((resolve) => {
+    const cleanup = (result) => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      acceptBtn.removeEventListener('click', onAccept);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onAccept = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => {
+      if (e.target === modal) cleanup(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      else if (e.key === 'Enter') cleanup(true);
+    };
+    acceptBtn.addEventListener('click', onAccept);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+    acceptBtn.focus();
+  });
+}
+
 function isDark() {
   return document.documentElement.classList.contains('dark');
 }
@@ -219,11 +266,27 @@ function destroyChart(key) {
   }
 }
 
+// Crea el gráfico si no existe; si ya existe, actualiza sus datos y opciones
+// in-place con chart.update() en lugar de destruirlo y recrearlo. Esto elimina
+// el parpadeo del auto-refresco (el canvas no se borra) y es más eficiente.
+// Si cambia el tipo de gráfico, sí se recrea (update no puede cambiar el tipo).
+function upsertChart(key, ctx, config) {
+  const existing = state.charts[key];
+  if (existing && existing.config.type === config.type) {
+    existing.data = config.data;
+    if (config.options) existing.options = config.options;
+    existing.update();
+    return existing;
+  }
+  if (existing) existing.destroy();
+  state.charts[key] = new Chart(ctx, config);
+  return state.charts[key];
+}
+
 async function renderTrend() {
   const res = await api(`/api/trend-advanced${qs()}`);
   const data = res.series || [];
   const ctx = $('#trendChart');
-  destroyChart('trend');
 
   const empty = data.every((d) => !d.scans);
   toggleChartEmpty('#trendChart', data.length === 0 || empty, {
@@ -232,6 +295,7 @@ async function renderTrend() {
     hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
   });
   if (data.length === 0 || empty) {
+    destroyChart('trend'); // sin datos: quitar el gráfico para mostrar el empty-state
     $('#trendVariation').classList.add('hidden');
     return;
   }
@@ -276,7 +340,7 @@ async function renderTrend() {
     return g;
   };
 
-  state.charts.trend = new Chart(ctx, {
+  upsertChart('trend', ctx, {
     type: 'line',
     data: {
       labels: data.map((d) => d.day),
@@ -325,16 +389,18 @@ async function renderTrend() {
 async function renderTop() {
   const data = await api(`/api/top-locations${qs()}`);
   const ctx = $('#topChart');
-  destroyChart('top');
 
   toggleChartEmpty('#topChart', data.length === 0, {
     icon: 'store',
     title: 'Sin sedes con tráfico',
     hint: 'No hay escaneos registrados para los filtros actuales.',
   });
-  if (data.length === 0) return;
+  if (data.length === 0) {
+    destroyChart('top');
+    return;
+  }
 
-  state.charts.top = new Chart(ctx, {
+  upsertChart('top', ctx, {
     type: 'bar',
     data: {
       labels: data.map((d) => shorten(d.name)),
@@ -365,7 +431,6 @@ async function renderTop() {
 
 function renderOs(k) {
   const ctx = $('#osChart');
-  destroyChart('os');
 
   const segments = [
     { label: 'iOS', value: k.devices.iOS || 0, color: '#22d3ee' },      // cyan
@@ -386,7 +451,7 @@ function renderOs(k) {
     return g;
   });
 
-  state.charts.os = new Chart(ctx, {
+  upsertChart('os', ctx, {
     type: 'doughnut',
     data: {
       labels: segments.map((s) => s.label),
@@ -429,7 +494,6 @@ function renderOs(k) {
 async function renderHourly() {
   const data = await api(`/api/hourly${qs()}`);
   const ctx = $('#hourlyChart');
-  destroyChart('hourly');
 
   const empty = !data.length || data.every((d) => !d.scans);
   toggleChartEmpty('#hourlyChart', empty, {
@@ -437,10 +501,13 @@ async function renderHourly() {
     title: 'Sin escaneos en este periodo',
     hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
   });
-  if (empty) return;
+  if (empty) {
+    destroyChart('hourly');
+    return;
+  }
   // Cada barra se colorea según su turno operativo.
   const colors = data.map((d) => shiftOf(d.hour).color);
-  state.charts.hourly = new Chart(ctx, {
+  upsertChart('hourly', ctx, {
     type: 'bar',
     data: {
       labels: data.map((d) => `${String(d.hour).padStart(2, '0')}h`),
@@ -495,7 +562,6 @@ const channelColor = (c) => CHANNEL_COLORS[c] || '#94a3b8';
 async function renderChannels() {
   const data = await api(`/api/channels${qs()}`);
   const ctx = $('#channelChart');
-  destroyChart('channel');
 
   const total = data.reduce((a, d) => a + d.scans, 0);
 
@@ -505,6 +571,7 @@ async function renderChannels() {
     hint: 'No hay redirecciones registradas para los filtros actuales.',
   });
   if (data.length === 0) {
+    destroyChart('channel');
     const legend = $('#channelLegend');
     if (legend) legend.innerHTML = '';
     return;
@@ -520,7 +587,7 @@ async function renderChannels() {
     return g;
   });
 
-  state.charts.channel = new Chart(ctx, {
+  upsertChart('channel', ctx, {
     type: 'bar',
     data: {
       labels: data.map((d) => d.channel),
@@ -785,11 +852,17 @@ async function saveEditLocation() {
 async function deleteLocation(id) {
   const l = state.locations.find((x) => x.id === id);
   const name = l ? l.name : 'esta sede';
-  const msg =
+  const message =
     l && l.nfcPoints > 0
-      ? `¿Eliminar "${name}"? Se borrarán también sus ${l.nfcPoints} punto(s) NFC y sus escaneos. Esta acción no se puede deshacer.`
-      : `¿Eliminar "${name}"? Esta acción no se puede deshacer.`;
-  if (!confirm(msg)) return;
+      ? `Se eliminará "${name}" junto con sus ${l.nfcPoints} punto(s) NFC y todos sus escaneos. Esta acción no se puede deshacer.`
+      : `Se eliminará "${name}". Esta acción no se puede deshacer.`;
+  const ok = await confirmDialog({
+    title: 'Eliminar sede',
+    message,
+    confirmText: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
 
   const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
   if (!res.ok) {
@@ -972,9 +1045,12 @@ async function applyBulk() {
     return;
   }
   const count = $('#bulkCount').textContent;
-  if (!confirm(`Vas a cambiar el destino de ${count} dispositivos. Esta acción se puede revertir. ¿Continuar?`)) {
-    return;
-  }
+  const okBulk = await confirmDialog({
+    title: 'Cambio masivo de destino',
+    message: `Vas a cambiar el destino de ${count} dispositivos. Esta acción se puede revertir después.`,
+    confirmText: 'Aplicar cambio',
+  });
+  if (!okBulk) return;
 
   const res = await fetch('/api/devices/bulk-update', {
     method: 'POST',
@@ -1021,7 +1097,12 @@ async function renderBulkHistory() {
 
   box.querySelectorAll('.revert-btn').forEach((b) =>
     b.addEventListener('click', async () => {
-      if (!confirm('¿Revertir esta campaña y restaurar los destinos anteriores?')) return;
+      const okRevert = await confirmDialog({
+        title: 'Revertir campaña',
+        message: 'Se restaurarán los destinos anteriores de los dispositivos afectados por esta campaña.',
+        confirmText: 'Revertir',
+      });
+      if (!okRevert) return;
       const res = await fetch(`/api/bulk-updates/${b.dataset.id}/revert`, {
         method: 'POST',
         credentials: 'same-origin',
@@ -1468,8 +1549,14 @@ async function toggleSubscription(id, next) {
   const verbo = next === 'inactive' ? 'suspender' : 'reactivar';
   const c = (state.companies || []).find((x) => x.id === id);
   const nombre = c ? c.name : 'esta empresa';
-  if (next === 'inactive' && !confirm(`¿Suspender "${nombre}"? Sus usuarios no podrán iniciar sesión hasta reactivarla.`)) {
-    return;
+  if (next === 'inactive') {
+    const okSusp = await confirmDialog({
+      title: 'Suspender empresa',
+      message: `Al suspender "${nombre}", sus usuarios no podrán iniciar sesión hasta que la reactives.`,
+      confirmText: 'Suspender',
+      danger: true,
+    });
+    if (!okSusp) return;
   }
   const res = await fetch(`/api/companies/${id}`, {
     method: 'PATCH',
