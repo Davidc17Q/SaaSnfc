@@ -1928,14 +1928,21 @@ function renderDevLocationOptions(filter) {
     return;
   }
 
-  list.innerHTML = matches
-    .slice(0, 50)
+  const LIMIT = 50;
+  const shown = matches.slice(0, LIMIT);
+  let html = shown
     .map(
       (l) =>
         `<div class="combo-opt" data-id="${l.id}" data-label="${escapeHtml(l.name)} · ${escapeHtml(l.city)}">${escapeHtml(l.name)}
            <span class="muted">· ${escapeHtml(l.city)}</span></div>`
     )
     .join('');
+  // Si hay más sedes que el tope visible, avisar para que el usuario filtre
+  // escribiendo (así no se "pierden" las que quedan fuera de las primeras 50).
+  if (matches.length > LIMIT) {
+    html += `<div class="combo-empty">+${matches.length - LIMIT} sedes más. Escribe para filtrar…</div>`;
+  }
+  list.innerHTML = html;
 
   list.querySelectorAll('.combo-opt').forEach((opt) =>
     opt.addEventListener('click', () => {

@@ -530,8 +530,8 @@ export async function apiRoutes(app: FastifyInstance) {
            FROM scan_events GROUP BY location_id
        ) sc ON sc.location_id = l.id
        ${cWhere}
-       GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, co.name, sc.total_clicks
-       ORDER BY total_clicks DESC`,
+       GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, co.name, l.created_at, sc.total_clicks
+       ORDER BY total_clicks DESC, l.created_at DESC`,
       cParams
     );
 
