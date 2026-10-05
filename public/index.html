@@ -619,7 +619,11 @@
         <button id="closeDeviceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Sede</label>
-      <select id="devLocation" class="input w-full text-sm"></select>
+      <div class="combo" id="devLocationCombo">
+        <input type="search" id="devLocationSearch" class="input w-full text-sm" placeholder="Escribe para buscar una sede…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore role="combobox" aria-expanded="false" aria-autocomplete="list" aria-label="Buscar y seleccionar sede" />
+        <input type="hidden" id="devLocation" value="" />
+        <div id="devLocationOptions" class="combo-list hidden"></div>
+      </div>
       <label class="block text-sm font-medium mb-1 mt-3">Etiqueta del punto</label>
       <input id="devLabel" type="text" class="input w-full" placeholder="Ej: Entrada principal" />
       <label class="block text-sm font-medium mb-1 mt-3">Target URL (destino)</label>

@@ -1909,12 +1909,87 @@ async function saveLocation() {
 // ---------------------------------------------------------------------------
 // Crear dispositivo
 // ---------------------------------------------------------------------------
-function openDeviceModal() {
-  // Poblar el selector de sedes
-  const sel = $('#devLocation');
-  sel.innerHTML = state.locations
-    .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+// Combobox de sede del modal de dispositivo: búsqueda por teclado sobre las
+// 84+ sedes en vez de un <select> largo. Guarda el id en #devLocation (hidden)
+// y muestra el nombre en #devLocationSearch (texto visible).
+function renderDevLocationOptions(filter) {
+  const list = $('#devLocationOptions');
+  const f = norm((filter || '').trim());
+  const matches = state.locations.filter(
+    (l) =>
+      !f ||
+      norm(l.name).includes(f) ||
+      norm(l.city).includes(f) ||
+      norm(l.companyName || '').includes(f)
+  );
+
+  if (!matches.length) {
+    list.innerHTML = '<div class="combo-empty">Sin sedes que coincidan</div>';
+    return;
+  }
+
+  list.innerHTML = matches
+    .slice(0, 50)
+    .map(
+      (l) =>
+        `<div class="combo-opt" data-id="${l.id}" data-label="${escapeHtml(l.name)} · ${escapeHtml(l.city)}">${escapeHtml(l.name)}
+           <span class="muted">· ${escapeHtml(l.city)}</span></div>`
+    )
     .join('');
+
+  list.querySelectorAll('.combo-opt').forEach((opt) =>
+    opt.addEventListener('click', () => {
+      $('#devLocation').value = opt.dataset.id;
+      $('#devLocationSearch').value = opt.dataset.label;
+      list.classList.add('hidden');
+      $('#devLocationSearch').setAttribute('aria-expanded', 'false');
+    })
+  );
+}
+
+function setupDevLocationCombo() {
+  const input = $('#devLocationSearch');
+  const list = $('#devLocationOptions');
+  const combo = $('#devLocationCombo');
+  if (!input || input.dataset.wired) return;
+  input.dataset.wired = '1'; // evita doble registro de listeners
+
+  const open = () => {
+    renderDevLocationOptions(input.value);
+    list.classList.remove('hidden');
+    input.setAttribute('aria-expanded', 'true');
+  };
+  input.addEventListener('focus', open);
+  input.addEventListener('input', () => {
+    // Al escribir se invalida la selección previa hasta elegir una opción.
+    $('#devLocation').value = '';
+    open();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const first = list.querySelector('.combo-opt');
+      if (first) first.click();
+    } else if (e.key === 'Escape') {
+      list.classList.add('hidden');
+      input.setAttribute('aria-expanded', 'false');
+    }
+  });
+  // Cerrar al hacer clic fuera del combo.
+  document.addEventListener('click', (e) => {
+    if (combo && !combo.contains(e.target)) {
+      list.classList.add('hidden');
+      input.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+function openDeviceModal() {
+  setupDevLocationCombo();
+  // Reiniciar el combo de sede (sin selección).
+  $('#devLocation').value = '';
+  $('#devLocationSearch').value = '';
+  $('#devLocationOptions').classList.add('hidden');
   $('#devLabel').value = '';
   $('#devTarget').value = '';
   $('#devMsg').textContent = '';
@@ -2117,6 +2192,13 @@ async function init() {
   setInterval(loadHealth, 15000);
   // Auto-refresco de datos cada 8 segundos (tiempo casi real, sin recargar la página).
   setInterval(autoRefresh, 8000);
+
+  // Los navegadores congelan los setInterval de pestañas en segundo plano.
+  // Al volver a la pestaña, refrescar de inmediato para no mostrar datos viejos
+  // (evita tener que recargar manualmente tras dejarla inactiva mucho tiempo).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') autoRefresh();
+  });
 }
 
 // Carga la sesión: nombre de usuario, rol y (si es superadmin) el selector de empresa.
