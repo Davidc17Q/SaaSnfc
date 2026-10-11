@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#3CB6C3" />
+<title>Río Vivo Spa · Bienestar en Santafé de Antioquia</title>
+<meta name="description" content="Aquí no solo vienes a descansar: vienes a reconectarte. Menú, tratamientos, pedidos y reservas de Río Vivo Spa." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- ============================================================= -->
+<!--  ▼▼▼  ZONA EDITABLE  ▼▼▼                                       -->
+<!--  Aquí puedes cambiar TODO sin saber programar.                -->
+<!--  Solo edita el texto entre comillas "asi" y respeta las comas.-->
+<!-- ============================================================= -->
+<script>
+const DATOS = {
+
+  // ----- Datos generales del spa -----
+  nombre: "Río Vivo Spa",
+  eslogan: "Bienestar, agua y naturaleza en Santafé de Antioquia",
+  fraseCierre: "Aquí no solo vienes a descansar: vienes a reconectarte.",
+
+  // Número de WhatsApp con código de país, SIN + ni espacios (Colombia = 57)
+  whatsapp: "573113470053",
+
+  // Mensaje para el botón simple de reservar
+  mensajeReserva: "Hola Río Vivo ☺️, me gustaría reservar una experiencia de bienestar. ¿Me ayudan con la disponibilidad?",
+
+  // Enlaces externos
+  instagram: "https://www.instagram.com/riovivospa?stkn=MXY3MThydGNsdmQxaw==",
+  googleReview: "https://search.google.com/local/writereview?placeid=ChIJZ6bmSZPJRY4RuZih9xdWaw0",
+
+  // Moneda (solo texto que se muestra)
+  moneda: "COP",
+
+  // ----- MENÚ (comida y bebidas) -----
+  // Cada categoría tiene un "titulo" y una lista de "items".
+  // Cada item: nombre, descripcion (opcional) y precio (número, sin puntos).
+  menu: [
+    {
+      titulo: "Desayunos",
+      items: [
+        { nombre: "Desayuno del río", descripcion: "Huevos al gusto, arepa, quesito, fruta de temporada y bebida caliente.", precio: 18000 },
+        { nombre: "Bowl de bienestar", descripcion: "Yogur natural, granola casera, miel y frutas frescas.", precio: 15000 },
+        { nombre: "Calentado antioqueño", descripcion: "Frijoles, arroz, huevo, chorizo, arepa y aguacate.", precio: 19000 },
+        { nombre: "Tostadas de aguacate", descripcion: "Pan artesanal, aguacate, tomate y semillas.", precio: 14000 }
+      ]
+    },
+    {
+      titulo: "Almuerzos",
+      items: [
+        { nombre: "Bandeja Río Vivo", descripcion: "Frijoles, arroz, carne, chicharrón, chorizo, arepa, huevo y aguacate.", precio: 28000 },
+        { nombre: "Trucha al ajillo", descripcion: "Trucha fresca, patacón, ensalada y arroz.", precio: 30000 },
+        { nombre: "Pechuga a la plancha", descripcion: "Pechuga, arroz, ensalada verde y papas al horno.", precio: 26000 },
+        { nombre: "Almuerzo vegetariano", descripcion: "Bowl de granos, vegetales asados y aderezo de la casa.", precio: 22000 }
+      ]
+    },
+    {
+      titulo: "Bebidas",
+      items: [
+        { nombre: "Jugo natural en agua", descripcion: "Mango, mora, maracuyá o guanábana.", precio: 7000 },
+        { nombre: "Limonada de coco", descripcion: "Refrescante y cremosa.", precio: 9000 },
+        { nombre: "Café de la región", descripcion: "Origen antioqueño, preparado al momento.", precio: 5000 },
+        { nombre: "Agua de hierbas", descripcion: "Infusión natural para reconectar.", precio: 6000 }
+      ]
+    }
+  ],
+
+  // ----- PRODUCTOS Y TRATAMIENTOS (catálogo, solo informativo) -----
+  productos: [
+    {
+      titulo: "Masajes y terapias",
+      items: [
+        { nombre: "Masaje relajante de cuerpo completo", descripcion: "60 minutos de descanso profundo con aromas naturales.", precio: 90000 },
+        { nombre: "Masaje con piedras calientes", descripcion: "Equilibrio y calor que ayuda a soltar tensiones.", precio: 110000 },
+        { nombre: "Masaje descontracturante", descripcion: "Enfocado en zonas de tensión para renovar energías.", precio: 100000 }
+      ]
+    },
+    {
+      titulo: "Rituales con ingredientes ancestrales",
+      items: [
+        { nombre: "Exfoliación de café", descripcion: "Renueva la piel con el aroma de nuestra región.", precio: 70000 },
+        { nombre: "Envoltura de cacao", descripcion: "Nutrición e hidratación desde lo natural.", precio: 85000 },
+        { nombre: "Ritual de lodo volcánico", descripcion: "Purifica y equilibra cuerpo y mente.", precio: 95000 }
+      ]
+    },
+    {
+      titulo: "Circuito de agua",
+      items: [
+        { nombre: "Hidroterapia y jacuzzi", descripcion: "Fluye con el poder renovador del agua.", precio: 60000 },
+        { nombre: "Baño turco y sauna", descripcion: "Respira, suelta y déjate llevar por el vapor.", precio: 55000 }
+      ]
+    }
+  ]
+};
+</script>
+<!-- ============================================================= -->
+<!--  ▲▲▲  FIN DE LA ZONA EDITABLE  ▲▲▲                             -->
+<!-- ============================================================= -->
+
+<style>
+  :root {
+    /* Colores principales */
+    --azul-turquesa: #3CB6C3;
+    --verde-agua: #76BEBA;
+    --azul-cielo: #72AEC6;
+    --azul-suave: #78A0C4;
+    /* Complementarios */
+    --coral: #FFA78F;
+    --lila: #D8CFF7;
+    --durazno: #FFDEB4;
+    --fondo: #F2E7DC;
+    --terracota: #DAA89B;
+    /* Texto */
+    --texto: #1E1B3A;
+    --blanco: #FFFFFF;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Quicksand', sans-serif;
+    color: var(--texto);
+    line-height: 1.5;
+    padding-bottom: 96px; /* espacio para la barra fija del pedido */
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    min-height: 100vh;
+    /* Fondo degradado sereno: agua turquesa arriba, calidez arena abajo.
+       Se queda fijo para que no distraiga al hacer scroll. */
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(60,182,195,0.30) 0%, rgba(60,182,195,0) 55%),
+      radial-gradient(90% 60% at 100% 20%, rgba(120,160,196,0.22) 0%, rgba(120,160,196,0) 50%),
+      radial-gradient(90% 60% at 0% 35%, rgba(118,190,186,0.22) 0%, rgba(118,190,186,0) 50%),
+      linear-gradient(180deg, #EAF6F5 0%, #F2E7DC 55%, #F6EEE2 100%);
+    background-attachment: fixed;
+  }
+
+  /* Velo suave detrás de la zona central para que los botones
+     siempre tengan buen contraste, sin cortar el degradado. */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 18%;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(560px, 94%);
+    background: radial-gradient(60% 50% at 50% 50%, rgba(246,238,226,0.55) 0%, rgba(246,238,226,0) 75%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  h1, h2, h3, .titulo {
+    font-family: 'Poppins', sans-serif;
+    color: var(--texto);
+  }
+
+  .contenedor {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 24px 18px 8px;
+  }
+
+  /* ----- Cabecera ----- */
+  header { text-align: center; padding-top: 12px; }
+
+  .logo-espacio {
+    width: min(240px, 72%);
+    min-height: 120px;
+    margin: 0 auto 14px;
+    padding: 12px 16px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .logo-espacio img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .logo-espacio .placeholder {
+    font-family: 'Poppins', sans-serif;
+    color: var(--azul-suave);
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  header h1 { font-size: 26px; font-weight: 600; }
+  header .eslogan {
+    color: var(--azul-suave);
+    font-size: 15px;
+    margin-top: 6px;
+    padding: 0 10px;
+  }
+
+  /* ----- Botones de secciones (Linktree) ----- */
+  .enlaces { display: flex; flex-direction: column; gap: 14px; margin-top: 26px; }
+
+  .enlace {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    background: var(--blanco);
+    color: var(--texto);
+    border: 2px solid transparent;
+    border-radius: 20px;
+    padding: 18px 20px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .2s ease, transform .1s ease;
+  }
+  .enlace:hover, .enlace:focus-visible { border-color: var(--azul-turquesa); outline: none; }
+  .enlace:active { transform: scale(0.99); }
+  .enlace .emoji { font-size: 24px; line-height: 1; }
+  .enlace .texto { flex: 1; }
+  .enlace .flecha { color: var(--azul-suave); font-size: 20px; }
+
+  /* ----- Secciones desplegables ----- */
+  .seccion {
+    background: var(--blanco);
+    border-radius: 20px;
+    margin-top: 14px;
+    overflow: hidden;
+  }
+  .seccion[hidden] { display: none; }
+  .seccion-cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    background: var(--azul-turquesa);
+    color: var(--blanco);
+  }
+  .seccion-cuerpo { padding: 6px 18px 18px; }
+
+  .categoria-titulo {
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--azul-suave);
+    margin: 18px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--fondo);
+  }
+
+  /* ----- Ítems del menú ----- */
+  .item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #EFE6DA;
+  }
+  .item:last-child { border-bottom: none; }
+  .item-info { flex: 1; }
+  .item-nombre { font-weight: 600; font-size: 15px; }
+  .item-desc { font-size: 13px; color: #5b5872; margin-top: 2px; }
+  .item-precio { font-weight: 600; color: var(--azul-turquesa); margin-top: 4px; font-size: 14px; }
+
+  /* Control de cantidad + / - */
+  .cantidad {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .cantidad button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--verde-agua);
+    background: var(--blanco);
+    color: var(--azul-turquesa);
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .cantidad button:hover, .cantidad button:focus-visible {
+    background: var(--verde-agua);
+    color: var(--blanco);
+    outline: none;
+  }
+  .cantidad .valor {
+    min-width: 22px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  /* Producto de catálogo (sin cantidad) */
+  .item.catalogo { display: block; }
+
+  .nota-mesa {
+    background: var(--durazno);
+    color: var(--texto);
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin: 10px 0 4px;
+    text-align: center;
+  }
+
+  /* Botón reservar dentro de sección */
+  .btn-reservar {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: var(--verde-agua);
+    color: var(--blanco);
+    text-decoration: none;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    padding: 16px;
+    border-radius: 18px;
+    margin-top: 8px;
+  }
+  .btn-reservar:hover, .btn-reservar:focus-visible { background: var(--azul-cielo); outline: none; }
+  .texto-reserva { font-size: 14px; color: #5b5872; text-align: center; padding: 6px 4px 14px; }
+
+  /* ----- Frase de cierre ----- */
+  .cierre {
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--azul-suave);
+    margin: 30px 6px 10px;
+    padding: 22px 18px;
+    background: var(--blanco);
+    border-radius: 20px;
+  }
+  footer { text-align: center; font-size: 12px; color: #8a8799; padding: 14px 0 6px; }
+
+  /* ----- Barra fija de pedido ----- */
+  .barra-pedido {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--blanco);
+    border-top: 1px solid #E7DCCE;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    z-index: 50;
+  }
+  .barra-inner { max-width: 520px; margin: 0 auto; }
+  .barra-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .barra-total strong { font-size: 16px; color: var(--azul-turquesa); }
+  .btn-pedido {
+    display: block;
+    width: 100%;
+    background: var(--azul-turquesa);
+    color: var(--blanco);
+    border: none;
+    border-radius: 18px;
+    padding: 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-pedido:hover, .btn-pedido:focus-visible { background: #2f9aa6; outline: none; }
+  .btn-pedido:disabled { background: #cfc6ba; cursor: not-allowed; }
+
+  @media (min-width: 560px) {
+    .barra-pedido { border-radius: 20px 20px 0 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="contenedor">
+  <header>
+    <div class="logo-espacio">
+      <!-- Tu logo. Si cambias el nombre del archivo, edítalo aquí.
+           Si la imagen no carga, se muestra el texto de respaldo. -->
+      <img src="logo-riovivo.png" alt="Logo Río Vivo Spa"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+      <span class="placeholder" style="display:none;">Espacio para tu logo</span>
+    </div>
+    <h1 id="nombre-spa"></h1>
+    <p class="eslogan" id="eslogan-spa"></p>
+  </header>
+
+  <!-- Botones tipo Linktree -->
+  <nav class="enlaces" aria-label="Secciones principales">
+    <button class="enlace" type="button" data-toggle="sec-menu" aria-expanded="false" aria-controls="sec-menu">
+      <span class="emoji" aria-hidden="true">🍽️</span>
+      <span class="texto">Ver menú (comida y bebidas)</span>
+      <span class="flecha" aria-hidden="true">›</span>
+    </button>
+
+    <button class="enlace" type="button" data-toggle="sec-productos" aria-expanded="false" aria-controls="sec-productos">
+      <span class="emoji" aria-hidden="true">🌿</span>
+      <span class="texto">Catálogo de productos y tratamientos</span>
+      <span class="flecha" aria-hidden="true">›</span>
+    </button>
+
+    <button class="enlace" type="button" data-toggle="sec-pedido" aria-expanded="false" aria-controls="sec-pedido">
+      <span class="emoji" aria-hidden="true">💬</span>
+      <span class="texto">Hacer pedido o reservar por WhatsApp</span>
+      <span class="flecha" aria-hidden="true">›</span>
+    </button>
+
+    <a class="enlace" id="link-instagram" href="#" target="_blank" rel="noopener">
+      <span class="emoji" aria-hidden="true">📸</span>
+      <span class="texto">Síguenos en Instagram</span>
+      <span class="flecha" aria-hidden="true">›</span>
+    </a>
+
+    <a class="enlace" id="link-google" href="#" target="_blank" rel="noopener">
+      <span class="emoji" aria-hidden="true">⭐</span>
+      <span class="texto">Califícanos en Google</span>
+      <span class="flecha" aria-hidden="true">›</span>
+    </a>
+  </nav>
+
+  <!-- Sección MENÚ -->
+  <section class="seccion" id="sec-menu" hidden aria-label="Menú">
+    <div class="seccion-cabecera">Nuestro menú</div>
+    <div class="seccion-cuerpo">
+      <p class="nota-mesa" id="nota-mesa">Toca + para agregar lo que quieras a tu pedido.</p>
+      <div id="lista-menu"></div>
+    </div>
+  </section>
+
+  <!-- Sección PRODUCTOS -->
+  <section class="seccion" id="sec-productos" hidden aria-label="Productos y tratamientos">
+    <div class="seccion-cabecera">Productos y tratamientos</div>
+    <div class="seccion-cuerpo">
+      <div id="lista-productos"></div>
+    </div>
+  </section>
+
+  <!-- Sección PEDIDO / RESERVA -->
+  <section class="seccion" id="sec-pedido" hidden aria-label="Pedido o reserva por WhatsApp">
+    <div class="seccion-cabecera">Pedido o reserva</div>
+    <div class="seccion-cuerpo">
+      <p class="texto-reserva">Agrega ítems desde el menú y usa el botón de abajo para enviar tu pedido. Si prefieres reservar una experiencia, escríbenos aquí:</p>
+      <a class="btn-reservar" id="btn-reservar" href="#" target="_blank" rel="noopener">Reservar por WhatsApp</a>
+    </div>
+  </section>
+
+  <p class="cierre" id="frase-cierre"></p>
+
+  <footer>Sin registros ni cookies. Hecho con calma para ti. 🌿</footer>
+</div>
+
+<!-- Barra fija de pedido -->
+<div class="barra-pedido">
+  <div class="barra-inner">
+    <div class="barra-total">
+      <span id="resumen-pedido">Tu pedido está vacío</span>
+      <strong id="total-pedido"></strong>
+    </div>
+    <button class="btn-pedido" id="btn-enviar-pedido" type="button" disabled>Enviar pedido por WhatsApp</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Estado de cantidades: clave "menu-c-i" -> cantidad
+  const cantidades = {};
+
+  // Formatea precios en pesos colombianos
+  const formatoCOP = new Intl.NumberFormat('es-CO', {
+    style: 'currency', currency: 'COP', maximumFractionDigits: 0
+  });
+  function precioTexto(n) { return formatoCOP.format(n); }
+
+  // Lee el número de mesa del parámetro ?mesa=
+  function obtenerMesa() {
+    const params = new URLSearchParams(window.location.search);
+    const mesa = params.get('mesa');
+    return (mesa && mesa.trim() !== '') ? mesa.trim() : null;
+  }
+  const MESA = obtenerMesa();
+
+  // ---- Rellenar textos generales ----
+  document.getElementById('nombre-spa').textContent = DATOS.nombre;
+  document.getElementById('eslogan-spa').textContent = DATOS.eslogan;
+  document.getElementById('frase-cierre').textContent = DATOS.fraseCierre;
+  document.getElementById('link-instagram').href = DATOS.instagram;
+  document.getElementById('link-google').href = DATOS.googleReview;
+  document.getElementById('btn-reservar').href =
+    'https://wa.me/' + DATOS.whatsapp + '?text=' + encodeURIComponent(DATOS.mensajeReserva);
+  document.title = DATOS.nombre + ' · Bienestar en Santafé de Antioquia';
+
+  // Nota de mesa
+  const notaMesa = document.getElementById('nota-mesa');
+  if (MESA) {
+    notaMesa.textContent = 'Estás en la mesa ' + MESA + '. Toca + para armar tu pedido.';
+  }
+
+  // ---- Construir el menú con controles de cantidad ----
+  const listaMenu = document.getElementById('lista-menu');
+  DATOS.menu.forEach(function (cat, ci) {
+    const tit = document.createElement('h3');
+    tit.className = 'categoria-titulo';
+    tit.textContent = cat.titulo;
+    listaMenu.appendChild(tit);
+
+    cat.items.forEach(function (item, ii) {
+      const clave = 'm-' + ci + '-' + ii;
+      cantidades[clave] = 0;
+
+      const fila = document.createElement('div');
+      fila.className = 'item';
+
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      let html = '<div class="item-nombre">' + escapar(item.nombre) + '</div>';
+      if (item.descripcion) html += '<div class="item-desc">' + escapar(item.descripcion) + '</div>';
+      html += '<div class="item-precio">' + precioTexto(item.precio) + '</div>';
+      info.innerHTML = html;
+
+      const ctrl = document.createElement('div');
+      ctrl.className = 'cantidad';
+
+      const menos = document.createElement('button');
+      menos.type = 'button';
+      menos.textContent = '−';
+      menos.setAttribute('aria-label', 'Quitar uno de ' + item.nombre);
+
+      const valor = document.createElement('span');
+      valor.className = 'valor';
+      valor.textContent = '0';
+      valor.setAttribute('aria-live', 'polite');
+
+      const mas = document.createElement('button');
+      mas.type = 'button';
+      mas.textContent = '+';
+      mas.setAttribute('aria-label', 'Agregar uno de ' + item.nombre);
+
+      menos.addEventListener('click', function () {
+        if (cantidades[clave] > 0) cantidades[clave]--;
+        valor.textContent = cantidades[clave];
+        actualizarResumen();
+      });
+      mas.addEventListener('click', function () {
+        cantidades[clave]++;
+        valor.textContent = cantidades[clave];
+        actualizarResumen();
+      });
+
+      ctrl.appendChild(menos);
+      ctrl.appendChild(valor);
+      ctrl.appendChild(mas);
+
+      fila.appendChild(info);
+      fila.appendChild(ctrl);
+      listaMenu.appendChild(fila);
+
+      // Guardamos referencia al item para el resumen
+      item._clave = clave;
+    });
+  });
+
+  // ---- Construir catálogo de productos (solo informativo) ----
+  const listaProd = document.getElementById('lista-productos');
+  DATOS.productos.forEach(function (cat) {
+    const tit = document.createElement('h3');
+    tit.className = 'categoria-titulo';
+    tit.textContent = cat.titulo;
+    listaProd.appendChild(tit);
+
+    cat.items.forEach(function (item) {
+      const fila = document.createElement('div');
+      fila.className = 'item catalogo';
+      let html = '<div class="item-nombre">' + escapar(item.nombre) + '</div>';
+      if (item.descripcion) html += '<div class="item-desc">' + escapar(item.descripcion) + '</div>';
+      html += '<div class="item-precio">' + precioTexto(item.precio) + '</div>';
+      fila.innerHTML = html;
+      listaProd.appendChild(fila);
+    });
+  });
+
+  // ---- Resumen del pedido (barra fija) ----
+  const resumenEl = document.getElementById('resumen-pedido');
+  const totalEl = document.getElementById('total-pedido');
+  const btnEnviar = document.getElementById('btn-enviar-pedido');
+
+  function recorrerPedido(callback) {
+    DATOS.menu.forEach(function (cat) {
+      cat.items.forEach(function (item) {
+        const cant = cantidades[item._clave] || 0;
+        if (cant > 0) callback(item, cant);
+      });
+    });
+  }
+
+  function actualizarResumen() {
+    let totalItems = 0;
+    let totalCOP = 0;
+    recorrerPedido(function (item, cant) {
+      totalItems += cant;
+      totalCOP += item.precio * cant;
+    });
+
+    if (totalItems === 0) {
+      resumenEl.textContent = 'Tu pedido está vacío';
+      totalEl.textContent = '';
+      btnEnviar.disabled = true;
+    } else {
+      resumenEl.textContent = totalItems + (totalItems === 1 ? ' ítem' : ' ítems');
+      totalEl.textContent = precioTexto(totalCOP);
+      btnEnviar.disabled = false;
+    }
+  }
+
+  // ---- Armar y enviar el mensaje de WhatsApp ----
+  btnEnviar.addEventListener('click', function () {
+    let mensaje = 'Hola Río Vivo ☺️, deseo pedir:\n';
+    let totalCOP = 0;
+
+    recorrerPedido(function (item, cant) {
+      const subtotal = item.precio * cant;
+      totalCOP += subtotal;
+      mensaje += '• ' + cant + ' x ' + item.nombre + ' (' + precioTexto(subtotal) + ')\n';
+    });
+
+    mensaje += '\nTotal: ' + precioTexto(totalCOP);
+    if (MESA) mensaje += '\nMesa: ' + MESA;
+
+    const url = 'https://wa.me/' + DATOS.whatsapp + '?text=' + encodeURIComponent(mensaje);
+    window.open(url, '_blank');
+  });
+
+  // ---- Desplegar / contraer secciones ----
+  document.querySelectorAll('[data-toggle]').forEach(function (boton) {
+    boton.addEventListener('click', function () {
+      const id = boton.getAttribute('data-toggle');
+      const seccion = document.getElementById(id);
+      const abierto = !seccion.hidden;
+      seccion.hidden = abierto;
+      boton.setAttribute('aria-expanded', String(!abierto));
+      if (!abierto) {
+        setTimeout(function () {
+          seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+      }
+    });
+  });
+
+  // Escapar texto para evitar problemas con caracteres especiales
+  function escapar(txt) {
+    const div = document.createElement('div');
+    div.textContent = txt;
+    return div.innerHTML;
+  }
+
+  actualizarResumen();
+})();
+</script>
+</body>
+</html>

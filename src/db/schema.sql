@@ -49,6 +49,10 @@ CREATE TABLE IF NOT EXISTS devices (
 -- Migración segura: añadir code a bases existentes
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS code TEXT UNIQUE;
 
+-- Pantalla de transición (carga animada) antes de redirigir. Solo superadmin
+-- la controla. Por defecto desactivada (redirección 302 instantánea).
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS transition BOOLEAN NOT NULL DEFAULT false;
+
 -- Eventos de escaneo NFC (analítica)
 CREATE TABLE IF NOT EXISTS scan_events (
   id          BIGSERIAL PRIMARY KEY,

@@ -569,7 +569,7 @@ export async function apiRoutes(app: FastifyInstance) {
       cWhere = `WHERE l.company_id = $1`;
     }
     const rows = await query(
-      `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at,
+      `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at, d.transition,
               l.name AS location_name, l.city AS location_city, l.id AS location_id
          FROM devices d
          JOIN locations l ON l.id = d.location_id
@@ -579,6 +579,38 @@ export async function apiRoutes(app: FastifyInstance) {
     );
     return rows;
   });
+
+  // ---------- Activar/desactivar pantalla de transición (SOLO superadmin) ----------
+  app.patch<{ Params: { id: string }; Body: { transition?: boolean } }>(
+    '/api/devices/:id/transition',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (!s || s.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'No autorizado.' });
+      }
+      const { id } = req.params;
+      const transition = req.body?.transition === true;
+      const result = await pool.query(
+        `UPDATE devices SET transition = $1, updated_at = now()
+           WHERE id = $2
+         RETURNING id AS device_id, code, location_id, target_url, status, transition`,
+        [transition, id]
+      );
+      if (result.rowCount === 0) {
+        return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
+      }
+      // Refrescar caché Redis (bajo código y UUID) para que surta efecto ya.
+      const device = result.rows[0] as DeviceCache & { code: string | null };
+      try {
+        const payload = JSON.stringify(device);
+        if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
+        await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
+      } catch {
+        /* ignore */
+      }
+      return { ok: true, transition };
+    }
+  );
 
   // ---------- Actualizar target_url de un dispositivo (tiempo real) ----------
   app.patch<{ Params: { id: string }; Body: { target_url?: string; status?: string } }>(

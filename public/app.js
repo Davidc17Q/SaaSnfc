@@ -923,6 +923,11 @@ function renderDevicesTable(filter = '') {
       <td class="td">${statusBadge(d.status)}</td>
       <td class="td text-right">
         <span class="row-actions">
+          ${
+            state.role === 'superadmin'
+              ? `<button class="icon-btn trans-btn ${d.transition ? 'active' : ''}" data-id="${d.id}" data-on="${d.transition ? '1' : '0'}" title="${d.transition ? 'Pantalla de carga: ACTIVADA' : 'Pantalla de carga: desactivada'}" aria-label="Alternar pantalla de carga de ${escapeHtml(d.label)}">${icon('activity', { size: 15 })}</button>`
+              : ''
+          }
           <button class="icon-btn qr-btn" data-id="${d.id}" title="Ver código QR" aria-label="Ver código QR de ${escapeHtml(d.label)}">${icon('qr', { size: 15 })}</button>
           <button class="btn-primary text-xs edit-btn" data-id="${d.id}" aria-label="Editar destino de ${escapeHtml(d.label)}">Editar</button>
         </span>
@@ -980,6 +985,29 @@ function renderDevicesTable(filter = '') {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       openQr(b.dataset.id);
+    })
+  );
+
+  // Toggle de pantalla de transición (solo superadmin)
+  body.querySelectorAll('.trans-btn').forEach((b) =>
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const nuevo = b.dataset.on !== '1';
+      const res = await fetch(`/api/devices/${b.dataset.id}/transition`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ transition: nuevo }),
+      });
+      if (!res.ok) {
+        toast('No se pudo cambiar la pantalla de carga.', false);
+        return;
+      }
+      // Reflejar en memoria y re-render.
+      const dev = state.devices.find((x) => x.id === b.dataset.id);
+      if (dev) dev.transition = nuevo;
+      renderDevicesTable(filter);
+      toast(nuevo ? 'Pantalla de carga activada' : 'Pantalla de carga desactivada');
     })
   );
 }

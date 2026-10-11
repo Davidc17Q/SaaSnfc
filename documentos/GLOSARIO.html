@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GLOSARIO</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 820px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.6; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid #6366f1; padding-bottom: .3rem; }
+  h2 { font-size: 1.4rem; margin-top: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: .2rem; }
+  h3 { font-size: 1.15rem; margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #cbd5e1; padding: .5rem .7rem; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #6366f1; margin: 1rem 0; padding: .5rem 1rem; background: #f8fafc; color: #475569; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; margin: .5rem 0; display: block; }
+  a { color: #4f46e5; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+  @media print { body { max-width: none; } a { color: #1e293b; } }
+</style>
+</head>
+<body>
+<h1>Glosario técnico de NFCloud — explicado desde cero</h1>
+<p>Este documento explica, en lenguaje sencillo, los términos técnicos que aparecen en el documento de arquitectura (<code>ARCHITECTURE.md</code> / el PDF). La idea es que puedas leer la arquitectura y entender cada palabra. Cada término trae: <strong>qué es</strong>, <strong>una analogía</strong> y <strong>cómo se usa en NFCloud concretamente</strong>.</p>
+<blockquote>Consejo de lectura: no intentes memorizar. Lee la analogía, mira el ejemplo en NFCloud, y vuelve aquí cuando te topes con la palabra en el código.</blockquote>
+<hr/>
+<h2>1. Conceptos generales</h2>
+<h3>SaaS (Software as a Service)</h3>
+<p><strong>Qué es:</strong> software que se usa por internet mediante una suscripción, sin instalar nada en tu computador. El proveedor se encarga de los servidores, actualizaciones y respaldos. <strong>Analogía:</strong> como Netflix. No compras ni instalas las películas; pagas y las ves por internet. <strong>En NFCloud:</strong> tus clientes entran al panel desde el navegador y pagan por usarlo. No instalan un programa.</p>
+<h3>B2B (Business to Business)</h3>
+<p><strong>Qué es:</strong> un negocio que le vende a otros negocios (no al consumidor final). <strong>Analogía:</strong> un mayorista que le vende a tiendas, no a la persona de la calle. <strong>En NFCloud:</strong> tus clientes son empresas (ej. "Hogar y Moda"), no personas individuales.</p>
+<h3>Multi-tenant (multi-empresa / multi-inquilino)</h3>
+<p><strong>Qué es:</strong> un mismo sistema que atiende a muchos clientes a la vez, pero manteniendo los datos de cada uno separados y aislados. <strong>Analogía:</strong> un edificio de apartamentos. Todos comparten la estructura (ascensor, tuberías), pero cada familia tiene su apartamento con llave propia y no puede entrar al de otro. <strong>En NFCloud:</strong> cada empresa (tenant) ve solo sus sedes, dispositivos y escaneos. Un <code>company_admin</code> nunca puede ver datos de otra empresa.</p>
+<h3>Frontend</h3>
+<p><strong>Qué es:</strong> la parte del software que el usuario ve y toca: botones, gráficos, formularios. Corre en el navegador. <strong>Analogía:</strong> el salón de un restaurante: las mesas, el menú, lo que ve el cliente. <strong>En NFCloud:</strong> todo lo que está en la carpeta <code>public/</code> (el dashboard, los gráficos, el login).</p>
+<h3>Backend</h3>
+<p><strong>Qué es:</strong> la parte que el usuario no ve: procesa datos, aplica reglas, habla con la base de datos. Corre en un servidor. <strong>Analogía:</strong> la cocina del restaurante: nadie la ve, pero ahí se prepara todo. <strong>En NFCloud:</strong> la carpeta <code>src/</code> (el servidor que decide a dónde redirigir y guarda escaneos).</p>
+<hr/>
+<h2>2. Herramientas de desarrollo</h2>
+<h3>Empaquetador (bundler)</h3>
+<p><strong>Qué es:</strong> una herramienta que toma muchos archivos de código y los combina/optimiza en pocos archivos listos para el navegador. Ejemplos: Webpack, Vite, esbuild. <strong>Analogía:</strong> hacer una maleta. En vez de llevar 50 prendas sueltas, las empacas ordenadas en una sola maleta para viajar más fácil. <strong>En NFCloud:</strong> <strong>NO se usa empaquetador.</strong> El documento dice "Frontend sin build step": los archivos JavaScript se sirven tal cual, sin empaquetar. Esto simplifica el despliegue.</p>
+<h3>Build step (paso de construcción / compilación)</h3>
+<p><strong>Qué es:</strong> un proceso que transforma tu código antes de publicarlo (lo compila, lo empaqueta, lo minifica). Un proyecto "sin build step" se publica tal como se escribe. <strong>Analogía:</strong> cocinar antes de servir. Un plato "sin cocción" (como una ensalada) se sirve directo; otros requieren horno antes. <strong>En NFCloud:</strong> el frontend no tiene build step (archivos directos), pero el backend sí: el TypeScript se compila a JavaScript con <code>tsc</code> (ver más abajo).</p>
+<h3>Framework</h3>
+<p><strong>Qué es:</strong> un conjunto de herramientas y reglas que te dan una estructura base para construir software más rápido. Ejemplos: React, Angular, Vue (frontend); Fastify, Express (backend). <strong>Analogía:</strong> un kit prefabricado para armar un mueble: ya trae las piezas y las instrucciones, no partes de cero cortando la madera. <strong>En NFCloud:</strong> el frontend es "sin framework" (JavaScript puro, llamado "vanilla"). El backend sí usa un framework: <strong>Fastify</strong>.</p>
+<h3>Vanilla (JavaScript vanilla)</h3>
+<p><strong>Qué es:</strong> JavaScript "puro", sin ninguna librería ni framework encima. <strong>Analogía:</strong> helado de vainilla sin ningún topping: lo básico, sin añadidos. <strong>En NFCloud:</strong> el <code>app.js</code> del dashboard está escrito en JavaScript vanilla.</p>
+<h3>Librería (library)</h3>
+<p><strong>Qué es:</strong> código ya hecho por otros que tú reutilizas para no reinventar la rueda. <strong>Analogía:</strong> comprar los ladrillos ya fabricados en vez de hacerlos tú mismo. <strong>En NFCloud:</strong> Chart.js (gráficos), qrcode-generator (códigos QR), Lucide (iconos).</p>
+<hr/>
+<h2>3. Lenguajes y entornos</h2>
+<h3>Node.js</h3>
+<p><strong>Qué es:</strong> un entorno que permite ejecutar JavaScript fuera del navegador, por ejemplo en un servidor. <strong>Analogía:</strong> normalmente el "idioma" JavaScript solo lo entendía el navegador; Node.js es como darle a ese idioma la capacidad de hablarse también en la cocina (el servidor). <strong>En NFCloud:</strong> el backend corre sobre Node.js.</p>
+<h3>TypeScript</h3>
+<p><strong>Qué es:</strong> JavaScript con "tipos" añadidos. Los tipos avisan de errores antes de ejecutar (ej. "esto debía ser un número, no un texto"). Luego se compila a JavaScript normal. <strong>Analogía:</strong> escribir con corrector ortográfico y gramatical activado: te marca errores mientras escribes, en vez de descubrirlos cuando ya enviaste la carta. <strong>En NFCloud:</strong> todo el backend (<code>src/</code>) está en TypeScript.</p>
+<h3>tsc (TypeScript Compiler)</h3>
+<p><strong>Qué es:</strong> el programa que convierte TypeScript en JavaScript ejecutable. <strong>Analogía:</strong> un traductor que pasa tu texto del idioma "TypeScript" al idioma "JavaScript" que la máquina entiende. <strong>En NFCloud:</strong> <code>npm run build</code> ejecuta <code>tsc</code> y genera la carpeta <code>dist/</code> con el código traducido.</p>
+<h3>Fastify</h3>
+<p><strong>Qué es:</strong> un framework de backend para Node.js, enfocado en velocidad. Maneja las peticiones web (quién pide qué y qué se responde). <strong>Analogía:</strong> el jefe de meseros que recibe cada pedido, lo manda a la cocina correcta y trae la respuesta. <strong>En NFCloud:</strong> recibe cada visita (ej. <code>/r/&lt;uuid&gt;</code> o <code>/api/kpis</code>) y decide qué hacer.</p>
+<hr/>
+<h2>4. Bases de datos y almacenamiento</h2>
+<h3>Base de datos</h3>
+<p><strong>Qué es:</strong> un sistema para guardar información de forma organizada y poder consultarla. <strong>Analogía:</strong> un archivador gigante con carpetas etiquetadas donde todo queda guardado y se puede buscar. <strong>En NFCloud:</strong> guarda empresas, sedes, dispositivos y escaneos.</p>
+<h3>PostgreSQL (Postgres)</h3>
+<p><strong>Qué es:</strong> una base de datos relacional (organiza los datos en tablas con filas y columnas, y relaciones entre ellas). Es robusta y confiable. <strong>Analogía:</strong> una hoja de cálculo muy potente y conectada: una tabla de "sedes" se relaciona con otra de "dispositivos". <strong>En NFCloud:</strong> es "la verdad" del sistema: el almacén definitivo de todos los datos.</p>
+<h3>Redis</h3>
+<p><strong>Qué es:</strong> un almacén de datos en memoria (RAM), ultrarrápido, usado como caché. <strong>Analogía:</strong> una libreta de notas rápidas que tienes en el bolsillo para lo que consultas muy seguido, en vez de ir al archivador grande cada vez. <strong>En NFCloud:</strong> guarda temporalmente a dónde redirige cada tarjeta, para responder en milisegundos. Si Redis no tiene el dato, se consulta a Postgres.</p>
+<h3>Caché</h3>
+<p><strong>Qué es:</strong> una copia temporal de datos que se consultan mucho, para no recalcularlos o re-buscarlos cada vez. <strong>Analogía:</strong> memorizar el teléfono de tu casa en vez de buscar la agenda cada vez. <strong>En NFCloud:</strong> Redis cachea la info de cada dispositivo durante 1 hora.</p>
+<h3>Pool (de conexiones)</h3>
+<p><strong>Qué es:</strong> un conjunto de conexiones a la base de datos ya abiertas y reutilizables, para no abrir una nueva cada vez (abrir conexiones es lento). <strong>Analogía:</strong> tener varias cajas abiertas en un supermercado en vez de abrir y cerrar una caja por cada cliente. <strong>En NFCloud:</strong> <code>src/db/pool.ts</code> administra ese grupo de conexiones a Postgres.</p>
+<h3>Esquema (schema)</h3>
+<p><strong>Qué es:</strong> la definición de cómo está organizada la base de datos: qué tablas existen, qué columnas tiene cada una y de qué tipo. <strong>Analogía:</strong> el plano de un edificio: define cuántos pisos, cuántas habitaciones y de qué tipo. <strong>En NFCloud:</strong> <code>src/db/schema.sql</code> define las tablas (companies, users, locations, etc.).</p>
+<h3>Migración (migration)</h3>
+<p><strong>Qué es:</strong> un cambio controlado en la estructura de la base de datos (crear tabla, añadir columna). Se aplica de forma ordenada y repetible. <strong>Analogía:</strong> una remodelación de la casa siguiendo un plano actualizado, sin tirar lo que ya funciona. <strong>En NFCloud:</strong> <code>npm run migrate</code> aplica el esquema. Es "idempotente" (ver abajo).</p>
+<h3>Idempotente</h3>
+<p><strong>Qué es:</strong> una operación que puedes ejecutar muchas veces y el resultado es el mismo que ejecutarla una vez (no causa daño repetirla). <strong>Analogía:</strong> el botón de "piso 3" en el ascensor: lo aprietes una o cinco veces, vas al piso 3. <strong>En NFCloud:</strong> las migraciones usan <code>CREATE TABLE IF NOT EXISTS</code>, así que correrlas de nuevo no rompe nada.</p>
+<h3>SQL</h3>
+<p><strong>Qué es:</strong> el lenguaje para consultar y modificar bases de datos relacionales. <strong>Analogía:</strong> el idioma con el que le pides cosas al archivador: "tráeme todas las sedes de Medellín". <strong>En NFCloud:</strong> se usa en todas las consultas del backend (<code>SELECT ... FROM locations ...</code>).</p>
+<h3>Índice (index)</h3>
+<p><strong>Qué es:</strong> una estructura que acelera las búsquedas en una tabla, a costa de un poco más de espacio. <strong>Analogía:</strong> el índice alfabético al final de un libro: en vez de leer todo, vas directo a la página. <strong>En NFCloud:</strong> hay índices por <code>location_id</code>, <code>scanned_at</code>, etc., para que los reportes sean rápidos.</p>
+<hr/>
+<h2>5. Web, redirección y seguridad</h2>
+<h3>URL</h3>
+<p><strong>Qué es:</strong> la dirección de un recurso en internet (ej. <code>https://midominio.com/r/123</code>). <strong>Analogía:</strong> la dirección postal de una casa. <strong>En NFCloud:</strong> la tarjeta NFC guarda una URL del servidor, no el destino final.</p>
+<h3>UUID (identificador único universal)</h3>
+<p><strong>Qué es:</strong> un código largo y único que identifica algo sin repetirse (ej. <code>550e8400-e29b-41d4-a716-446655440000</code>). <strong>Analogía:</strong> la cédula o número de identidad: único para cada persona. <strong>En NFCloud:</strong> cada dispositivo NFC tiene un UUID; es lo que va grabado en la tarjeta.</p>
+<h3>Redirección (redirect) y el código 302</h3>
+<p><strong>Qué es:</strong> cuando un servidor responde "no estoy aquí, ve a esta otra dirección". El 302 es el código que significa "redirección temporal". <strong>Analogía:</strong> un cartel en una tienda cerrada que dice "nos mudamos, ve a la esquina". <strong>En NFCloud:</strong> al escanear una tarjeta, el servidor responde 302 y manda al navegador al destino real (WhatsApp, Instagram, etc.).</p>
+<h3>HTTP / endpoint / ruta (route)</h3>
+<p><strong>Qué es:</strong> HTTP es el protocolo de comunicación de la web. Un *endpoint* o *ruta* es una dirección específica del servidor que hace algo (ej. <code>/api/kpis</code> devuelve las métricas). <strong>Analogía:</strong> las distintas ventanillas de una oficina: una para pagos, otra para reclamos. <strong>En NFCloud:</strong> <code>/r/:deviceId</code> redirige; <code>/api/locations</code> lista sedes; etc.</p>
+<h3>API (Interfaz de Programación de Aplicaciones)</h3>
+<p><strong>Qué es:</strong> el conjunto de endpoints que el frontend usa para pedirle datos o acciones al backend. <strong>Analogía:</strong> el menú de un restaurante: la lista de lo que puedes pedir y cómo pedirlo. <strong>En NFCloud:</strong> <code>src/routes/api.ts</code> define toda la API del panel.</p>
+<h3>Autenticación (auth)</h3>
+<p><strong>Qué es:</strong> verificar quién eres (usuario y contraseña) para dejarte entrar. <strong>Analogía:</strong> mostrar tu cédula en la entrada de un edificio. <strong>En NFCloud:</strong> el login con usuario y contraseña.</p>
+<h3>Autorización</h3>
+<p><strong>Qué es:</strong> una vez identificado, decidir qué puedes hacer o ver. <strong>Analogía:</strong> tu cédula te deja entrar al edificio (autenticación), pero tu tarjeta de acceso solo abre tu piso (autorización). <strong>En NFCloud:</strong> un <code>superadmin</code> ve todo; un <code>company_admin</code> solo su empresa.</p>
+<h3>Cookie de sesión</h3>
+<p><strong>Qué es:</strong> un pequeño dato que el navegador guarda tras iniciar sesión, para que el servidor te reconozca en las siguientes peticiones sin pedirte la contraseña cada vez. <strong>Analogía:</strong> la manilla que te ponen en un evento: te la ven y te dejan pasar sin volver a revisar tu entrada. <strong>En NFCloud:</strong> una cookie firmada guarda tu sesión (quién eres, tu rol, tu empresa).</p>
+<h3>HMAC (firma)</h3>
+<p><strong>Qué es:</strong> una técnica para firmar un dato con una clave secreta, de modo que si alguien lo altera, la firma deja de coincidir y se detecta el fraude. <strong>Analogía:</strong> un sello de cera en una carta antigua: si lo rompen, sabes que la abrieron. <strong>En NFCloud:</strong> la cookie de sesión va firmada con HMAC para que nadie la falsifique.</p>
+<h3>Hash de contraseña / scrypt</h3>
+<p><strong>Qué es:</strong> transformar una contraseña en un código irreversible antes de guardarla, para que ni el dueño del sistema vea la contraseña real. <code>scrypt</code> es un algoritmo para hacerlo de forma segura. "Nunca se guarda en texto plano" significa que jamás se almacena tal cual la escribiste. <strong>Analogía:</strong> triturar un documento: puedes verificar que un papel nuevo coincide con el triturado, pero no puedes reconstruir el original desde los pedazos. <strong>En NFCloud:</strong> las contraseñas se guardan con scrypt (<code>salt:hash</code>), nunca legibles.</p>
+<h3>Salt</h3>
+<p><strong>Qué es:</strong> un dato aleatorio que se añade a la contraseña antes de hacer el hash, para que dos personas con la misma contraseña tengan hashes distintos. <strong>Analogía:</strong> echarle una pizca distinta de sal a cada plato para que ningún par sea idéntico. <strong>En NFCloud:</strong> cada contraseña hasheada incluye su salt.</p>
+<h3>HTTPS</h3>
+<p><strong>Qué es:</strong> la versión segura de HTTP: cifra la comunicación entre el navegador y el servidor. <strong>Analogía:</strong> enviar una carta en un sobre sellado y blindado en vez de una postal que todos pueden leer. <strong>En NFCloud:</strong> se usa HTTPS en producción.</p>
+<h3>Variables de entorno (.env)</h3>
+<p><strong>Qué es:</strong> valores de configuración que viven fuera del código (claves, URLs de base de datos, secretos). Así no quedan escritos en el código ni se suben a internet por error. <strong>Analogía:</strong> las llaves de tu casa: no las dejas pegadas con cinta en la puerta; las guardas aparte. <strong>En NFCloud:</strong> el archivo <code>.env</code> guarda <code>DATABASE_URL</code>, <code>SESSION_SECRET</code>, etc. No se sube a Git.</p>
+<hr/>
+<h2>6. Operación y despliegue</h2>
+<h3>Servidor</h3>
+<p><strong>Qué es:</strong> un computador (normalmente en la nube) que está siempre encendido para atender peticiones. <strong>Analogía:</strong> la cocina de un restaurante que abre todos los días para atender pedidos. <strong>En NFCloud:</strong> donde corre el backend de Node.js.</p>
+<h3>Despliegue (deploy)</h3>
+<p><strong>Qué es:</strong> poner tu aplicación en un servidor para que esté disponible en internet. <strong>Analogía:</strong> inaugurar la tienda: pasar de tenerla armada en tu taller a abrirla al público. <strong>En NFCloud:</strong> se despliega en Railway haciendo <code>git push</code>.</p>
+<h3>Railway</h3>
+<p><strong>Qué es:</strong> una plataforma en la nube que corre tu app, tu base de datos y tu Redis sin que tú administres servidores manualmente. <strong>Analogía:</strong> alquilar un local ya equipado con cocina, luz y agua, en vez de construirlo. <strong>En NFCloud:</strong> aloja la app, Postgres y Redis en producción.</p>
+<h3>Docker / Docker Compose</h3>
+<p><strong>Qué es:</strong> Docker empaqueta un programa con todo lo que necesita para correr igual en cualquier máquina. Docker Compose levanta varios de esos paquetes juntos con un comando. <strong>Analogía:</strong> un contenedor de barco: lo que metes dentro viaja igual sin importar el barco. <strong>En NFCloud:</strong> <code>docker-compose.yml</code> levanta Postgres y Redis en tu computador para desarrollo.</p>
+<h3>Git / git push</h3>
+<p><strong>Qué es:</strong> Git es el sistema que guarda el historial de cambios de tu código. <code>git push</code> sube esos cambios al repositorio remoto. <strong>Analogía:</strong> un "control de versiones" como el historial de Google Docs: puedes ver y volver a cualquier versión anterior. <strong>En NFCloud:</strong> cada cambio se guarda con Git; al hacer <code>git push</code>, Railway redespliega solo.</p>
+<h3>Túnel (Cloudflare Tunnel / ngrok)</h3>
+<p><strong>Qué es:</strong> una herramienta que expone temporalmente tu servidor local a internet, con una URL pública, para hacer pruebas. <strong>Analogía:</strong> tender un cable temporal desde tu casa hasta la calle para que alguien de afuera pueda ver lo que tienes dentro, sin mudarte. <strong>En NFCloud:</strong> sirve para probar los escaneos NFC reales contra tu máquina local.</p>
+<hr/>
+<h2>7. Rendimiento y procesamiento asíncrono</h2>
+<h3>Latencia</h3>
+<p><strong>Qué es:</strong> el tiempo que tarda una respuesta desde que la pides. <strong>Analogía:</strong> cuánto se demora el mesero en traerte el agua desde que la pediste. <strong>En NFCloud:</strong> la redirección busca latencia mínima (objetivo < 50 ms) usando Redis.</p>
+<h3>Asíncrono / fire-and-forget</h3>
+<p><strong>Qué es:</strong> hacer algo "en segundo plano" sin que el usuario tenga que esperar a que termine. "Fire-and-forget" (dispara y olvida) es lanzar una tarea sin esperar su resultado. <strong>Analogía:</strong> mandar la ropa a lavar y seguir con tu día; no te quedas parado frente a la lavadora. <strong>En NFCloud:</strong> primero redirige al usuario (rápido) y *después*, en segundo plano, registra el escaneo. Así la persona no espera a que se guarde el dato.</p>
+<h3>setImmediate</h3>
+<p><strong>Qué es:</strong> una función de Node.js que programa una tarea para "justo después" de terminar lo urgente. <strong>Analogía:</strong> "esto lo hago apenas termine de atender al cliente que tengo enfrente". <strong>En NFCloud:</strong> se usa para registrar el escaneo después de haber respondido la redirección.</p>
+<h3>Anti-doble-conteo (deduplicación)</h3>
+<p><strong>Qué es:</strong> evitar contar dos veces el mismo evento cuando ocurre repetido en poco tiempo. <strong>Analogía:</strong> un torniquete que no te cuenta dos veces si pasas la tarjeta dos veces seguidas por error. <strong>En NFCloud:</strong> si el mismo dispositivo e IP escanean en menos de 30 segundos, el segundo no se cuenta (para no inflar las métricas con recargas o pruebas).</p>
+<h3>TTL (Time To Live / tiempo de vida)</h3>
+<p><strong>Qué es:</strong> cuánto tiempo vive un dato antes de borrarse automáticamente. <strong>Analogía:</strong> la fecha de vencimiento de un yogur: pasado ese tiempo, fuera. <strong>En NFCloud:</strong> la caché de un dispositivo en Redis tiene un TTL de 3600 s (1 hora).</p>
+<h3>Fallback (plan B)</h3>
+<p><strong>Qué es:</strong> una alternativa a la que recurres si lo principal falla. <strong>Analogía:</strong> si se va la luz, prendes velas. <strong>En NFCloud:</strong> si Redis no responde, se consulta directamente a Postgres (el fallback).</p>
+<hr/>
+<h2>8. Zona horaria y datos</h2>
+<h3>UTC</h3>
+<p><strong>Qué es:</strong> la hora de referencia mundial, sin ajustes locales. <strong>Analogía:</strong> el "meridiano cero" del tiempo: todos los relojes del mundo se miden respecto a él. <strong>En NFCloud:</strong> los escaneos se guardan en UTC para que no haya ambigüedad.</p>
+<h3>Zona horaria (timezone) / America/Bogota</h3>
+<p><strong>Qué es:</strong> el ajuste horario de una región respecto a UTC. <strong>Analogía:</strong> cada país pone su reloj a una hora distinta aunque el instante sea el mismo. <strong>En NFCloud:</strong> los datos se guardan en UTC pero se *muestran* en hora de Bogotá (<code>APP_TIMEZONE</code>), para que las métricas tengan sentido para el negocio local.</p>
+<h3>timestamptz</h3>
+<p><strong>Qué es:</strong> un tipo de dato de Postgres que guarda fecha y hora *con* zona horaria. <strong>Analogía:</strong> una foto con la hora y el lugar marcados, no solo la hora suelta. <strong>En NFCloud:</strong> la columna <code>scanned_at</code> usa <code>timestamptz</code>.</p>
+<h3>JSON / JSONB</h3>
+<p><strong>Qué es:</strong> JSON es un formato de texto para estructurar datos (listas, pares nombre-valor). JSONB es la versión que Postgres guarda de forma optimizada. <strong>Analogía:</strong> una ficha ordenada con campos: <code>{ nombre: "Ana", edad: 30 }</code>. <strong>En NFCloud:</strong> la respuesta de la API viaja en JSON; el historial de cambios masivos se guarda en una columna JSONB.</p>
+<h3>Snapshot (instantánea)</h3>
+<p><strong>Qué es:</strong> una copia del estado de algo en un momento dado, para poder volver a él. <strong>Analogía:</strong> una foto antes de una remodelación, por si quieres dejar todo como estaba. <strong>En NFCloud:</strong> antes de un cambio masivo de destinos, se guarda un snapshot para poder revertirlo.</p>
+<h3>Backfill</h3>
+<p><strong>Qué es:</strong> rellenar datos que antes no existían, aplicándolos a registros ya guardados. <strong>Analogía:</strong> una ley nueva que se aplica también a casos antiguos para ponerlos al día. <strong>En NFCloud:</strong> al introducir el modelo multi-empresa, se hizo un backfill: se crearon empresas a partir de las marcas existentes y se asignaron las sedes.</p>
+<hr/>
+<h2>9. Términos que usamos al mejorar la interfaz</h2>
+<p>Estos no están en la arquitectura, pero los mencionamos al trabajar juntos.</p>
+<h3>Accesibilidad (a11y)</h3>
+<p><strong>Qué es:</strong> hacer que la aplicación sea usable por personas con discapacidad (visual, motriz). "a11y" es una abreviatura: "a", luego 11 letras, luego "y". <strong>Analogía:</strong> las rampas y el braille en un edificio: no todos las usan, pero quienes las necesitan no quedan excluidos. <strong>En NFCloud:</strong> añadimos <code>aria-label</code> (texto invisible que leen los lectores de pantalla) a los botones de solo-icono.</p>
+<h3>aria-label</h3>
+<p><strong>Qué es:</strong> un atributo HTML con texto descriptivo para tecnologías de asistencia, que no se ve en pantalla. <strong>Analogía:</strong> una etiqueta en braille bajo un botón: invisible para la vista, útil al tacto. <strong>En NFCloud:</strong> el botón del lápiz "dice" *Editar sede Hogar y Moda* a un lector de pantalla.</p>
+<h3>Skeleton / loader (indicador de carga)</h3>
+<p><strong>Qué es:</strong> una señal visual de que algo se está cargando (un brillo, un spinner). <strong>Analogía:</strong> la rueda que gira mientras carga un video. <strong>En NFCloud:</strong> un leve brillo recorre las tarjetas de gráficos mientras llegan los datos.</p>
+<h3>Combobox</h3>
+<p><strong>Qué es:</strong> un campo que combina un cuadro de texto (para buscar escribiendo) con una lista desplegable de opciones. <strong>Analogía:</strong> el buscador de Google que te va sugiriendo mientras escribes. <strong>En NFCloud:</strong> el selector de sede al crear un dispositivo: escribes y filtra entre las 84 sedes.</p>
+<h3>localStorage</h3>
+<p><strong>Qué es:</strong> un espacio donde el navegador guarda datos pequeños de forma persistente (siguen ahí aunque cierres la pestaña). <strong>Analogía:</strong> un cajón de tu escritorio donde dejas notas que siguen ahí mañana. <strong>En NFCloud:</strong> guarda tu preferencia de tema claro/oscuro.</p>
+<hr/>
+<p>*Documento de aprendizaje para el proyecto NFCloud. Si encuentras un término en el código o la arquitectura que no esté aquí, pídelo y lo agregamos.*</p>
+
+</body>
+</html>

@@ -51,4 +51,8 @@ export interface DeviceCache {
   target_url: string;
   status: string;
   code?: string;
+  /** Nombre de la empresa dueña del punto (para la pantalla de transición). */
+  company_name?: string;
+  /** Si true, muestra la pantalla de transición antes de redirigir. */
+  transition?: boolean;
 }

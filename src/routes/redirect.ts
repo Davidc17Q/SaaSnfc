@@ -4,6 +4,7 @@ import { redis, deviceCacheKey, dedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
 import { detectChannel } from '../lib/channel';
 import { config } from '../config';
+import { transitionHtml } from '../lib/transition';
 import type { DeviceCache } from '../types';
 
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
@@ -63,17 +64,31 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   // 2) Fallback a Postgres. Busca por code o por id (UUID).
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
-  const rows = isUuid
-    ? await pool.query(
-        `SELECT id AS device_id, location_id, target_url, status
-           FROM devices WHERE id = $1 LIMIT 1`,
-        [idOrCode]
-      )
-    : await pool.query(
-        `SELECT id AS device_id, location_id, target_url, status
-           FROM devices WHERE code = $1 LIMIT 1`,
-        [idOrCode]
-      );
+  const campo = isUuid ? 'd.id' : 'd.code';
+
+  // Se intenta traer el nombre de la empresa (vía location → company) para la
+  // pantalla de transición. Si el esquema es antiguo (sin tabla companies o sin
+  // columna code), se reintenta con una consulta mínima que siempre funciona.
+  let rows;
+  try {
+    rows = await pool.query(
+      `SELECT d.id AS device_id, d.location_id, d.target_url, d.status,
+              d.transition, co.name AS company_name
+         FROM devices d
+         LEFT JOIN locations l ON l.id = d.location_id
+         LEFT JOIN companies co ON co.id = l.company_id
+        WHERE ${campo} = $1 LIMIT 1`,
+      [idOrCode]
+    );
+  } catch {
+    // Esquema antiguo: sin companies/company_id (o sin code/transition).
+    const campoBasico = isUuid ? 'id' : 'code';
+    rows = await pool.query(
+      `SELECT id AS device_id, location_id, target_url, status
+         FROM devices WHERE ${campoBasico} = $1 LIMIT 1`,
+      [idOrCode]
+    );
+  }
   if (rows.rowCount === 0) return null;
 
   const device = rows.rows[0] as DeviceCache;
@@ -104,12 +119,28 @@ export async function redirectRoutes(app: FastifyInstance) {
         .send(NOT_CONFIGURED_HTML(deviceId));
     }
 
-    // Redirigir de inmediato (no bloquear en el registro del evento).
-    // 'ngrok-skip-browser-warning' evita la pantalla intermedia de ngrok gratis.
-    reply
-      .header('Cache-Control', 'no-store')
-      .header('ngrok-skip-browser-warning', 'true')
-      .redirect(device.target_url, 302);
+    // Pantalla de transición OPCIONAL (solo con ?preview=1). Por defecto el
+    // comportamiento es el 302 puro e instantáneo de siempre, para no añadir
+    // fricción a reseñas/WhatsApp. El preview sirve para probar/demostrar.
+    // La pantalla aparece si el dispositivo la tiene activada (columna
+    // transition) o si se fuerza con ?preview=1 (para pruebas/demos).
+    const preview =
+      (device as any).transition === true ||
+      (req.query as { preview?: string })?.preview === '1';
+    if (preview) {
+      reply
+        .header('Cache-Control', 'no-store')
+        .header('ngrok-skip-browser-warning', 'true')
+        .type('text/html; charset=utf-8')
+        .send(transitionHtml({ targetUrl: device.target_url, companyName: device.company_name }));
+    } else {
+      // Redirigir de inmediato (no bloquear en el registro del evento).
+      // 'ngrok-skip-browser-warning' evita la pantalla intermedia de ngrok gratis.
+      reply
+        .header('Cache-Control', 'no-store')
+        .header('ngrok-skip-browser-warning', 'true')
+        .redirect(device.target_url, 302);
+    }
 
     // Registrar el ScanEvent de forma asíncrona (fire-and-forget).
     const os = detectOs(req.headers['user-agent']);

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ENTENDER-PLATAFORMA-PROFE</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 820px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.6; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid #6366f1; padding-bottom: .3rem; }
+  h2 { font-size: 1.4rem; margin-top: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: .2rem; }
+  h3 { font-size: 1.15rem; margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #cbd5e1; padding: .5rem .7rem; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #6366f1; margin: 1rem 0; padding: .5rem 1rem; background: #f8fafc; color: #475569; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; margin: .5rem 0; display: block; }
+  a { color: #4f46e5; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+  @media print { body { max-width: none; } a { color: #1e293b; } }
+</style>
+</head>
+<body>
+<h1>Entender la plataforma del profe (y el modelo de negocio)</h1>
+<p>Guía de consulta para David. Explica, con lenguaje sencillo, la versión de NFCloud que estructuró el profe (Santiago) en Vercel, en qué se diferencia de la plataforma propia (Railway), y toda la terminología de negocio que aparece en el sitio.</p>
+<blockquote>Para qué sirve este documento: para llegar preparado a la reunión del <strong>martes</strong> con el profe (viabilidad comercial) y a <strong>On Going</strong>. Que ningún término te tome por sorpresa.</blockquote>
+<hr/>
+<h2>0. Lo esencial en una frase</h2>
+<p>El profe tomó la misma idea (tarjeta → toque → destino → se mide) y le agregó:</p>
+<ol>
+<li>Un <strong>modo nuevo</strong> de punto: "calificar" (encuesta propia), además de "redirigir".</li>
+<li>Medir si el uso fue por <strong>NFC (tocar)</strong> o <strong>QR (escanear)</strong>, con el mismo código.</li>
+<li>Un <strong>modelo de cobro</strong> con dos partes: hardware (pago único) + plataforma (suscripción mensual por planes según el tamaño del cliente).</li>
+</ol>
+<p>No es un sistema alienígena: es tu concepto + funciones de negocio + un motor técnico distinto por debajo.</p>
+<hr/>
+<h2>1. Las dos plataformas, lado a lado</h2>
+<table><thead><tr><th></th><th><strong>Tu NFCloud (Railway)</strong></th><th><strong>NFCloud del profe (Vercel)</strong></th></tr></thead><tbody>
+<tr><td>Lenguaje</td><td>TypeScript</td><td>JavaScript</td></tr>
+<tr><td>Motor</td><td>Fastify (servidor encendido 24/7)</td><td>Funciones serverless (se encienden al entrar)</td></tr>
+<tr><td>Base de datos</td><td>PostgreSQL + Redis (caché)</td><td>Neon Postgres (sin Redis)</td></tr>
+<tr><td>Frontend</td><td>Dashboard pulido (auto-refresco, chips, combobox)</td><td>Panel funcional, hay que recargar para actualizar</td></tr>
+<tr><td>Clientes</td><td>Reales (Lalico, Celumóvil, Río Vivo)</td><td>Datos demo ficticios</td></tr>
+<tr><td>Código fuente</td><td>Lo tienes y lo controlas</td><td>Ya te lo compartió (repo en GitHub)</td></tr>
+</tbody></table>
+<p><strong>Por qué se siente distinta:</strong> tu motor mantiene el dashboard "vivo" (se actualiza solo); el del profe se enciende por petición, por eso hay que recargar. Son enfoques distintos, ninguno está "mal".</p>
+<p><strong>Decisión pendiente (para el martes):</strong> no conviene fusionar dos arquitecturas tan distintas; conviene elegir UNA base y llevar a ella las mejores ideas de la otra. Esa decisión se habla con el profe.</p>
+<hr/>
+<h2>2. El concepto nuevo: el "modo" de cada punto</h2>
+<p>En tu versión, toda tarjeta hacía lo mismo: <strong>redirigir</strong> (mandar afuera). El profe le dio a cada punto uno de <strong>tres modos</strong>:</p>
+<ul>
+<li><strong>Redirigir</strong> → lo de siempre: manda a Google, WhatsApp, Instagram, catálogo.</li>
+<li><strong>Calificar</strong> → abre una <strong>encuesta propia</strong> dentro de la plataforma (estrellas de 1 a 5 + aspectos + comentario). No manda afuera; guarda la respuesta en tu panel.</li>
+<li><strong>Menú</strong> → abre una lista de opciones ("ver carta, calificar, reseña, WhatsApp") para que el cliente elija. Una sola tarjeta hace varias cosas.</li>
+</ul>
+<h3>La calificación interna: quién, desde dónde, cuándo</h3>
+<ul>
+<li><strong>Quién:</strong> el mismo cliente, con su celular.</li>
+<li><strong>Desde dónde:</strong> una página de encuesta que vive en TU plataforma (no en Google).</li>
+<li><strong>Cuándo:</strong> cuando toca una tarjeta en <strong>modo calificar</strong> (ej. una en la ventanilla que dice "¿Cómo fue la atención?").</li>
+<li><strong>Por qué importa:</strong> las reseñas de Google son públicas y no las controlas; la calificación interna es privada y tuya. Abre el mercado de <strong>instituciones públicas</strong> (deben medir satisfacción por ley) y de negocios que quieren saber qué falla antes de que se vuelva reseña pública.</li>
+</ul>
+<hr/>
+<h2>3. Los códigos: QR vs NFC (la confusión más común)</h2>
+<p>Antes generabas <strong>un código</strong>, lo copiabas a la tarjeta y al QR, y listo. El profe hace algo más fino, pero es casi lo mismo:</p>
+<ul>
+<li>Cada punto tiene <strong>un solo código</strong> (ej. <code>758854</code>), igual que tú.</li>
+<li>Genera <strong>dos versiones del enlace</strong> con ese mismo código:</li>
+<li>Tarjeta <strong>NFC</strong>: <code>.../r/758854?v=n</code>  ← <code>n</code> de NFC (tocar)</li>
+<li><strong>QR</strong> impreso: <code>.../r/758854?v=q</code>  ← <code>q</code> de QR (escanear)</li>
+</ul>
+<p><strong>No son dos puntos ni dos códigos.</strong> Es un punto, un código, dos "sabores" del enlace. La coletilla <code>?v=n</code> o <code>?v=q</code> solo sirve para que el panel sepa si la gente usó más el toque o el escaneo. Tú antes usabas un solo sabor para todo; funcionaba igual, solo que no distinguía el canal.</p>
+<h3>Flujo para crear (jerarquía)</h3>
+<pre><code>Empresa (ej. LaLico)
+   └── Sede (ej. LaLico Itagüí)
+         └── Puntos (cada tarjeta: etiqueta + familia + modo + destino)</code></pre>
+<ol>
+<li>Creas la empresa (o usas "Alta rápida", que crea empresa + sede + kit de puntos de una sola vez).</li>
+<li>Creas la sede.</li>
+<li>Creas cada punto eligiendo: <strong>etiqueta</strong> ("Reseñanos"), <strong>familia</strong> (reseña/whatsapp/instagram/neutro…), <strong>modo</strong> (redirigir/calificar/menú) y <strong>destino</strong> (la URL, si redirige).</li>
+<li>El sistema te da el QR y el enlace NFC de cada punto para grabar/imprimir.</li>
+</ol>
+<p><strong>La hoja de instalación:</strong> es una guía con los QR de cada punto listos para imprimir y pegar, más instrucciones ("fija el soporte, graba la tarjeta, toca una vez para confirmar"). Sirve para que el montaje en el local sea ordenado. Los QR que muestra son para instalar/imprimir.</p>
+<hr/>
+<h2>4. Cómo leer los KPIs (los números del tablero)</h2>
+<p>Cada tarjeta de número responde UNA pregunta. El numerito pequeño de abajo es el contexto.</p>
+<p><strong>En Resumen:</strong></p>
+<ul>
+<li><strong>Escaneos y toques (ej. 2.429):</strong> veces que se usaron las tarjetas (NFC + QR).</li>
+<li><strong>Calificaciones recibidas (ej. 468):</strong> encuestas respondidas en el periodo.</li>
+<li><strong>Calificación promedio (ej. 3.89):</strong> la nota de 1 a 5.</li>
+<li><strong>Positivas 4 y 5 (ej. 68%):</strong> porcentaje de calificaciones buenas.</li>
+<li><strong>Con comentario (ej. 147):</strong> cuántas traían texto escrito (valen oro).</li>
+<li><strong>Puntos activos (ej. 16/18 · 4):</strong> 16 de 18 puntos funcionando, en 4 sedes.</li>
+</ul>
+<p><strong>En Calificaciones:</strong></p>
+<ul>
+<li><strong>Recibidas (96 / −5%):</strong> cuántas llegaron; el −5% es la comparación con el periodo anterior (esta vez 5% menos).</li>
+<li><strong>Promedio (4.33):</strong> la nota.</li>
+<li><strong>Con comentario (34):</strong> cuántas dejaron texto.</li>
+<li><strong>Negativas 1 y 2 (3% / 3 para responder):</strong> porcentaje de malas, y cuántas negativas faltan por responder (tarea pendiente).</li>
+</ul>
+<hr/>
+<h2>5. Para qué sirve cada módulo del sitio</h2>
+<ul>
+<li><strong>Panel (dashboard):</strong> el producto funcionando. Resumen, puntos, calificaciones, cambios, sedes, empresas. Es lo que usa el cliente y lo que gestionas tú.</li>
+<li><strong>Modelo:</strong> el "cerebro" del negocio, <strong>para ti y para gente de negocio</strong> (On Going, inversores, el profe). Mercado, competencia, planes, simulador, estrategia, riesgos. Denso a propósito. NO se le muestra a un cliente normal.</li>
+<li><strong>Presentación:</strong> la cara <strong>bonita para mostrar/vender</strong> (tipo diapositivas, visual, frases cortas). Para proyectar en reunión o pasar como PDF.</li>
+</ul>
+<p>Regla: <strong>Modelo = pensar y defender el negocio. Presentación = mostrar y enamorar. Panel = el producto real.</strong></p>
+<hr/>
+<h2>6. Terminología de mercado (TAM/SAM/SOM, cámaras, matrículas)</h2>
+<h3>TAM / SAM / SOM (la pizza)</h3>
+<ul>
+<li><strong>TAM (mercado total) = la pizza entera.</strong> Todos los que *en teoría* podrían usarlo: <strong>95.624</strong> negocios del Valle de Aburrá. El techo máximo.</li>
+<li><strong>SAM (mercado alcanzable) = la porción que de verdad puedes servir.</strong> Los que tienen mostrador/mesa y están en tus 4 segmentos: <strong>~55.000</strong>.</li>
+<li><strong>SOM (meta a 12 meses) = el mordisco de este año.</strong> Lo que puedes lograr realmente con tu capacidad actual: <strong>167</strong> clientes.</li>
+</ul>
+<p>Para qué sirve: cuando pregunten "¿qué tan grande es tu negocio?", respondes con un número ambicioso (TAM), uno realista (SAM) y uno concreto (SOM). Es lenguaje estándar de emprendimiento.</p>
+<h3>Cámaras de Comercio</h3>
+<p>Entidades oficiales donde se registra todo negocio legal en Colombia. La <strong>Cámara de Medellín para Antioquia</strong> cubre 69 municipios; la <strong>Cámara Aburrá Sur</strong> cubre Itagüí, Envigado, Sabaneta, La Estrella y Caldas. Son la <strong>fuente oficial</strong> de cuántos negocios hay; por eso el profe las usa (da credibilidad, no es un número inventado).</p>
+<h3>Matrícula</h3>
+<p>Cada <strong>registro de negocio</strong> en la Cámara (la "matrícula mercantil"). "95.624 matrículas activas" = 95.624 negocios registrados y vigentes. Ojo: una matrícula no siempre es un local con mostrador (puede ser alguien que factura desde casa). Por eso para el SAM se descartan las que no tienen atención presencial, y baja de 95.624 a ~55.000. "Tómese como techo" = ese número incluye zonas fuera del valle, no lo tomes literal.</p>
+<h3>El segundo mercado: Instituciones públicas</h3>
+<p>Un tipo de cliente distinto a los comercios: <strong>alcaldías, hospitales, EPS, notarías, universidades</strong>. Les sirve porque <strong>la ley los obliga a medir la satisfacción del ciudadano</strong> (Decreto 1499 de 2017, el "MIPG"). Hoy lo hacen con encuestas en papel o correo: lento y ocasional. Tu <strong>calificación interna</strong> lo reemplaza: una tarjeta en cada ventanilla, el ciudadano califica anónimo, y la entidad recibe un informe mensual. Es un mercado con presupuesto y donde no compites con "el QR gratis".</p>
+<hr/>
+<h2>7. Los planes y precios (con mucha plastilina)</h2>
+<p>El cambio mental clave: antes vendías <strong>objetos</strong> (tarjetas, hablador), pago único. Ahora el modelo separa DOS cosas:</p>
+<h3>Cosa 1 — Hardware (lo físico, pago ÚNICO)</h3>
+<p>Lo que ya hacías. Se paga una sola vez:</p>
+<ul>
+<li>Tarjeta NFC personalizada: ~$29.900</li>
+<li>Paquete de 10 tarjetas: ~$199.000</li>
+<li>Hablador acrílico con póster y 3 chips: ~$129.000</li>
+<li>Kit de inicio (hablador + 5 tarjetas + instalación): ~$249.000</li>
+</ul>
+<h3>Cosa 2 — Plataforma (el software, pago MENSUAL / suscripción)</h3>
+<p>Esto es lo NUEVO en tu forma de cobrar: el cliente paga <strong>cada mes</strong> por usar el panel. Cuatro planes según el <strong>tamaño</strong> del cliente:</p>
+<table><thead><tr><th>Plan</th><th>Para quién</th><th>Precio</th><th>Cómo se cobra</th></tr></thead><tbody>
+<tr><td><strong>Punto</strong></td><td>Negocio de 1 sede (licorería, spa)</td><td>$39.900/mes</td><td>Tarifa plana, <strong>hasta 6 puntos incluidos</strong></td></tr>
+<tr><td><strong>Sedes</strong></td><td>Negocio de 2 a 10 sedes</td><td>$34.900 por sede/mes</td><td>Se multiplica por sede</td></tr>
+<tr><td><strong>Red</strong></td><td>Cadena de 11+ sedes (Hogar y Moda)</td><td>$19.900 por sede/mes</td><td>Se multiplica por sede (más barato por volumen)</td></tr>
+<tr><td><strong>Institución</strong></td><td>Alcaldías, EPS, atención al ciudadano</td><td>$49.900 por punto/mes</td><td><strong>Se multiplica por cada ventanilla</strong> (mín. 3)</td></tr>
+</tbody></table>
+<p>Lógica: entre más sedes, más barato por sede (descuento por volumen).</p>
+<h3>Las dos dudas que más confunden</h3>
+<p><strong>Plan Punto — "¿$39.900 × 6 puntos, o $39.900 por tener hasta 6?"</strong> → Es tarifa plana: <strong>$39.900/mes da derecho a tener HASTA 6 tarjetas</strong>, no se multiplica. Del punto 7 en adelante, +$4.900 por punto.</p>
+<p><strong>Plan Institución — "¿$49.900 por ventanilla, o fijo?"</strong> → <strong>Se multiplica: $49.900 por cada punto de atención (ventanilla), al mes.</strong> Si una alcaldía tiene 5 ventanillas con tarjeta de calificación → 5 × $49.900 = $249.500/mes. Mínimo 3 puntos. Se multiplica porque cada ventanilla es un indicador que la entidad debe reportar por separado (así lo exige la ley), y encaja con cómo presupuestan.</p>
+<h3>Tu caso real (Lalico) traducido al modelo nuevo</h3>
+<ul>
+<li>Antes: vendías 3 tarjetas + hablador = un pago único y ya.</li>
+<li>Ahora: le vendes el hardware (pago único) <strong>+</strong> lo suscribes al <strong>plan Punto $39.900/mes</strong> (una sede, hasta 6 tarjetas).</li>
+<li>La diferencia: antes cobrabas una vez; ahora cobras hardware una vez <strong>y</strong> la mensualidad cada mes. Ese "cada mes" es el oro del modelo SaaS: ingreso recurrente.</li>
+</ul>
+<hr/>
+<h2>8. Qué tiene cada plataforma que la otra no (resumen)</h2>
+<p><strong>El profe tiene y tú no:</strong></p>
+<ul>
+<li>Calificación interna por aspectos (con tabla <code>calificaciones</code> y aspectos por sector).</li>
+<li>Modo de punto (redirigir / calificar / menú).</li>
+<li>Distinción NFC vs QR en el mismo código.</li>
+<li>Protección anti-abuso en calificaciones.</li>
+<li>Alta rápida, hoja de instalación, informe imprimible, modelo y presentación.</li>
+</ul>
+<p><strong>Tú tienes y el profe no:</strong></p>
+<ul>
+<li>Auto-refresco del dashboard (el suyo hay que recargarlo).</li>
+<li>Gráficos que se actualizan sin parpadeo.</li>
+<li>Chips de filtros, combobox de búsqueda de sede, estados vacíos, accesibilidad.</li>
+<li>Redis como caché para redirección ultrarrápida.</li>
+</ul>
+<p>Tu plataforma está más pulida en <strong>experiencia</strong>; la del profe tiene más <strong>funcionalidades de negocio</strong>.</p>
+<hr/>
+<h2>9. La pregunta para el profe el martes</h2>
+<blockquote>"Profe, tengo mi versión en Railway más pulida en experiencia de usuario y la tuya con más funcionalidades de negocio. Y me compartiste el repo. ¿Cómo avanzamos: tomamos una como base? ¿cuál? ¿el código es para que yo lo use/sea mío?"</blockquote>
+<p>Esa conversación define el camino técnico. No hay que resolverla antes del viernes.</p>
+<hr/>
+<p>*Documento de consulta personal. Resume lo trabajado para entender la plataforma del profe y el modelo de negocio.*</p>
+
+</body>
+</html>
