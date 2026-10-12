@@ -129,9 +129,15 @@ function cleanTooltip(titleFn) {
     titleFont: { size: 13, weight: '600' },
     bodyFont: { size: 12 },
     displayColors: true,
-    boxPadding: 4,
+    // Marcador redondo (no el cuadrado por defecto) para un look moderno.
+    usePointStyle: true,
+    boxWidth: 8,
+    boxHeight: 8,
+    boxPadding: 6,
     // Sin maxWidth => el tooltip no trunca nombres largos.
-    callbacks: titleFn ? { title: titleFn } : {},
+    callbacks: titleFn
+      ? { title: titleFn, labelPointStyle: () => ({ pointStyle: 'circle', rotation: 0 }) }
+      : { labelPointStyle: () => ({ pointStyle: 'circle', rotation: 0 }) },
   };
 }
 
