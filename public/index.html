@@ -129,6 +129,7 @@
         </div>
 
         <!-- Charts -->
+        <!-- Fila principal: tendencia (contexto temporal) + horas pico (accionable) -->
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 charts-row-top">
           <div class="card xl:col-span-2">
             <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
@@ -146,6 +147,25 @@
             </div>
           </div>
           <div class="card">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 class="font-semibold">Escaneos por hora del día</h3>
+              <div class="flex items-center gap-3 text-xs text-slate-500">
+                <span class="legend-dot" style="background:#f59e0b"></span> Mañana
+                <span class="legend-dot" style="background:#6366f1"></span> Tarde
+                <span class="legend-dot" style="background:#8b5cf6"></span> Noche
+              </div>
+            </div>
+            <canvas id="hourlyChart" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Fila secundaria: top sedes + distribución por SO (dato técnico, menor jerarquía) -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="card xl:col-span-2">
+            <h3 class="font-semibold mb-4">Top 10 sedes con más tráfico</h3>
+            <canvas id="topChart" height="160"></canvas>
+          </div>
+          <div class="card">
             <h3 class="font-semibold mb-4">Distribución por SO</h3>
             <div class="donut-wrap">
               <canvas id="osChart" height="200"></canvas>
@@ -155,24 +175,6 @@
               </div>
             </div>
             <div id="osLegend" class="os-legend"></div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div class="card">
-            <h3 class="font-semibold mb-4">Top 10 sedes con más tráfico</h3>
-            <canvas id="topChart" height="160"></canvas>
-          </div>
-          <div class="card">
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 class="font-semibold">Escaneos por hora del día</h3>
-              <div class="flex items-center gap-3 text-xs text-slate-500">
-                <span class="legend-dot" style="background:#f59e0b"></span> Mañana
-                <span class="legend-dot" style="background:#6366f1"></span> Tarde
-                <span class="legend-dot" style="background:#8b5cf6"></span> Noche
-              </div>
-            </div>
-            <canvas id="hourlyChart" height="160"></canvas>
           </div>
         </div>
 
