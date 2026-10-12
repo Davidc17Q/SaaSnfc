@@ -74,10 +74,29 @@
             <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
               <option value="">Todos los destinos</option>
             </select>
-            <input type="date" id="fromDate" class="input text-sm" />
-            <span class="text-slate-400 text-sm" data-icon="arrow-right"></span>
-            <input type="date" id="toDate" class="input text-sm" />
-            <button id="applyFilters" class="btn-primary text-sm">Aplicar</button>
+            <!-- Selector de rango con atajos (reemplaza las dos cajas de fecha) -->
+            <div class="range-picker" id="rangePicker">
+              <button type="button" id="rangeBtn" class="input text-sm range-btn" aria-haspopup="true" aria-expanded="false">
+                <span data-icon="calendar"></span>
+                <span id="rangeLabel">Últimos 30 días</span>
+                <span class="range-caret" data-icon="chevron-down"></span>
+              </button>
+              <div id="rangeMenu" class="range-menu hidden">
+                <button type="button" class="range-opt" data-days="0">Hoy</button>
+                <button type="button" class="range-opt" data-days="7">Últimos 7 días</button>
+                <button type="button" class="range-opt" data-days="30">Últimos 30 días</button>
+                <button type="button" class="range-opt" data-days="90">Últimos 90 días</button>
+                <div class="range-custom">
+                  <span class="range-custom-title">Personalizado</span>
+                  <div class="range-custom-row">
+                    <input type="date" id="fromDate" class="input text-xs" />
+                    <span class="text-slate-400" data-icon="arrow-right"></span>
+                    <input type="date" id="toDate" class="input text-xs" />
+                  </div>
+                  <button type="button" id="applyFilters" class="btn-primary text-xs w-full">Aplicar rango</button>
+                </div>
+              </div>
+            </div>
           </div>
           <select id="companyFilter" class="input text-sm hidden" title="Empresa">
             <option value="">Todas las empresas</option>

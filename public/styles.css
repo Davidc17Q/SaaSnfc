@@ -1427,3 +1427,66 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
   color: var(--muted);
 }
 .rep-hist-row:last-child { border-bottom: none; }
+
+/* =========================================================================
+   SELECTOR DE RANGO DE FECHAS (presets + personalizado)
+   ========================================================================= */
+.range-picker { position: relative; }
+.range-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.range-btn .range-caret { margin-left: 0.1rem; color: var(--muted); }
+.range-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 50;
+  min-width: 15rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  padding: 0.4rem;
+  box-shadow: 0 10px 30px rgba(28, 25, 23, 0.12);
+}
+.dark .range-menu { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+.range-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--input-text);
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.range-opt:hover { background: var(--hover); }
+.range-custom {
+  margin-top: 0.3rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.range-custom-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 0 0.65rem;
+}
+.range-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.3rem;
+}
+.range-custom-row .input { flex: 1 1 auto; min-width: 0; }

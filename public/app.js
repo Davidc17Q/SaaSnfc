@@ -2275,17 +2275,87 @@ async function autoRefresh() {
   }
 }
 
+// --- Selector de rango de fechas (presets + personalizado) -----------------
+const RANGE_LABELS = { 0: 'Hoy', 7: 'Últimos 7 días', 30: 'Últimos 30 días', 90: 'Últimos 90 días' };
+
+// Fija state.from/to a los últimos N días (0 = hoy) y sincroniza los inputs.
+function setRangeDays(days) {
+  const today = new Date();
+  const past = new Date();
+  past.setDate(today.getDate() - days);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  state.from = iso(past);
+  state.to = iso(today);
+  const fd = $('#fromDate');
+  const td = $('#toDate');
+  if (fd) fd.value = state.from;
+  if (td) td.value = state.to;
+}
+
+// Actualiza el texto del botón: nombre del preset, o el rango concreto si es
+// personalizado (days === null).
+function setRangeLabel(days) {
+  const el = $('#rangeLabel');
+  if (!el) return;
+  if (days !== null && RANGE_LABELS[days]) {
+    el.textContent = RANGE_LABELS[days];
+  } else {
+    el.textContent = state.from && state.to ? `${state.from} → ${state.to}` : 'Rango personalizado';
+  }
+}
+
+function closeRangeMenu() {
+  const menu = $('#rangeMenu');
+  if (menu) menu.classList.add('hidden');
+  const btn = $('#rangeBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
 function setupFilters() {
-  $('#applyFilters').addEventListener('click', () => {
-    state.from = $('#fromDate').value;
-    state.to = $('#toDate').value;
+  // Aplica el estado de filtros a la vista analítica visible.
+  function applyAnalytics() {
     state.locationId = $('#locationFilter').value;
     state.channel = $('#channelFilter').value;
     renderActiveFilters();
-    loadDashboard();
-    // Si la vista ejecutiva está abierta, refrescar su benchmarking con el nuevo rango.
+    if (!$('#view-dashboard').classList.contains('hidden')) loadDashboard();
     if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
+    if (!$('#view-operations').classList.contains('hidden')) loadOperations();
+  }
+
+  // "Aplicar rango" (personalizado): toma las dos fechas y cierra el menú.
+  $('#applyFilters').addEventListener('click', () => {
+    state.from = $('#fromDate').value;
+    state.to = $('#toDate').value;
+    setRangeLabel(null);
+    closeRangeMenu();
+    applyAnalytics();
   });
+
+  // Botón del selector de rango: abre/cierra el menú de atajos.
+  const rangeBtn = $('#rangeBtn');
+  if (rangeBtn) {
+    rangeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = $('#rangeMenu');
+      const open = menu.classList.toggle('hidden');
+      rangeBtn.setAttribute('aria-expanded', String(!open));
+    });
+    document.addEventListener('click', (e) => {
+      const picker = $('#rangePicker');
+      if (picker && !picker.contains(e.target)) closeRangeMenu();
+    });
+  }
+
+  // Atajos de rango: aplican de inmediato (sin botón Aplicar).
+  document.querySelectorAll('.range-opt').forEach((opt) =>
+    opt.addEventListener('click', () => {
+      const days = parseInt(opt.dataset.days, 10);
+      setRangeDays(days);
+      setRangeLabel(days);
+      closeRangeMenu();
+      applyAnalytics();
+    })
+  );
   $('#locSearch').addEventListener('input', (e) => renderLocationsTable(e.target.value));
   $('#devSearch').addEventListener('input', (e) => renderDevicesTable(e.target.value));
 
@@ -2651,14 +2721,8 @@ async function init() {
   setupCreateModals();
 
   // Rango por defecto: últimos 30 días
-  const today = new Date();
-  const past = new Date();
-  past.setDate(today.getDate() - 30);
-  $('#toDate').value = today.toISOString().slice(0, 10);
-  $('#fromDate').value = past.toISOString().slice(0, 10);
-  // Sincronizar el estado para que la variación % y demás módulos usen el rango.
-  state.from = $('#fromDate').value;
-  state.to = $('#toDate').value;
+  setRangeDays(30);
+  setRangeLabel(30);
 
   // Menú de usuario: toggle, nombre y cerrar sesión
   const userBtn = $('#userBtn');
