@@ -1891,13 +1891,83 @@ function dashboardLoadingTargets() {
   }).filter(Boolean);
 }
 
+// Panel de alertas accionables (arriba del dashboard). Respeta el estado de
+// "ocultar" que elija el usuario durante la sesión.
+let alertsHidden = false;
+
+const ALERT_ICON = { grave: 'alert-triangle', alerta: 'circle', drop: 'trending-down' };
+
+async function renderAlerts() {
+  const panel = $('#alertsPanel');
+  if (!panel) return;
+  let data;
+  try {
+    data = await api(`/api/alerts${qs()}`);
+  } catch {
+    panel.classList.add('hidden');
+    return;
+  }
+  const alerts = data.alerts || [];
+  const list = $('#alertsList');
+  const countEl = $('#alertsCount');
+
+  // Sin alertas: no robamos espacio en el dashboard.
+  if (!alerts.length) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  countEl.textContent = alerts.length;
+  panel.classList.remove('hidden');
+  // Respetar el toggle de ocultar/mostrar de la sesión.
+  list.classList.toggle('hidden', alertsHidden);
+  $('#alertsToggle').textContent = alertsHidden ? 'Mostrar' : 'Ocultar';
+
+  list.innerHTML = alerts
+    .map((a) => {
+      const ic = a.kind === 'drop' ? 'trending-down' : ALERT_ICON[a.level] || 'alert-triangle';
+      const metric = a.metric
+        ? `<span class="alert-metric">${icon(ic, { size: 14 })} ${escapeHtml(a.metric)}</span>`
+        : '';
+      return `
+      <div class="alert-row">
+        <span class="alert-badge ${a.level}">${a.level}</span>
+        <div class="alert-body">
+          <div class="alert-row-title">${escapeHtml(a.title)}</div>
+          <div class="alert-row-detail">${escapeHtml(a.detail)}</div>
+        </div>
+        ${metric}
+        <button class="alert-link" data-loc="${a.locationId}">Ver sede</button>
+      </div>`;
+    })
+    .join('');
+
+  // "Ver sede": abre Salud operativa y escribe el nombre en su buscador.
+  list.querySelectorAll('.alert-link').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.alert-row');
+      const name = row?.querySelector('.alert-row-title')?.textContent || '';
+      const opLink = document.querySelector('.nav-link[href="#operations"]');
+      if (opLink) opLink.click();
+      // El título de la alerta empieza con el nombre de la sede; tomamos la
+      // primera parte como término de búsqueda razonable.
+      const term = name.split(/\s+(sin|lleva|cayó)\s/)[0].trim();
+      const search = $('#opSearch');
+      if (search) {
+        search.value = term;
+        renderOpTable();
+      }
+    });
+  });
+}
+
 // silent=true (auto-refresco) omite el loader para no distraer cada 8s.
 async function loadDashboard({ silent = false } = {}) {
   const cards = silent ? [] : dashboardLoadingTargets();
   cards.forEach((c) => c.classList.add('is-loading'));
   try {
     const k = await loadKpis();
-    await Promise.all([renderTrend(), renderTop(), renderHourly(), renderChannels()]);
+    await Promise.all([renderTrend(), renderTop(), renderHourly(), renderChannels(), renderAlerts()]);
     renderOs(k);
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));
@@ -1935,6 +2005,17 @@ function setupFilters() {
   });
   $('#locSearch').addEventListener('input', (e) => renderLocationsTable(e.target.value));
   $('#devSearch').addEventListener('input', (e) => renderDevicesTable(e.target.value));
+
+  // Toggle de ocultar/mostrar el panel de alertas.
+  const alertsToggle = $('#alertsToggle');
+  if (alertsToggle) {
+    alertsToggle.addEventListener('click', () => {
+      alertsHidden = !alertsHidden;
+      const list = $('#alertsList');
+      if (list) list.classList.toggle('hidden', alertsHidden);
+      alertsToggle.textContent = alertsHidden ? 'Mostrar' : 'Ocultar';
+    });
+  }
 
   // Módulo ejecutivo
   $('#compareBtn').addEventListener('click', runCompare);

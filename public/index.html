@@ -102,6 +102,15 @@
 
       <!-- Dashboard view -->
       <section id="view-dashboard" class="p-6 space-y-6">
+        <!-- Alertas accionables: lo que el dueño debe atender hoy -->
+        <div id="alertsPanel" class="alerts-panel hidden">
+          <div class="alerts-head">
+            <h3 class="alerts-title section-title-icon"><span data-icon="alert-triangle"></span> Alertas <span id="alertsCount" class="alerts-count">0</span></h3>
+            <button id="alertsToggle" class="btn-ghost text-xs" aria-label="Mostrar u ocultar alertas">Ocultar</button>
+          </div>
+          <div id="alertsList" class="alerts-list"></div>
+        </div>
+
         <!-- KPI cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div class="card">

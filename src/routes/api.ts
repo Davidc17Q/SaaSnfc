@@ -507,6 +507,112 @@ export async function apiRoutes(app: FastifyInstance) {
     return { summary, items };
   });
 
+  // ---------- Alertas accionables (dashboard) ----------
+  // Combina tres señales que el dueño debe atender HOY, priorizadas:
+  //   1) grave  → sede activa sin un solo escaneo en 48h+ (soporte caído/retirado)
+  //   2) grave  → sede sin ningún escaneo histórico (soporte nunca instalado/leído)
+  //   3) alerta → caída fuerte de tráfico semana vs. semana anterior por sede
+  // Respeta el scope de empresa (company_admin solo ve lo suyo).
+  app.get('/api/alerts', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = `WHERE l.company_id = $1`;
+    }
+
+    // Inactividad / sin escaneos: horas desde el último escaneo por sede activa.
+    const inactivity = await query<{
+      id: string;
+      name: string;
+      city: string;
+      last_scan: string | null;
+      hours_since: string | null;
+    }>(
+      `SELECT l.id, l.name, l.city,
+              MAX(se.scanned_at) AS last_scan,
+              EXTRACT(EPOCH FROM (now() - MAX(se.scanned_at))) / 3600 AS hours_since
+         FROM locations l
+         LEFT JOIN scan_events se ON se.location_id = l.id
+         ${cWhere ? cWhere + ' AND' : 'WHERE'} l.status = 'active'
+         GROUP BY l.id, l.name, l.city`,
+      cParams
+    );
+
+    // Tráfico de las dos últimas semanas por sede (para detectar caídas).
+    const trend = await query<{ id: string; name: string; city: string; prev: string; curr: string }>(
+      `SELECT l.id, l.name, l.city,
+              COUNT(*) FILTER (
+                WHERE se.scanned_at >= now() - INTERVAL '14 days'
+                  AND se.scanned_at <  now() - INTERVAL '7 days'
+              ) AS prev,
+              COUNT(*) FILTER (WHERE se.scanned_at >= now() - INTERVAL '7 days') AS curr
+         FROM locations l
+         JOIN scan_events se ON se.location_id = l.id
+         ${cWhere ? cWhere + ' AND' : 'WHERE'} l.status = 'active'
+         GROUP BY l.id, l.name, l.city`,
+      cParams
+    );
+
+    type Alert = {
+      level: 'grave' | 'alerta';
+      kind: 'inactive' | 'never' | 'drop';
+      locationId: string;
+      title: string;
+      detail: string;
+      metric: string | null;
+    };
+    const alerts: Alert[] = [];
+
+    for (const r of inactivity) {
+      const hrs = r.hours_since !== null ? parseFloat(r.hours_since) : null;
+      if (hrs === null) {
+        alerts.push({
+          level: 'grave',
+          kind: 'never',
+          locationId: r.id,
+          title: `${r.name} sin escaneos registrados`,
+          detail: `${r.city} · nunca ha tenido actividad. Revisa si el soporte NFC/QR está instalado y leyendo.`,
+          metric: null,
+        });
+      } else if (hrs >= 48) {
+        const days = Math.floor(hrs / 24);
+        alerts.push({
+          level: 'grave',
+          kind: 'inactive',
+          locationId: r.id,
+          title: `${r.name} lleva ${days} día${days === 1 ? '' : 's'} sin escaneos`,
+          detail: `${r.city} · el soporte podría estar retirado, dañado o tapado.`,
+          metric: `${days}d`,
+        });
+      }
+    }
+
+    for (const r of trend) {
+      const prev = parseInt(r.prev, 10);
+      const curr = parseInt(r.curr, 10);
+      // Solo marca caídas relevantes: base mínima para evitar ruido estadístico.
+      if (prev >= 10 && curr < prev * 0.6) {
+        const dropPct = Math.round((1 - curr / prev) * 100);
+        alerts.push({
+          level: 'alerta',
+          kind: 'drop',
+          locationId: r.id,
+          title: `${r.name} cayó ${dropPct}% esta semana`,
+          detail: `${r.city} · ${curr} escaneos vs. ${prev} la semana anterior.`,
+          metric: `-${dropPct}%`,
+        });
+      }
+    }
+
+    // Orden: graves primero, y dentro de cada nivel las caídas mayores arriba.
+    const rank = { grave: 0, alerta: 1 } as const;
+    alerts.sort((a, b) => rank[a.level] - rank[b.level]);
+
+    return { alerts, count: alerts.length };
+  });
+
   // ---------- Lista de sedes (tabla de gestión) ----------
   app.get('/api/locations', async (req) => {
     const companyId = resolveCompanyId(req);
