@@ -244,9 +244,11 @@
 }
 .header-tools { justify-content: flex-end; }
 
-/* Botón 'Filtros': oculto en desktop, visible como disparador en móvil/tablet */
+/* Botón 'Filtros': oculto en desktop, visible como disparador en móvil/tablet.
+   !important porque comparte marcado con .section-title-icon (inline-flex), que
+   se define después en el archivo y lo sobreescribía mostrándolo en desktop. */
 .filters-toggle {
-  display: none;
+  display: none !important;
   gap: 0.4rem;
   font-size: 0.85rem;
   border: 1px solid var(--card-border);
@@ -823,7 +825,7 @@ thead.bg-slate-50 { background: var(--input-bg); }
    ========================================================================= */
 @media (max-width: 768px) {
   /* --- Topbar: filtros colapsados tras el botón 'Filtros' --- */
-  .filters-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .filters-toggle { display: inline-flex !important; align-items: center; justify-content: center; }
   .app-header { gap: 0.5rem 0.75rem; }
   .header-tools { width: auto; flex-wrap: nowrap; }
   /* El panel de filtros se oculta y, al abrir, baja como bloque bajo la barra. */
@@ -857,7 +859,11 @@ thead.bg-slate-50 { background: var(--input-bg); }
   #view-locations table,
   #view-locations tbody,
   #view-devices table,
-  #view-devices tbody { display: block; width: 100%; }
+  #view-devices tbody { display: block; width: 100%; max-width: 100%; min-width: 0; }
+  /* La tarjeta (tr en bloque) no lleva width explícito: así los márgenes
+     laterales se restan del ancho y nunca desborda el viewport en móvil. */
+  #view-locations tr.data-card,
+  #view-devices tr.data-card { max-width: 100%; min-width: 0; }
 
   #view-locations tr.data-card,
   #view-devices tr.data-card {
@@ -870,6 +876,10 @@ thead.bg-slate-50 { background: var(--input-bg); }
     box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
   }
 
+  /* En modo tarjeta ni el contenedor ni la tabla deben desbordar el viewport. */
+  #view-locations .overflow-x-auto,
+  #view-devices .overflow-x-auto { overflow-x: visible; max-width: 100%; }
+
   #view-locations tr.data-card .td,
   #view-devices tr.data-card .td {
     display: flex;
@@ -879,7 +889,20 @@ thead.bg-slate-50 { background: var(--input-bg); }
     text-align: right;
     border-top: none;
     padding: 0.45rem 1rem;
-    max-width: none;
+    max-width: 100%;
+    /* El valor envuelve y nunca empuja el ancho fuera de la tarjeta. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  /* El valor (todo lo que no sea la etiqueta ::before) ocupa el resto a la
+     derecha, pero puede encoger para no desbordar. */
+  #view-locations tr.data-card .td > *,
+  #view-devices tr.data-card .td > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   /* Etiqueta del campo (desde data-label) a la izquierda, tenue. */
   #view-locations tr.data-card .td::before,
@@ -892,6 +915,16 @@ thead.bg-slate-50 { background: var(--input-bg); }
     text-transform: uppercase;
     color: var(--muted);
     flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Target URL: anular .max-w-xs y .truncate dentro de la tarjeta para que la
+     URL quede dentro del ancho sin empujar el layout. */
+  #view-devices tr.data-card .td.max-w-xs { max-width: 100%; }
+  #view-devices tr.data-card .td.truncate {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Título de la tarjeta: nombre de la sede / punto, arriba y destacado. */
