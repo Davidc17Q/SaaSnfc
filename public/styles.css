@@ -546,13 +546,28 @@ thead.bg-slate-50 { background: #f8fafc; }
 .variation-flat { background: rgba(100,116,139,0.15); color: #64748b; }
 
 /* Punto de leyenda */
+/* Marcador de leyenda moderno: círculo con anillo translúcido del mismo color
+   (usa currentColor-like via box-shadow) y un sutil halo. El color real llega
+   por el style inline background de cada punto. */
 .legend-dot {
   display: inline-block;
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 9999px;
-  margin-right: 0.15rem;
+  margin-right: 0.3rem;
   vertical-align: middle;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 0%, transparent);
+  position: relative;
+}
+/* Anillo suave alrededor del punto, derivado de su propio color de fondo. */
+.legend-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: inherit;
+  opacity: 0.22;
+  z-index: -1;
 }
 
 /* Filas de ranking (líderes / a auditar) */
@@ -691,7 +706,20 @@ thead.bg-slate-50 { background: #f8fafc; }
   background: var(--input-bg);
 }
 .os-legend-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; }
-.os-legend-dot { width: 0.7rem; height: 0.7rem; border-radius: 9999px; display: inline-block; }
+.os-legend-dot {
+  width: 0.7rem; height: 0.7rem; border-radius: 9999px; display: inline-block;
+  position: relative;
+}
+/* Mismo anillo suave que .legend-dot para un look consistente y moderno. */
+.os-legend-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: inherit;
+  opacity: 0.22;
+  z-index: -1;
+}
 .os-legend-values { font-weight: 600; }
 .os-legend-pct { color: var(--muted); font-weight: 500; margin-left: 0.25rem; }
 
