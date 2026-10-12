@@ -64,6 +64,10 @@
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap header-tools">
+          <!-- Botón para desplegar los filtros en móvil/tablet (oculto en desktop) -->
+          <button id="filtersToggle" class="btn-ghost filters-toggle section-title-icon" aria-expanded="false" aria-controls="headerFilters" aria-label="Mostrar u ocultar filtros"><span data-icon="sliders-horizontal"></span> Filtros</button>
+          <!-- Grupo colapsable de filtros: en línea en desktop, panel desplegable en móvil/tablet -->
+          <div id="headerFilters" class="header-filters flex items-center gap-2 flex-wrap">
           <!-- Filtros de analítica: solo aplican en vistas de reportes, no en gestión -->
           <div id="analyticsFilters" class="flex items-center gap-2 flex-wrap">
             <div class="combo" id="locationCombo">
@@ -101,6 +105,7 @@
           <select id="companyFilter" class="input text-sm hidden" title="Empresa">
             <option value="">Todas las empresas</option>
           </select>
+          </div>
           <button id="themeToggle" class="btn-ghost" title="Cambiar tema" aria-label="Cambiar tema claro u oscuro"></button>
           <div class="user-menu">
             <button id="userBtn" class="user-btn" title="Cuenta" aria-label="Menú de cuenta" aria-haspopup="true"><span data-icon="user"></span></button>

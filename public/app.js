@@ -257,6 +257,17 @@ function setupNav() {
   const overlay = $('#sidebarOverlay');
   if (toggle) toggle.addEventListener('click', openSidebar);
   if (overlay) overlay.addEventListener('click', closeSidebar);
+
+  // Toggle de filtros en móvil/tablet: despliega el panel de filtros bajo la barra.
+  const filtersBtn = $('#filtersToggle');
+  const filtersPanel = $('#headerFilters');
+  if (filtersBtn && filtersPanel) {
+    filtersBtn.addEventListener('click', () => {
+      const open = filtersPanel.classList.toggle('open');
+      filtersBtn.classList.toggle('active', open);
+      filtersBtn.setAttribute('aria-expanded', String(open));
+    });
+  }
 }
 
 function openSidebar() {
@@ -829,18 +840,18 @@ function renderLocationsTable(filter = '') {
   body.innerHTML = rows
     .map(
       (l) => `
-      <tr>
-        <td class="td font-medium">${escapeHtml(l.name)}${
+      <tr class="data-card">
+        <td class="td td-title font-medium" data-label="Sede">${escapeHtml(l.name)}${
           showCompany && l.companyName
             ? `<br><span class="text-xs text-slate-500">${escapeHtml(l.companyName)}</span>`
             : ''
         }</td>
-        <td class="td text-slate-500">${escapeHtml(l.brand)}</td>
-        <td class="td">${escapeHtml(l.city)}</td>
-        <td class="td">${statusBadge(l.status)}</td>
-        <td class="td text-right">${fmt(l.nfcPoints)}</td>
-        <td class="td text-right font-semibold">${fmt(l.totalClicks)}</td>
-        <td class="td text-right">
+        <td class="td text-slate-500" data-label="Marca">${escapeHtml(l.brand)}</td>
+        <td class="td" data-label="Ciudad">${escapeHtml(l.city)}</td>
+        <td class="td" data-label="Estado">${statusBadge(l.status)}</td>
+        <td class="td text-right" data-label="Puntos NFC">${fmt(l.nfcPoints)}</td>
+        <td class="td text-right font-semibold" data-label="Total Clics">${fmt(l.totalClicks)}</td>
+        <td class="td td-actions text-right">
           <span class="row-actions">
             <button class="icon-btn loc-rep-btn" data-id="${l.id}" title="Reputación de Google" aria-label="Ver reputación de ${escapeHtml(l.name)}">${icon('star', { size: 15 })}</button>
             <button class="icon-btn loc-edit-btn" data-id="${l.id}" title="Editar sede" aria-label="Editar sede ${escapeHtml(l.name)}">${icon('pencil', { size: 15 })}</button>
@@ -1201,16 +1212,16 @@ function renderDevicesTable(filter = '') {
   }
 
   const deviceRow = (d, child) => `
-    <tr class="${child ? 'device-child-row' : ''}">
-      <td class="td font-medium">${
+    <tr class="data-card ${child ? 'device-child-row' : ''}">
+      <td class="td td-title font-medium" data-label="Sede">${
         child
           ? `<span class="text-xs text-slate-500 section-title-icon">${icon('corner-down-right', { size: 13 })} ${escapeHtml(d.label)}</span>`
           : `${escapeHtml(d.location_name)}<br><span class="text-xs text-slate-500">${escapeHtml(d.location_city)}</span>`
       }</td>
-      <td class="td">${escapeHtml(d.label)}</td>
-      <td class="td font-mono text-xs max-w-xs truncate" title="${escapeHtml(d.target_url)}">${escapeHtml(d.target_url)}</td>
-      <td class="td">${statusBadge(d.status)}</td>
-      <td class="td text-right">
+      <td class="td" data-label="Punto">${escapeHtml(d.label)}</td>
+      <td class="td font-mono text-xs max-w-xs truncate" data-label="Target URL" title="${escapeHtml(d.target_url)}">${escapeHtml(d.target_url)}</td>
+      <td class="td" data-label="Estado">${statusBadge(d.status)}</td>
+      <td class="td td-actions text-right">
         <span class="row-actions">
           ${
             state.role === 'superadmin'
@@ -1232,16 +1243,16 @@ function renderDevicesTable(filter = '') {
       // Sede con varios puntos: fila cabecera expandible + hijos.
       const open = state.expanded.has(g.locationId);
       html += `
-        <tr class="loc-group-row" data-loc="${g.locationId}">
-          <td class="td font-medium">
+        <tr class="data-card loc-group-row" data-loc="${g.locationId}">
+          <td class="td td-title font-medium" data-label="Sede">
             <span class="expand-caret ${open ? 'open' : ''}">${icon('chevron-right', { size: 16 })}</span>
             ${escapeHtml(g.name)}<br>
             <span class="text-xs text-slate-500" style="margin-left:1.5rem">${escapeHtml(g.city)}</span>
           </td>
-          <td class="td text-slate-500">${g.devices.length} puntos NFC</td>
-          <td class="td text-slate-400 text-xs">—</td>
-          <td class="td">—</td>
-          <td class="td text-right text-xs text-slate-400">Desplegar</td>
+          <td class="td text-slate-500" data-label="Punto">${g.devices.length} puntos NFC</td>
+          <td class="td text-slate-400 text-xs" data-label="Target URL">—</td>
+          <td class="td" data-label="Estado">—</td>
+          <td class="td td-actions text-right text-xs text-slate-400">Desplegar</td>
         </tr>`;
       if (open) {
         html += g.devices.map((d) => deviceRow(d, true)).join('');
