@@ -1094,6 +1094,14 @@ html:not(.dark) .field-input:focus { background: rgba(99,102,241,0.04); }
   min-height: 280px;
 }
 .trend-chart-wrap canvas { height: 100% !important; }
+
+/* Mismo tratamiento para el gráfico de horas pico: crece para llenar la caja. */
+.hourly-chart-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 280px;
+}
+.hourly-chart-wrap canvas { height: 100% !important; }
 /* La tarjeta de tendencia es una columna flexible: así el gráfico crece para
    llenar toda la altura de la tarjeta (que el grid iguala con la vecina
    "Distribución por SO") y no queda ni hueco gris ni vacío debajo. */
