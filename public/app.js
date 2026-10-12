@@ -52,7 +52,7 @@ function toast(msg, ok = true) {
   const t = $('#toast');
   const ico = ok ? icon('check-circle', { size: 16 }) : icon('alert-triangle', { size: 16 });
   t.innerHTML = `<span class="toast-inner">${ico}<span>${msg}</span></span>`;
-  t.style.background = ok ? '#4f46e5' : '#dc2626';
+  t.style.background = ok ? accent() : token('--danger', '#dc2626');
   t.classList.remove('hidden');
   setTimeout(() => t.classList.add('hidden'), 2600);
 }
@@ -108,10 +108,23 @@ function isDark() {
   return document.documentElement.classList.contains('dark');
 }
 function gridColor() {
-  return isDark() ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.15)';
+  return isDark() ? 'rgba(168,162,158,0.12)' : 'rgba(120,113,108,0.14)';
 }
 function tickColor() {
-  return isDark() ? '#94a3b8' : '#64748b';
+  return isDark() ? '#a8a29e' : '#78716c';
+}
+// Lee un token de color del sistema de diseño (variables CSS) para que los
+// gráficos usen SIEMPRE la paleta de marca y respeten claro/oscuro.
+function token(name, fallback = '#2563eb') {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+function accent() { return token('--accent', '#2563eb'); }
+// Azul de marca con opacidad (para rellenos y variaciones monocromas).
+function accentA(alpha) {
+  const hex = accent().replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 /**
@@ -121,9 +134,9 @@ function tickColor() {
  */
 function cleanTooltip(titleFn) {
   return {
-    backgroundColor: isDark() ? '#1e293b' : '#0f172a',
-    titleColor: '#f8fafc',
-    bodyColor: '#e2e8f0',
+    backgroundColor: isDark() ? '#2b2825' : '#1c1917',
+    titleColor: '#fafaf9',
+    bodyColor: '#e7e5e4',
     padding: 12,
     cornerRadius: 8,
     titleFont: { size: 13, weight: '600' },
@@ -141,13 +154,52 @@ function cleanTooltip(titleFn) {
   };
 }
 
-/** Turno operativo según la hora (0-23). */
+/** Turno operativo según la hora (0-23). El color ya NO diferencia las barras
+    (son monocromo azul); solo nombra el turno para el tooltip y las bandas. */
 function shiftOf(hour) {
-  if (hour >= 8 && hour < 12) return { name: 'Mañana', color: '#f59e0b' };
-  if (hour >= 12 && hour < 18) return { name: 'Tarde', color: '#6366f1' };
-  if (hour >= 18 && hour < 22) return { name: 'Noche', color: '#8b5cf6' };
-  return { name: 'Madrugada', color: '#475569' };
+  if (hour >= 6 && hour < 12) return { name: 'Mañana', band: 'manana' };
+  if (hour >= 12 && hour < 18) return { name: 'Tarde', band: 'tarde' };
+  if (hour >= 18 && hour < 24) return { name: 'Noche', band: 'noche' };
+  return { name: 'Madrugada', band: 'noche' };
 }
+
+// Plugin Chart.js: pinta bandas de fondo muy sutiles por turno detrás de las
+// barras del gráfico de horas. Da el contexto mañana/tarde/noche sin romper el
+// monocromo azul (acordado con el usuario: bandas de fondo, no barras de color).
+const shiftBandsPlugin = {
+  id: 'shiftBands',
+  beforeDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales.x) return;
+    const x = scales.x;
+    const bands = [
+      { from: 6, to: 12, color: token('--shift-manana', 'rgba(234,179,8,0.08)') },
+      { from: 12, to: 18, color: token('--shift-tarde', 'rgba(37,99,235,0.07)') },
+      { from: 18, to: 24, color: token('--shift-noche', 'rgba(100,116,139,0.1)') },
+    ];
+    const labels = chart.data.labels || [];
+    // labels vienen como "08h": mapeamos cada banda a los píxeles de su rango.
+    const hourAt = (i) => parseInt(String(labels[i]).replace('h', ''), 10);
+    ctx.save();
+    for (const b of bands) {
+      let startPx = null, endPx = null;
+      for (let i = 0; i < labels.length; i++) {
+        const h = hourAt(i);
+        if (h >= b.from && h < b.to) {
+          const px = x.getPixelForValue(i);
+          const half = (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2 || 10;
+          if (startPx === null) startPx = px - half;
+          endPx = px + half;
+        }
+      }
+      if (startPx !== null) {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(startPx, chartArea.top, endPx - startPx, chartArea.bottom - chartArea.top);
+      }
+    }
+    ctx.restore();
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Navegación entre vistas
@@ -339,10 +391,10 @@ async function renderTrend() {
     // altura y solo se desvanezca cerca del fondo (replica el look previo, que
     // repartía el gradiente sobre ~260px). Sin esto, al estirarse la tarjeta el
     // degradado llegaba a transparente demasiado arriba.
-    g.addColorStop(0, 'rgba(99,102,241,0.38)');
-    g.addColorStop(0.55, 'rgba(99,102,241,0.22)');
-    g.addColorStop(0.85, 'rgba(99,102,241,0.08)');
-    g.addColorStop(1, 'rgba(99,102,241,0)');
+    g.addColorStop(0, accentA(0.34));
+    g.addColorStop(0.55, accentA(0.18));
+    g.addColorStop(0.85, accentA(0.06));
+    g.addColorStop(1, accentA(0));
     return g;
   };
 
@@ -354,7 +406,7 @@ async function renderTrend() {
         {
           label: 'Selección',
           data: data.map((d) => d.scans),
-          borderColor: '#6366f1',
+          borderColor: accent(),
           backgroundColor: trendFill,
           fill: true,
           tension: 0.35,
@@ -364,7 +416,7 @@ async function renderTrend() {
         {
           label: 'Promedio cadena',
           data: data.map((d) => d.avg),
-          borderColor: '#94a3b8',
+          borderColor: token('--neutral-state', '#94a3b8'),
           borderDash: [5, 4],
           fill: false,
           tension: 0.35,
@@ -414,7 +466,8 @@ async function renderTop() {
         {
           label: 'Escaneos',
           data: data.map((d) => d.scans),
-          backgroundColor: '#818cf8',
+          backgroundColor: accentA(0.78),
+          hoverBackgroundColor: accent(),
           borderRadius: 6,
         },
       ],
@@ -438,24 +491,17 @@ async function renderTop() {
 function renderOs(k) {
   const ctx = $('#osChart');
 
+  // Escala monocroma de marca (azul fuerte → azul medio → neutro cálido) en
+  // vez de multicolor: coherente con "un solo acento".
   const segments = [
-    { label: 'iOS', value: k.devices.iOS || 0, color: '#22d3ee' },      // cyan
-    { label: 'Android', value: k.devices.Android || 0, color: '#34d399' }, // emerald/menta
-    { label: 'Otros', value: k.devices.Other || 0, color: '#64748b' },  // slate
+    { label: 'iOS', value: k.devices.iOS || 0, color: accent() },
+    { label: 'Android', value: k.devices.Android || 0, color: accentA(0.55) },
+    { label: 'Otros', value: k.devices.Other || 0, color: token('--neutral-state', '#78716c') },
   ];
   const total = segments.reduce((a, s) => a + s.value, 0);
 
   // Center label
   $('#osCenterTotal').textContent = fmt(total);
-
-  // Gradientes suaves por segmento
-  const g2d = ctx.getContext('2d');
-  const grads = segments.map((s) => {
-    const g = g2d.createLinearGradient(0, 0, 0, 200);
-    g.addColorStop(0, s.color);
-    g.addColorStop(1, s.color + '99'); // más translúcido abajo
-    return g;
-  });
 
   upsertChart('os', ctx, {
     type: 'doughnut',
@@ -464,7 +510,7 @@ function renderOs(k) {
       datasets: [
         {
           data: segments.map((s) => s.value),
-          backgroundColor: grads,
+          backgroundColor: segments.map((s) => s.color),
           borderWidth: 0,
           borderRadius: 8, // esquinas redondeadas en los arcos
           spacing: 3,
@@ -511,8 +557,8 @@ async function renderHourly() {
     destroyChart('hourly');
     return;
   }
-  // Cada barra se colorea según su turno operativo.
-  const colors = data.map((d) => shiftOf(d.hour).color);
+  // Barras MONOCROMO azul de marca; la diferenciación de turnos va en las
+  // bandas de fondo (shiftBandsPlugin), no en el color de las barras.
   upsertChart('hourly', ctx, {
     type: 'bar',
     data: {
@@ -521,13 +567,15 @@ async function renderHourly() {
         {
           label: 'Escaneos',
           data: data.map((d) => d.scans),
-          backgroundColor: colors,
+          backgroundColor: accentA(0.78),
+          hoverBackgroundColor: accent(),
           borderRadius: 4,
         },
       ],
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
         tooltip: cleanTooltip((items) => {
@@ -540,6 +588,7 @@ async function renderHourly() {
         y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
+    plugins: [shiftBandsPlugin],
   });
 }
 
@@ -558,12 +607,14 @@ const CHANNEL_COLORS = {
   'X (Twitter)': '#1da1f2',
   Telegram: '#229ed9',
   Linktree: '#39e09b',
-  Llamada: '#f59e0b',
-  Email: '#a855f7',
-  'Sitio web': '#6366f1',
+  Llamada: '#0ea5e9',
+  Email: '#64748b',
+  'Sitio web': '#2563eb',
   Otro: '#94a3b8',
 };
-const channelColor = (c) => CHANNEL_COLORS[c] || '#94a3b8';
+// Los colores de canal son de marca de terceros (reconocimiento inmediato del
+// destino) → se conservan. El fallback usa el neutro del sistema.
+const channelColor = (c) => CHANNEL_COLORS[c] || token('--neutral-state', '#94a3b8');
 
 async function renderChannels() {
   const data = await api(`/api/channels${qs()}`);
@@ -583,12 +634,15 @@ async function renderChannels() {
     return;
   }
 
-  // Gradientes suaves por canal (mismo estilo que el doughnut de SO)
+  // Gradientes suaves por canal (mismo estilo que el doughnut de SO).
   const g2d = ctx.getContext('2d');
   const grads = data.map((d) => {
     const base = channelColor(d.channel);
     const g = g2d.createLinearGradient(0, 0, ctx.width || 400, 0);
-    g.addColorStop(0, base + 'cc');
+    // Solo aplicamos el degradado si el color es hex de 6 dígitos; si es un
+    // token rgba, usamos el color plano para no romper el canvas.
+    const start = /^#[0-9a-fA-F]{6}$/.test(base) ? base + 'cc' : base;
+    g.addColorStop(0, start);
     g.addColorStop(1, base);
     return g;
   });
@@ -788,6 +842,7 @@ function renderLocationsTable(filter = '') {
         <td class="td text-right font-semibold">${fmt(l.totalClicks)}</td>
         <td class="td text-right">
           <span class="row-actions">
+            <button class="icon-btn loc-rep-btn" data-id="${l.id}" title="Reputación de Google" aria-label="Ver reputación de ${escapeHtml(l.name)}">${icon('star', { size: 15 })}</button>
             <button class="icon-btn loc-edit-btn" data-id="${l.id}" title="Editar sede" aria-label="Editar sede ${escapeHtml(l.name)}">${icon('pencil', { size: 15 })}</button>
             <button class="icon-btn danger loc-del-btn" data-id="${l.id}" title="Eliminar sede" aria-label="Eliminar sede ${escapeHtml(l.name)}">${icon('trash', { size: 15 })}</button>
           </span>
@@ -796,12 +851,240 @@ function renderLocationsTable(filter = '') {
     )
     .join('');
 
+  body.querySelectorAll('.loc-rep-btn').forEach((b) =>
+    b.addEventListener('click', () => openReputation(b.dataset.id))
+  );
   body.querySelectorAll('.loc-edit-btn').forEach((b) =>
     b.addEventListener('click', () => openEditLocation(b.dataset.id))
   );
   body.querySelectorAll('.loc-del-btn').forEach((b) =>
     b.addEventListener('click', () => deleteLocation(b.dataset.id))
   );
+}
+
+// ---------------------------------------------------------------------------
+// Reputación de Google (histórico por sede)
+// ---------------------------------------------------------------------------
+let reputationLocId = null;
+
+// Dibuja estrellas (llenas/medias/vacías) para una nota 0–5.
+function starRating(rating) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  let out = '';
+  for (let i = 0; i < 5; i++) {
+    const filled = i < full || (i === full && half);
+    out += `<span class="rep-star ${filled ? 'on' : ''}">${icon('star', { size: 16 })}</span>`;
+  }
+  return out;
+}
+
+async function openReputation(id) {
+  reputationLocId = id;
+  const m = $('#reputationModal');
+  $('#repMsg').textContent = '';
+  $('#repRating').value = '';
+  $('#repCount').value = '';
+  // Fecha por defecto = hoy (en formato YYYY-MM-DD local).
+  const today = new Date();
+  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  $('#repDate').value = iso;
+
+  // El formulario de registro solo lo ve el superadmin.
+  $('#repForm').classList.toggle('hidden', state.role !== 'superadmin');
+
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+  await loadReputation();
+}
+
+function closeReputation() {
+  const m = $('#reputationModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+  destroyChart('reputation');
+  reputationLocId = null;
+}
+
+async function loadReputation() {
+  if (!reputationLocId) return;
+  let data;
+  try {
+    data = await api(`/api/locations/${reputationLocId}/reputation`);
+  } catch {
+    $('#repLocName').textContent = 'No se pudo cargar la reputación.';
+    return;
+  }
+  $('#repLocName').textContent = `${data.location.name} · ${data.location.city}`;
+
+  const snaps = data.snapshots || [];
+  const empty = snaps.length === 0;
+  $('#repEmpty').classList.toggle('hidden', !empty);
+  $('#reputationChart').style.display = empty ? 'none' : '';
+
+  // Resumen superior
+  const sum = $('#repSummary');
+  if (data.summary) {
+    const s = data.summary;
+    const gained = s.reviewsGained;
+    const gainedTxt =
+      gained > 0
+        ? `<span class="rep-delta up">+${gained} reseñas desde la 1ª medición</span>`
+        : gained < 0
+          ? `<span class="rep-delta down">${gained} reseñas</span>`
+          : `<span class="rep-delta">sin cambios aún</span>`;
+    sum.innerHTML = `
+      <div class="rep-kpi">
+        <div class="rep-kpi-stars">${starRating(s.rating)}</div>
+        <div class="rep-kpi-value">${s.rating.toFixed(1)}</div>
+        <div class="rep-kpi-label">Nota actual</div>
+      </div>
+      <div class="rep-kpi">
+        <div class="rep-kpi-value">${fmt(s.reviewCount)}</div>
+        <div class="rep-kpi-label">Reseñas</div>
+      </div>
+      <div class="rep-kpi rep-kpi-grow">
+        ${gainedTxt}
+        <div class="rep-kpi-label">Medido ${s.measuredOn}</div>
+      </div>`;
+    sum.classList.remove('hidden');
+  } else {
+    sum.innerHTML = '';
+    sum.classList.add('hidden');
+  }
+
+  // Gráfico de evolución: línea de reseñas (eje izq) + nota (eje der)
+  if (!empty) {
+    const ctx = $('#reputationChart');
+    upsertChart('reputation', ctx, {
+      type: 'line',
+      data: {
+        labels: snaps.map((s) => s.measuredOn),
+        datasets: [
+          {
+            label: 'Reseñas',
+            data: snaps.map((s) => s.reviewCount),
+            borderColor: accent(),
+            backgroundColor: accentA(0.12),
+            fill: true,
+            tension: 0.35,
+            yAxisID: 'y',
+            pointRadius: 3,
+          },
+          {
+            label: 'Nota',
+            data: snaps.map((s) => s.rating),
+            borderColor: token('--warn', '#f59e0b'),
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            yAxisID: 'y1',
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, labels: { usePointStyle: true, color: tickColor() } }, tooltip: cleanTooltip() },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: tickColor() } },
+          y: {
+            position: 'left',
+            beginAtZero: true,
+            grid: { color: gridColor() },
+            ticks: { color: tickColor() },
+            title: { display: true, text: 'Reseñas', color: tickColor() },
+          },
+          y1: {
+            position: 'right',
+            min: 0,
+            max: 5,
+            grid: { drawOnChartArea: false },
+            ticks: { color: tickColor(), stepSize: 1 },
+            title: { display: true, text: 'Nota', color: tickColor() },
+          },
+        },
+      },
+    });
+  }
+
+  // Historial (solo superadmin ve el bloque; permite borrar mediciones)
+  if (state.role === 'superadmin') {
+    const hist = $('#repHistory');
+    hist.innerHTML = snaps.length
+      ? `<h4 class="font-semibold text-sm mt-4 mb-2">Mediciones registradas</h4>` +
+        snaps
+          .slice()
+          .reverse()
+          .map(
+            (s) => `
+          <div class="rep-hist-row">
+            <span>${s.measuredOn}</span>
+            <span>${s.rating.toFixed(1)} ★</span>
+            <span>${fmt(s.reviewCount)} reseñas</span>
+            <button class="icon-btn danger rep-del-btn" data-id="${s.id}" title="Eliminar medición" aria-label="Eliminar medición del ${s.measuredOn}">${icon('trash', { size: 14 })}</button>
+          </div>`
+          )
+          .join('')
+      : '';
+    hist.querySelectorAll('.rep-del-btn').forEach((b) =>
+      b.addEventListener('click', () => deleteReputation(b.dataset.id))
+    );
+  }
+}
+
+async function saveReputation() {
+  if (!reputationLocId) return;
+  const msg = $('#repMsg');
+  const rating = parseFloat($('#repRating').value);
+  const reviewCount = parseInt($('#repCount').value, 10);
+  const measuredOn = $('#repDate').value;
+
+  if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+    msg.textContent = 'La nota debe estar entre 0 y 5.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+  if (!Number.isInteger(reviewCount) || reviewCount < 0) {
+    msg.textContent = 'El número de reseñas debe ser un entero ≥ 0.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+
+  const res = await fetch(`/api/locations/${reputationLocId}/reputation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating, reviewCount, measuredOn }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    msg.textContent = err.error || 'Error al guardar.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+  $('#repRating').value = '';
+  $('#repCount').value = '';
+  toast('Medición registrada');
+  await loadReputation();
+}
+
+async function deleteReputation(snapId) {
+  if (!reputationLocId) return;
+  const ok = await confirmDialog({
+    title: 'Eliminar medición',
+    message: 'Se eliminará esta medición del histórico. ¿Continuar?',
+    confirmText: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
+  const res = await fetch(`/api/locations/${reputationLocId}/reputation/${snapId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    toast('No se pudo eliminar la medición.', false);
+    return;
+  }
+  toast('Medición eliminada');
+  await loadReputation();
 }
 
 let editingLocationId = null;
@@ -1480,8 +1763,8 @@ async function runCompare() {
         {
           label: nameA,
           data: res.a.data,
-          borderColor: '#6366f1',
-          backgroundColor: 'rgba(99,102,241,0.1)',
+          borderColor: accent(),
+          backgroundColor: accentA(0.1),
           tension: 0.35,
           pointRadius: 0,
           borderWidth: 2.5,
@@ -1490,8 +1773,8 @@ async function runCompare() {
         {
           label: nameB,
           data: res.b.data,
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34,197,94,0.1)',
+          borderColor: token('--ok', '#22c55e'),
+          backgroundColor: 'rgba(34,197,94,0.12)',
           tension: 0.35,
           pointRadius: 0,
           borderWidth: 2.5,
@@ -1930,7 +2213,7 @@ async function renderAlerts() {
         ? `<span class="alert-metric">${icon(ic, { size: 14 })} ${escapeHtml(a.metric)}</span>`
         : '';
       return `
-      <div class="alert-row">
+      <div class="alert-row lvl-${a.level}">
         <span class="alert-badge ${a.level}">${a.level}</span>
         <div class="alert-body">
           <div class="alert-row-title">${escapeHtml(a.title)}</div>
@@ -2279,6 +2562,13 @@ function setupCreateModals() {
   });
   $('#editLocationModal').addEventListener('click', (e) => {
     if (e.target.id === 'editLocationModal') closeEditLocation();
+  });
+
+  // Reputación de Google
+  $('#closeReputation').addEventListener('click', closeReputation);
+  $('#repSave').addEventListener('click', saveReputation);
+  $('#reputationModal').addEventListener('click', (e) => {
+    if (e.target.id === 'reputationModal') closeReputation();
   });
 
   // Dispositivo

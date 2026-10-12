@@ -613,6 +613,139 @@ export async function apiRoutes(app: FastifyInstance) {
     return { alerts, count: alerts.length };
   });
 
+  // ==========================================================================
+  // REPUTACIÓN (histórico de nota/reseñas de Google por sede)
+  // Lectura: cualquier usuario, limitado a su empresa (company_admin) o todas
+  // (superadmin). Escritura/borrado: SOLO superadmin (carga manual del dato).
+  // ==========================================================================
+
+  // Comprueba que la sede existe y es visible para el usuario de la petición.
+  // Devuelve la fila de la sede o null si no existe o está fuera de su empresa.
+  async function locationInScope(req: any, locationId: string) {
+    const companyId = resolveCompanyId(req);
+    const rows = await query<{ id: string; name: string; city: string; company_id: string | null }>(
+      `SELECT id, name, city, company_id FROM locations WHERE id = $1`,
+      [locationId]
+    );
+    const loc = rows[0];
+    if (!loc) return null;
+    // company_admin solo ve sedes de su empresa.
+    if (companyId !== undefined && loc.company_id !== companyId) return null;
+    return loc;
+  }
+
+  // ---------- Histórico de reputación de una sede ----------
+  app.get<{ Params: { id: string } }>('/api/locations/:id/reputation', async (req, reply) => {
+    const loc = await locationInScope(req, req.params.id);
+    if (!loc) return reply.code(404).send({ error: 'Sede no encontrada.' });
+
+    const rows = await query<{
+      id: string;
+      rating: string;
+      review_count: number;
+      measured_on: string;
+      source: string;
+      note: string | null;
+    }>(
+      `SELECT id, rating, review_count,
+              to_char(measured_on, 'YYYY-MM-DD') AS measured_on,
+              source, note
+         FROM reputation_snapshots
+        WHERE location_id = $1
+        ORDER BY measured_on ASC`,
+      [req.params.id]
+    );
+
+    const snapshots = rows.map((r) => ({
+      id: r.id,
+      rating: parseFloat(r.rating),
+      reviewCount: r.review_count,
+      measuredOn: r.measured_on,
+      source: r.source,
+      note: r.note,
+    }));
+
+    // Resumen: valores actuales y variación contra la primera medición.
+    const first = snapshots[0] || null;
+    const last = snapshots[snapshots.length - 1] || null;
+    const summary = last
+      ? {
+          rating: last.rating,
+          reviewCount: last.reviewCount,
+          measuredOn: last.measuredOn,
+          reviewsGained: first ? last.reviewCount - first.reviewCount : 0,
+          ratingDelta: first ? Math.round((last.rating - first.rating) * 10) / 10 : 0,
+          firstMeasuredOn: first ? first.measuredOn : null,
+        }
+      : null;
+
+    return { location: { id: loc.id, name: loc.name, city: loc.city }, summary, snapshots };
+  });
+
+  // ---------- Registrar una medición de reputación (SOLO superadmin) ----------
+  app.post<{
+    Params: { id: string };
+    Body: { rating?: number | string; reviewCount?: number | string; measuredOn?: string; note?: string };
+  }>('/api/locations/:id/reputation', async (req, reply) => {
+    const s = getSession(req);
+    if (!s || s.role !== 'superadmin') {
+      return reply.code(403).send({ error: 'Solo el superadmin puede registrar mediciones.' });
+    }
+    const loc = await locationInScope(req, req.params.id);
+    if (!loc) return reply.code(404).send({ error: 'Sede no encontrada.' });
+
+    const rating = Number(req.body?.rating);
+    const reviewCount = Number(req.body?.reviewCount);
+    const measuredOn = (req.body?.measuredOn || '').trim();
+    const note = (req.body?.note || '').trim() || null;
+
+    if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+      return reply.code(400).send({ error: 'La nota debe estar entre 0 y 5.' });
+    }
+    if (!Number.isInteger(reviewCount) || reviewCount < 0) {
+      return reply.code(400).send({ error: 'El número de reseñas debe ser un entero ≥ 0.' });
+    }
+    // Fecha válida; por defecto hoy.
+    const dateStr = measuredOn && /^\d{4}-\d{2}-\d{2}$/.test(measuredOn) ? measuredOn : null;
+
+    // UNIQUE(location_id, measured_on): reinsertar la misma fecha actualiza.
+    const result = await pool.query(
+      `INSERT INTO reputation_snapshots (location_id, rating, review_count, measured_on, source, note)
+       VALUES ($1, $2, $3, COALESCE($4::date, CURRENT_DATE), 'manual', $5)
+       ON CONFLICT (location_id, measured_on)
+       DO UPDATE SET rating = EXCLUDED.rating,
+                     review_count = EXCLUDED.review_count,
+                     note = EXCLUDED.note,
+                     source = 'manual'
+       RETURNING id, to_char(measured_on, 'YYYY-MM-DD') AS measured_on`,
+      [req.params.id, rating, reviewCount, dateStr, note]
+    );
+
+    return { ok: true, id: result.rows[0].id, measuredOn: result.rows[0].measured_on };
+  });
+
+  // ---------- Eliminar una medición de reputación (SOLO superadmin) ----------
+  app.delete<{ Params: { id: string; snapId: string } }>(
+    '/api/locations/:id/reputation/:snapId',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (!s || s.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede eliminar mediciones.' });
+      }
+      const loc = await locationInScope(req, req.params.id);
+      if (!loc) return reply.code(404).send({ error: 'Sede no encontrada.' });
+
+      const result = await pool.query(
+        `DELETE FROM reputation_snapshots WHERE id = $1 AND location_id = $2`,
+        [req.params.snapId, req.params.id]
+      );
+      if (result.rowCount === 0) {
+        return reply.code(404).send({ error: 'Medición no encontrada.' });
+      }
+      return { ok: true };
+    }
+  );
+
   // ---------- Lista de sedes (tabla de gestión) ----------
   app.get('/api/locations', async (req) => {
     const companyId = resolveCompanyId(req);

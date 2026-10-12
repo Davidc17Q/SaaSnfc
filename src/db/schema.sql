@@ -82,6 +82,24 @@ CREATE TABLE IF NOT EXISTS bulk_updates (
 );
 CREATE INDEX IF NOT EXISTS idx_bulk_created ON bulk_updates(created_at DESC);
 
+-- Histórico de reputación de Google por sede (medición periódica).
+-- Guarda la nota (rating) y el número de reseñas en una fecha, para dibujar la
+-- evolución en el tiempo. Al inicio se carga manualmente (solo superadmin);
+-- más adelante puede alimentarse automáticamente desde Google Places API.
+CREATE TABLE IF NOT EXISTS reputation_snapshots (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  location_id   UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  rating        NUMERIC(2,1) NOT NULL,            -- 0.0 a 5.0
+  review_count  INT         NOT NULL DEFAULT 0,   -- total de reseñas en Google
+  measured_on   DATE        NOT NULL DEFAULT CURRENT_DATE, -- fecha de la medición
+  source        TEXT        NOT NULL DEFAULT 'manual',     -- manual | google
+  note          TEXT,                                      -- comentario opcional
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Una sola medición por sede y día (reejecutar actualiza, no duplica).
+  UNIQUE (location_id, measured_on)
+);
+CREATE INDEX IF NOT EXISTS idx_reputation_location ON reputation_snapshots(location_id, measured_on);
+
 CREATE INDEX IF NOT EXISTS idx_devices_location   ON devices(location_id);
 CREATE INDEX IF NOT EXISTS idx_devices_code        ON devices(code);
 CREATE INDEX IF NOT EXISTS idx_scan_device        ON scan_events(device_id);
