@@ -196,22 +196,33 @@ async function seed() {
   console.log(`[seed] Dispositivos activos disponibles: ${deviceCatalog.length}`);
 
   // --- Backfill de empresas: una por marca y asignación de sedes -------------
+  // Usa la misma lógica idempotente y a prueba de colisiones que schema.sql:
+  // slug deduplicado por lote + ON CONFLICT, y join de asignación por nombre.
   console.log('[seed] Creando empresas por marca y asignando sedes...');
   await pool.query(
     `INSERT INTO companies (name, slug)
-     SELECT DISTINCT l.brand, lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
-       FROM locations l
-      WHERE l.brand IS NOT NULL AND l.brand <> ''
-        AND NOT EXISTS (
-          SELECT 1 FROM companies c
-           WHERE c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
-        )`
+     SELECT brand,
+            CASE WHEN base_dupes > 1 OR base_taken
+                 THEN base_slug || '-' || substr(md5(brand), 1, 6)
+                 ELSE base_slug END AS slug
+       FROM (
+         SELECT nb.brand,
+                nfc_slugify(nb.brand) AS base_slug,
+                COUNT(*) OVER (PARTITION BY nfc_slugify(nb.brand)) AS base_dupes,
+                EXISTS (SELECT 1 FROM companies c WHERE c.slug = nfc_slugify(nb.brand)) AS base_taken
+           FROM (
+             SELECT DISTINCT brand FROM locations
+              WHERE brand IS NOT NULL AND brand <> ''
+                AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.name = locations.brand)
+           ) nb
+       ) ranked
+     ON CONFLICT (slug) DO NOTHING`
   );
   await pool.query(
     `UPDATE locations l SET company_id = c.id
        FROM companies c
       WHERE l.company_id IS NULL
-        AND c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))`
+        AND c.name = l.brand`
   );
 
   // --- c) 15.000 eventos de escaneo -----------------------------------------

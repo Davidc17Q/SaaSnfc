@@ -93,22 +93,61 @@ CREATE INDEX IF NOT EXISTS idx_locations_company  ON locations(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_company      ON users(company_id);
 
 -- ============================================================================
--- BACKFILL MULTI-EMPRESA (idempotente y seguro para datos existentes)
+-- BACKFILL MULTI-EMPRESA (idempotente y a prueba de colisiones de slug)
 -- Crea una empresa por cada marca distinta y asigna las sedes sin empresa.
+--
+-- Por qué esta versión: el backfill anterior fallaba por el UNIQUE de
+-- companies.slug cuando dos marcas distintas normalizaban al MISMO slug
+-- (p. ej. "Hogar y Moda" vs "Hogar  y  Moda", o marcas sin caracteres
+-- alfanuméricos que colapsaban a slug vacío). Aquí:
+--   1) normalizamos el slug con trim de guiones sobrantes y fallback no vacío;
+--   2) deduplicamos por slug ANTES de insertar (una fila por slug);
+--   3) resolvemos colisiones añadiendo un sufijo corto y estable derivado del
+--      nombre, de modo que marcas diferentes nunca choquen;
+--   4) ON CONFLICT DO NOTHING hace el INSERT idempotente ante reejecuciones.
 -- ============================================================================
-INSERT INTO companies (name, slug)
-SELECT DISTINCT l.brand,
-       lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
-  FROM locations l
- WHERE l.brand IS NOT NULL AND l.brand <> ''
-   AND NOT EXISTS (
-     SELECT 1 FROM companies c
-      WHERE c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'))
-   );
 
--- Asignar cada sede a la empresa que corresponde a su marca
+-- Función estable de slug: minúsculas, no alfanumérico -> '-', sin guiones
+-- en los extremos, y 'empresa' como fallback si queda vacío.
+CREATE OR REPLACE FUNCTION nfc_slugify(txt TEXT) RETURNS TEXT AS $$
+  SELECT COALESCE(
+    NULLIF(trim(BOTH '-' FROM lower(regexp_replace(COALESCE(txt, ''), '[^a-zA-Z0-9]+', '-', 'g'))), ''),
+    'empresa'
+  );
+$$ LANGUAGE sql IMMUTABLE;
+
+-- Inserta UNA empresa por cada marca distinta (name = brand). El slug es
+-- determinista por nombre y globalmente único sin depender del orden:
+--   * si la marca ya es empresa, se omite (NOT EXISTS) -> idempotente;
+--   * el slug base es nfc_slugify(brand); si ese slug base lo comparten varias
+--     marcas distintas (o ya está tomado en BD), TODAS esas marcas usan un
+--     sufijo md5 corto del nombre, que es único por nombre. La marca cuyo slug
+--     base queda libre y sin ambigüedad lo usa limpio.
+-- Como el sufijo depende solo del nombre (no del orden ni de filas vecinas), el
+-- resultado es estable corrida tras corrida. ON CONFLICT cubre cualquier resto.
+INSERT INTO companies (name, slug)
+SELECT brand,
+       CASE
+         WHEN base_dupes > 1 OR base_taken THEN base_slug || '-' || substr(md5(brand), 1, 6)
+         ELSE base_slug
+       END AS slug
+  FROM (
+    SELECT nb.brand,
+           nfc_slugify(nb.brand) AS base_slug,
+           COUNT(*) OVER (PARTITION BY nfc_slugify(nb.brand)) AS base_dupes,
+           EXISTS (SELECT 1 FROM companies c WHERE c.slug = nfc_slugify(nb.brand)) AS base_taken
+      FROM (
+        SELECT DISTINCT brand FROM locations
+         WHERE brand IS NOT NULL AND brand <> ''
+           AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.name = locations.brand)
+      ) nb
+  ) ranked
+ON CONFLICT (slug) DO NOTHING;
+
+-- Asignar cada sede sin empresa a la que corresponde a su marca.
+-- El join por nombre de marca es exacto (una empresa por marca distinta).
 UPDATE locations l
    SET company_id = c.id
   FROM companies c
  WHERE l.company_id IS NULL
-   AND c.slug = lower(regexp_replace(l.brand, '[^a-zA-Z0-9]+', '-', 'g'));
+   AND c.name = l.brand;
