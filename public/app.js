@@ -1639,11 +1639,12 @@ async function loadSurvey() {
   const empty = aspects.length === 0;
   $('#svEmpty').classList.toggle('hidden', !empty);
   const aspCanvas = $('#svAspectsChart');
+  const aspWrap = aspCanvas.closest('.survey-chart-wrap');
   if (empty) {
     destroyChart('survey-aspects');
-    aspCanvas.style.display = 'none';
+    if (aspWrap) aspWrap.style.display = 'none';
   } else {
-    aspCanvas.style.display = '';
+    if (aspWrap) aspWrap.style.display = '';
     upsertChart('survey-aspects', aspCanvas, {
       type: 'bar',
       data: {

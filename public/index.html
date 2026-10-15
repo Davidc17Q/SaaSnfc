@@ -360,7 +360,9 @@
         <div class="card">
           <h3 class="font-semibold mb-1">Promedio por aspecto</h3>
           <p class="text-xs text-slate-500 mb-4">Nota media de cada aspecto en el periodo</p>
-          <canvas id="svAspectsChart" height="120"></canvas>
+          <div class="survey-chart-wrap">
+            <canvas id="svAspectsChart"></canvas>
+          </div>
           <div id="svEmpty" class="alerts-empty hidden">Aún no hay respuestas de calificación en el periodo.</div>
         </div>
 
@@ -368,7 +370,9 @@
         <div id="svTrendCard" class="card hidden">
           <h3 class="font-semibold mb-1">Evolución mensual</h3>
           <p class="text-xs text-slate-500 mb-4">Promedio global por mes</p>
-          <canvas id="svTrendChart" height="110"></canvas>
+          <div class="survey-chart-wrap">
+            <canvas id="svTrendChart"></canvas>
+          </div>
         </div>
 
         <!-- Administración de plantillas -->

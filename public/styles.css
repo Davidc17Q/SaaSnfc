@@ -1582,6 +1582,12 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .rep-chart-wrap { position: relative; height: 240px; }
 .rep-chart-wrap canvas { height: 100% !important; }
 
+/* Gráficos de la vista Calificación: altura acotada para que el canvas no
+   crezca sin límite (Chart.js con maintainAspectRatio:false necesita que el
+   contenedor fije la altura). */
+.survey-chart-wrap { position: relative; height: 280px; }
+.survey-chart-wrap canvas { height: 100% !important; width: 100% !important; }
+
 .rep-form {
   margin-top: 1.1rem;
   border-top: 1px solid var(--card-border);
