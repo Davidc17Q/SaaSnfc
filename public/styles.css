@@ -656,6 +656,41 @@ thead.bg-slate-50 { background: var(--input-bg); }
 .btn-ghost-danger { color: var(--danger); }
 .btn-ghost-danger:hover { background: var(--danger-soft); }
 
+/* Selector de objetivo del punto (redirección | medición), excluyente. */
+.mode-opt {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  background: var(--input-bg);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.mode-opt:hover { background: var(--hover); }
+.mode-opt.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mode-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Lista de plantillas de encuesta */
+.tpl-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.75rem 1rem; border: 1px solid var(--card-border); border-radius: 0.75rem;
+}
+.tpl-row .tpl-meta { min-width: 0; }
+.tpl-row .tpl-name { font-weight: 600; }
+.tpl-row .tpl-sub { font-size: 0.72rem; color: var(--muted); }
+.tpl-badge-survey {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.68rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 9999px;
+  background: var(--accent-soft); color: var(--accent); margin-left: 0.4rem;
+}
+
 /* Filas de ranking (líderes / a auditar) */
 .rank-row {
   display: flex;

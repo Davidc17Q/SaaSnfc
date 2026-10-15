@@ -32,6 +32,28 @@ export interface Device {
   status: string;
   created_at: string;
   updated_at: string;
+  /** Modo del punto: redirección (actual) o encuesta. Excluyentes. */
+  mode?: 'redirect' | 'survey';
+  /** Plantilla de encuesta asociada cuando mode = 'survey'. */
+  survey_template_id?: string | null;
+}
+
+/** Plantilla de encuesta (Función 1: calificación interna por aspectos). */
+export interface SurveyTemplate {
+  id: string;
+  company_id: string | null;
+  name: string;
+  scale_max: number;
+  status: string;
+  created_at: string;
+}
+
+/** Aspecto a calificar dentro de una plantilla de encuesta. */
+export interface SurveyAspect {
+  id: string;
+  template_id: string;
+  label: string;
+  position: number;
 }
 
 export interface ScanEvent {
@@ -55,4 +77,8 @@ export interface DeviceCache {
   company_name?: string;
   /** Si true, muestra la pantalla de transición antes de redirigir. */
   transition?: boolean;
+  /** Modo del punto: redirección (actual) o encuesta. Excluyentes. */
+  mode?: 'redirect' | 'survey';
+  /** Plantilla de encuesta asociada cuando mode = 'survey'. */
+  survey_template_id?: string | null;
 }

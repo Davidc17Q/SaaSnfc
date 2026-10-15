@@ -746,6 +746,319 @@ export async function apiRoutes(app: FastifyInstance) {
     }
   );
 
+  // ==========================================================================
+  // FUNCIÓN 1: Calificación interna por aspectos (plantillas y resultados)
+  // CRUD accesible a superadmin y company_admin. company_admin solo opera sobre
+  // su propia empresa; el company_id se fuerza en el servidor según el rol.
+  // ==========================================================================
+
+  // Devuelve la plantilla si existe y es visible para el usuario; null si no.
+  async function templateInScope(req: any, templateId: string) {
+    const companyId = resolveCompanyId(req);
+    const rows = await query<{ id: string; company_id: string | null }>(
+      `SELECT id, company_id FROM survey_templates WHERE id = $1`,
+      [templateId]
+    );
+    const tpl = rows[0];
+    if (!tpl) return null;
+    if (companyId !== undefined && tpl.company_id !== companyId) return null;
+    return tpl;
+  }
+
+  // Resuelve la empresa a asignar al crear una plantilla.
+  function resolveTemplateCompanyId(req: any): string | null | undefined {
+    const s = getSession(req);
+    if (s?.role === 'company_admin') return s.companyId;
+    const q = req.query as any;
+    const b = req.body as any;
+    return b?.company_id || q?.companyId || null;
+  }
+
+  // ---------- Listar plantillas (con aspectos y conteo de respuestas) ----------
+  app.get('/api/survey-templates', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = `WHERE t.company_id = $1`;
+    }
+    const rows = await query<any>(
+      `SELECT t.id, t.company_id, t.name, t.scale_max, t.status, t.created_at,
+              co.name AS company_name,
+              COALESCE((SELECT COUNT(*) FROM survey_responses sr WHERE sr.template_id = t.id), 0) AS responses
+         FROM survey_templates t
+         LEFT JOIN companies co ON co.id = t.company_id
+         ${cWhere}
+         ORDER BY t.created_at DESC`,
+      cParams
+    );
+
+    // Aspectos de todas las plantillas listadas (una sola consulta).
+    const ids = rows.map((r) => r.id);
+    let aspectsByTemplate: Record<string, any[]> = {};
+    if (ids.length) {
+      const aspects = await query<any>(
+        `SELECT id, template_id, label, position FROM survey_aspects
+          WHERE template_id = ANY($1::uuid[])
+          ORDER BY position ASC, created_at ASC`,
+        [ids]
+      );
+      for (const a of aspects) {
+        (aspectsByTemplate[a.template_id] ||= []).push({
+          id: a.id,
+          label: a.label,
+          position: a.position,
+        });
+      }
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      companyId: r.company_id,
+      companyName: r.company_name,
+      name: r.name,
+      scaleMax: r.scale_max,
+      status: r.status,
+      responses: parseInt(r.responses, 10),
+      aspects: aspectsByTemplate[r.id] || [],
+    }));
+  });
+
+  // ---------- Crear plantilla + aspectos ----------
+  app.post<{
+    Body: { name?: string; aspects?: string[]; scale_max?: number };
+  }>('/api/survey-templates', async (req, reply) => {
+    const name = (req.body?.name || '').trim();
+    const aspects = Array.isArray(req.body?.aspects)
+      ? req.body!.aspects.map((a) => String(a || '').trim()).filter(Boolean)
+      : [];
+    if (!name) return reply.code(400).send({ error: 'El nombre es obligatorio.' });
+    if (aspects.length === 0) {
+      return reply.code(400).send({ error: 'Añade al menos un aspecto.' });
+    }
+    const scaleMax = Number(req.body?.scale_max);
+    const scale = Number.isInteger(scaleMax) && scaleMax >= 2 && scaleMax <= 10 ? scaleMax : 5;
+
+    const companyId = resolveTemplateCompanyId(req);
+    if (!companyId) {
+      return reply.code(400).send({ error: 'Debes indicar la empresa de la plantilla.' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const t = await client.query(
+        `INSERT INTO survey_templates (company_id, name, scale_max)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [companyId, name, scale]
+      );
+      const templateId = t.rows[0].id;
+      for (let i = 0; i < aspects.length; i++) {
+        await client.query(
+          `INSERT INTO survey_aspects (template_id, label, position) VALUES ($1, $2, $3)`,
+          [templateId, aspects[i], i]
+        );
+      }
+      await client.query('COMMIT');
+      return reply.code(201).send({ ok: true, id: templateId });
+    } catch (err: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  });
+
+  // ---------- Editar plantilla (nombre / estado / aspectos) ----------
+  // Regla sobre aspectos: para no corromper el histórico, si la plantilla NO
+  // tiene ninguna respuesta registrada se pueden recrear libremente los aspectos
+  // (borrar + insertar). Si YA tiene respuestas, solo se permite renombrar los
+  // aspectos existentes y añadir nuevos; nunca se borran los que tienen notas.
+  app.patch<{
+    Params: { id: string };
+    Body: { name?: string; status?: string; aspects?: { id?: string; label: string }[] };
+  }>('/api/survey-templates/:id', async (req, reply) => {
+    const tpl = await templateInScope(req, req.params.id);
+    if (!tpl) return reply.code(404).send({ error: 'Plantilla no encontrada.' });
+
+    const name = req.body?.name !== undefined ? String(req.body.name).trim() : undefined;
+    const status =
+      req.body?.status === 'active' || req.body?.status === 'inactive'
+        ? req.body.status
+        : undefined;
+    const aspects = Array.isArray(req.body?.aspects) ? req.body!.aspects : undefined;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const sets: string[] = [];
+      const params: any[] = [];
+      if (name !== undefined && name) {
+        params.push(name);
+        sets.push(`name = $${params.length}`);
+      }
+      if (status !== undefined) {
+        params.push(status);
+        sets.push(`status = $${params.length}`);
+      }
+      if (sets.length) {
+        params.push(tpl.id);
+        await client.query(
+          `UPDATE survey_templates SET ${sets.join(', ')} WHERE id = $${params.length}`,
+          params
+        );
+      }
+
+      if (aspects !== undefined) {
+        const respRow = await client.query(
+          `SELECT COUNT(*) AS c FROM survey_responses WHERE template_id = $1`,
+          [tpl.id]
+        );
+        const hasResponses = parseInt(respRow.rows[0].c, 10) > 0;
+        const clean = aspects
+          .map((a) => ({ id: a?.id ? String(a.id) : undefined, label: String(a?.label || '').trim() }))
+          .filter((a) => a.label);
+
+        if (!hasResponses) {
+          // Sin respuestas: recrear por completo respetando el orden.
+          await client.query(`DELETE FROM survey_aspects WHERE template_id = $1`, [tpl.id]);
+          for (let i = 0; i < clean.length; i++) {
+            await client.query(
+              `INSERT INTO survey_aspects (template_id, label, position) VALUES ($1, $2, $3)`,
+              [tpl.id, clean[i].label, i]
+            );
+          }
+        } else {
+          // Con respuestas: renombrar los existentes y añadir los nuevos. No se
+          // borra ninguno (preserva las notas asociadas).
+          for (let i = 0; i < clean.length; i++) {
+            const a = clean[i];
+            if (a.id) {
+              await client.query(
+                `UPDATE survey_aspects SET label = $1, position = $2
+                   WHERE id = $3 AND template_id = $4`,
+                [a.label, i, a.id, tpl.id]
+              );
+            } else {
+              await client.query(
+                `INSERT INTO survey_aspects (template_id, label, position) VALUES ($1, $2, $3)`,
+                [tpl.id, a.label, i]
+              );
+            }
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+      return { ok: true };
+    } catch (err: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  });
+
+  // ---------- Eliminar plantilla ----------
+  // El CASCADE del esquema elimina sus aspectos y TODAS sus respuestas/notas, y
+  // pone en NULL el survey_template_id de los dispositivos que la usaban (esos
+  // puntos quedan en modo encuesta sin plantilla => "encuesta no disponible").
+  app.delete<{ Params: { id: string } }>('/api/survey-templates/:id', async (req, reply) => {
+    const tpl = await templateInScope(req, req.params.id);
+    if (!tpl) return reply.code(404).send({ error: 'Plantilla no encontrada.' });
+    await pool.query(`DELETE FROM survey_templates WHERE id = $1`, [tpl.id]);
+    return { ok: true };
+  });
+
+  // ---------- Resultados de calificación (mismos filtros que la analítica) ----------
+  // Replica la semántica de buildFilters pero sobre survey_responses (alias sr),
+  // ya que el filtro trabaja contra scan_events (alias se).
+  app.get('/api/survey-results', async (req) => {
+    const q = req.query as any;
+    const companyId = resolveCompanyId(req);
+
+    const clauses: string[] = [];
+    const params: any[] = [];
+    if (q.from) {
+      params.push(q.from);
+      clauses.push(`sr.submitted_at >= (($${params.length}::date)::timestamp AT TIME ZONE '${APP_TZ}')`);
+    }
+    if (q.to) {
+      params.push(q.to);
+      clauses.push(
+        `sr.submitted_at < ((($${params.length}::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')`
+      );
+    }
+    if (q.locationId) {
+      params.push(q.locationId);
+      clauses.push(`sr.location_id = $${params.length}`);
+    }
+    if (companyId !== undefined) {
+      params.push(companyId);
+      clauses.push(`sr.location_id IN (SELECT id FROM locations WHERE company_id = $${params.length})`);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+    // Total de respuestas y promedio global.
+    const totalRow = await query<{ total: string }>(
+      `SELECT COUNT(*) AS total FROM survey_responses sr ${where}`,
+      params
+    );
+    const avgRow = await query<{ avg: string | null }>(
+      `SELECT AVG(sa.rating) AS avg
+         FROM survey_answers sa
+         JOIN survey_responses sr ON sr.id = sa.response_id
+         ${where}`,
+      params
+    );
+
+    // Promedio por aspecto.
+    const byAspect = await query<{ label: string; avg: string; count: string }>(
+      `SELECT asp.label, AVG(sa.rating) AS avg, COUNT(*) AS count
+         FROM survey_answers sa
+         JOIN survey_responses sr ON sr.id = sa.response_id
+         JOIN survey_aspects asp ON asp.id = sa.aspect_id
+         ${where}
+         GROUP BY asp.label
+         ORDER BY avg DESC`,
+      params
+    );
+
+    const aspects = byAspect.map((r) => ({
+      label: r.label,
+      avg: Math.round(parseFloat(r.avg) * 100) / 100,
+      count: parseInt(r.count, 10),
+    }));
+
+    // Serie mensual del promedio global.
+    const trend = await query<{ month: string; avg: string }>(
+      `SELECT to_char(date_trunc('month', sr.submitted_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM') AS month,
+              AVG(sa.rating) AS avg
+         FROM survey_answers sa
+         JOIN survey_responses sr ON sr.id = sa.response_id
+         ${where}
+         GROUP BY month
+         ORDER BY month ASC`,
+      params
+    );
+
+    const total = parseInt(totalRow[0]?.total || '0', 10);
+    const globalAvg = avgRow[0]?.avg !== null && avgRow[0]?.avg !== undefined
+      ? Math.round(parseFloat(avgRow[0].avg) * 100) / 100
+      : null;
+
+    return {
+      total,
+      globalAvg,
+      aspects,
+      best: aspects.length ? aspects[0] : null,
+      worst: aspects.length ? aspects[aspects.length - 1] : null,
+      trend: trend.map((r) => ({ month: r.month, avg: Math.round(parseFloat(r.avg) * 100) / 100 })),
+    };
+  });
+
   // ---------- Lista de sedes (tabla de gestión) ----------
   app.get('/api/locations', async (req) => {
     const companyId = resolveCompanyId(req);
@@ -809,7 +1122,9 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at, d.transition,
-              l.name AS location_name, l.city AS location_city, l.id AS location_id
+              d.mode, d.survey_template_id,
+              l.name AS location_name, l.city AS location_city, l.id AS location_id,
+              l.company_id AS company_id
          FROM devices d
          JOIN locations l ON l.id = d.location_id
          ${cWhere}
@@ -851,62 +1166,112 @@ export async function apiRoutes(app: FastifyInstance) {
     }
   );
 
-  // ---------- Actualizar target_url de un dispositivo (tiempo real) ----------
-  app.patch<{ Params: { id: string }; Body: { target_url?: string; status?: string } }>(
-    '/api/devices/:id',
-    async (req, reply) => {
-      const { id } = req.params;
-      const { target_url, status } = req.body || {};
+  // ---------- Actualizar un dispositivo (destino, estado o modo) ------------
+  // Admite target_url/status (comportamiento actual) y además mode +
+  // survey_template_id (Función 1). El modo es EXCLUYENTE: 'redirect' (actual)
+  // o 'survey'. Al pasar a 'survey' se exige una plantilla válida de la MISMA
+  // empresa que la sede del punto; target_url queda intacta. Al pasar a
+  // 'redirect', survey_template_id vuelve a NULL.
+  app.patch<{
+    Params: { id: string };
+    Body: { target_url?: string; status?: string; mode?: string; survey_template_id?: string | null };
+  }>('/api/devices/:id', async (req, reply) => {
+    const { id } = req.params;
+    const { target_url, status } = req.body || {};
+    const mode =
+      req.body?.mode === 'survey' || req.body?.mode === 'redirect' ? req.body.mode : undefined;
 
-      if (!target_url && !status) {
-        return reply.code(400).send({ error: 'Nada que actualizar.' });
+    if (!target_url && !status && mode === undefined) {
+      return reply.code(400).send({ error: 'Nada que actualizar.' });
+    }
+    if (target_url) {
+      try {
+        // eslint-disable-next-line no-new
+        new URL(target_url);
+      } catch {
+        return reply.code(400).send({ error: 'target_url inválida.' });
       }
-      if (target_url) {
-        try {
-          // Validar URL
-          // eslint-disable-next-line no-new
-          new URL(target_url);
-        } catch {
-          return reply.code(400).send({ error: 'target_url inválida.' });
-        }
-      }
+    }
 
-      const fields: string[] = [];
-      const params: any[] = [];
-      if (target_url) {
-        params.push(target_url);
-        fields.push(`target_url = $${params.length}`);
-      }
-      if (status) {
-        params.push(status);
-        fields.push(`status = $${params.length}`);
-      }
-      params.push(id);
+    const fields: string[] = [];
+    const params: any[] = [];
+    if (target_url) {
+      params.push(target_url);
+      fields.push(`target_url = $${params.length}`);
+    }
+    if (status) {
+      params.push(status);
+      fields.push(`status = $${params.length}`);
+    }
 
-      const result = await pool.query(
-        `UPDATE devices SET ${fields.join(', ')}, updated_at = now()
-           WHERE id = $${params.length}
-         RETURNING id AS device_id, code, location_id, target_url, status`,
-        params
+    if (mode === 'survey') {
+      const templateId = req.body?.survey_template_id;
+      if (!templateId) {
+        return reply.code(400).send({ error: 'Debes elegir una plantilla de encuesta.' });
+      }
+      // La plantilla debe pertenecer a la MISMA empresa que la sede del punto, y
+      // el usuario debe tener alcance sobre esa empresa.
+      const companyId = resolveCompanyId(req);
+      const check = await query<{ loc_company: string | null; tpl_company: string | null }>(
+        `SELECT l.company_id AS loc_company, t.company_id AS tpl_company
+           FROM devices d
+           JOIN locations l ON l.id = d.location_id
+           LEFT JOIN survey_templates t ON t.id = $2
+          WHERE d.id = $1`,
+        [id, templateId]
       );
-
-      if (result.rowCount === 0) {
+      const row = check[0];
+      if (!row) {
         return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
       }
-
-      const device = result.rows[0] as DeviceCache & { code: string | null };
-      // Refrescar caché Redis bajo el código corto Y el UUID (compatibilidad).
-      try {
-        const payload = JSON.stringify(device);
-        if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
-        await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
-      } catch {
-        /* ignore */
+      if (row.tpl_company === null && row.loc_company !== null) {
+        // La plantilla no existe (LEFT JOIN sin fila) o es global sin empresa:
+        // exigir coincidencia con la empresa de la sede.
+        return reply.code(400).send({ error: 'Plantilla no válida para esta sede.' });
       }
-
-      return { ok: true, device };
+      if (row.loc_company !== row.tpl_company) {
+        return reply.code(400).send({ error: 'La plantilla es de otra empresa.' });
+      }
+      if (companyId !== undefined && row.loc_company !== companyId) {
+        return reply.code(403).send({ error: 'No autorizado para esta sede.' });
+      }
+      params.push('survey');
+      fields.push(`mode = $${params.length}`);
+      params.push(templateId);
+      fields.push(`survey_template_id = $${params.length}`);
+    } else if (mode === 'redirect') {
+      params.push('redirect');
+      fields.push(`mode = $${params.length}`);
+      fields.push(`survey_template_id = NULL`);
     }
-  );
+
+    params.push(id);
+
+    const result = await pool.query(
+      `UPDATE devices SET ${fields.join(', ')}, updated_at = now()
+         WHERE id = $${params.length}
+       RETURNING id AS device_id, code, location_id, target_url, status,
+                 transition, mode, survey_template_id`,
+      params
+    );
+
+    if (result.rowCount === 0) {
+      return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
+    }
+
+    const device = result.rows[0] as DeviceCache & { code: string | null };
+    // Refrescar caché Redis bajo el código corto Y el UUID (compatibilidad), con
+    // mode y survey_template_id para que el motor público resuelva al instante.
+    try {
+      const payload = JSON.stringify(device);
+      if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
+      await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
+    } catch {
+      /* ignore */
+    }
+
+    return { ok: true, device };
+  });
 
   // ---------- Crear sede ----------
   app.post<{

@@ -13,6 +13,7 @@ const state = {
   locations: [],
   devices: [],
   opItems: [],
+  surveyTemplates: [],
   expanded: new Set(),
 };
 
@@ -208,13 +209,14 @@ const VIEW_TITLES = {
   dashboard: 'Panel de Control',
   executive: 'Comparativa ejecutiva',
   operations: 'Salud operativa',
+  survey: 'Calificación',
   locations: 'Sedes',
   devices: 'Dispositivos NFC',
   admin: 'Empresas y usuarios',
 };
 
 function setupNav() {
-  const views = ['dashboard', 'executive', 'operations', 'locations', 'devices', 'admin'];
+  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'admin'];
 
   function activate(target) {
     views.forEach((v) => {
@@ -230,7 +232,7 @@ function setupNav() {
     // Los filtros de analítica (sede/fecha/canal) solo tienen sentido en las
     // vistas de reportes. En gestión (Sedes, Dispositivos, Empresas) se ocultan
     // para no competir visualmente con los buscadores propios de cada tabla.
-    const analyticsViews = ['dashboard', 'executive', 'operations'];
+    const analyticsViews = ['dashboard', 'executive', 'operations', 'survey'];
     const af = $('#analyticsFilters');
     if (af) af.classList.toggle('hidden', !analyticsViews.includes(target));
     // Actualizar chips de filtros activos según la vista.
@@ -242,6 +244,7 @@ function setupNav() {
     if (target === 'devices') renderDevicesTable($('#devSearch').value);
     if (target === 'executive') loadExecutive();
     if (target === 'operations') loadOperations();
+    if (target === 'survey') loadSurvey();
     if (target === 'admin') loadAdmin();
   }
 
@@ -1218,8 +1221,16 @@ function renderDevicesTable(filter = '') {
           ? `<span class="text-xs text-slate-500 section-title-icon">${icon('corner-down-right', { size: 13 })} ${escapeHtml(d.label)}</span>`
           : `${escapeHtml(d.location_name)}<br><span class="text-xs text-slate-500">${escapeHtml(d.location_city)}</span>`
       }</td>
-      <td class="td" data-label="Punto">${escapeHtml(d.label)}</td>
-      <td class="td font-mono text-xs max-w-xs truncate" data-label="Target URL" title="${escapeHtml(d.target_url)}">${escapeHtml(d.target_url)}</td>
+      <td class="td" data-label="Punto">${escapeHtml(d.label)}${
+        d.mode === 'survey'
+          ? ` <span class="tpl-badge-survey">${icon('star', { size: 11 })} Encuesta</span>`
+          : ''
+      }</td>
+      <td class="td font-mono text-xs max-w-xs truncate" data-label="Target URL" title="${escapeHtml(d.target_url)}">${
+        d.mode === 'survey'
+          ? '<span class="text-slate-400">Encuesta interna</span>'
+          : escapeHtml(d.target_url)
+      }</td>
       <td class="td" data-label="Estado">${statusBadge(d.status)}</td>
       <td class="td td-actions text-right">
         <span class="row-actions">
@@ -1603,11 +1614,344 @@ function clearFilter(type) {
 }
 
 // ---------------------------------------------------------------------------
+// Calificación (Función 1): resultados por aspecto + administración de plantillas
+// ---------------------------------------------------------------------------
+async function loadSurvey() {
+  let data;
+  try {
+    data = await api(`/api/survey-results${qs()}`);
+  } catch {
+    return;
+  }
+
+  // KPIs
+  $('#svTotal').textContent = fmt(data.total || 0);
+  $('#svAvg').textContent = data.globalAvg !== null && data.globalAvg !== undefined
+    ? data.globalAvg.toFixed(2)
+    : '—';
+  $('#svBest').textContent = data.best ? data.best.label : '—';
+  $('#svBestVal').textContent = data.best ? `Promedio ${data.best.avg.toFixed(2)}` : '—';
+  $('#svWorst').textContent = data.worst ? data.worst.label : '—';
+  $('#svWorstVal').textContent = data.worst ? `Promedio ${data.worst.avg.toFixed(2)}` : '—';
+
+  // Gráfico de barras MONOCROMO azul: promedio por aspecto.
+  const aspects = data.aspects || [];
+  const empty = aspects.length === 0;
+  $('#svEmpty').classList.toggle('hidden', !empty);
+  const aspCanvas = $('#svAspectsChart');
+  if (empty) {
+    destroyChart('survey-aspects');
+    aspCanvas.style.display = 'none';
+  } else {
+    aspCanvas.style.display = '';
+    upsertChart('survey-aspects', aspCanvas, {
+      type: 'bar',
+      data: {
+        labels: aspects.map((a) => a.label),
+        datasets: [
+          {
+            label: 'Promedio',
+            data: aspects.map((a) => a.avg),
+            backgroundColor: accentA(0.78),
+            hoverBackgroundColor: accent(),
+            borderColor: accent(),
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: cleanTooltip((items) => aspects[items[0].dataIndex].label),
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: tickColor() } },
+          y: {
+            grid: { color: gridColor() },
+            ticks: { color: tickColor() },
+            beginAtZero: true,
+            suggestedMax: 5,
+          },
+        },
+      },
+    });
+  }
+
+  // Evolución mensual del promedio global (línea azul), si hay serie.
+  const trend = data.trend || [];
+  const trendCard = $('#svTrendCard');
+  if (trend.length > 1) {
+    trendCard.classList.remove('hidden');
+    const ctx = $('#svTrendChart');
+    upsertChart('survey-trend', ctx, {
+      type: 'line',
+      data: {
+        labels: trend.map((t) => t.month),
+        datasets: [
+          {
+            label: 'Promedio',
+            data: trend.map((t) => t.avg),
+            borderColor: accent(),
+            backgroundColor: accentA(0.12),
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: cleanTooltip() },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: tickColor() } },
+          y: {
+            grid: { color: gridColor() },
+            ticks: { color: tickColor() },
+            beginAtZero: true,
+            suggestedMax: 5,
+          },
+        },
+      },
+    });
+  } else {
+    trendCard.classList.add('hidden');
+    destroyChart('survey-trend');
+  }
+
+  await renderTemplatesList();
+}
+
+// Lista de plantillas de encuesta (administración dentro de la vista).
+async function renderTemplatesList() {
+  const cont = $('#svTemplatesList');
+  if (!cont) return;
+  let templates;
+  try {
+    const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+    templates = await api(`/api/survey-templates${cq}`);
+  } catch {
+    cont.innerHTML = '<p class="text-sm text-slate-500">No se pudieron cargar las plantillas.</p>';
+    return;
+  }
+  state.surveyTemplates = templates;
+
+  if (!templates.length) {
+    cont.innerHTML =
+      '<p class="text-sm text-slate-500">Aún no hay plantillas. Crea una para activar el modo encuesta en tus puntos.</p>';
+    return;
+  }
+
+  cont.innerHTML = templates
+    .map((t) => {
+      const aspectos = (t.aspects || []).map((a) => escapeHtml(a.label)).join(' · ');
+      const estado =
+        t.status === 'active'
+          ? '<span class="state-badge state-active"><span class="dot"></span> Activa</span>'
+          : '<span class="badge-inactive">inactiva</span>';
+      const empresa = state.role === 'superadmin' && t.companyName
+        ? ` · ${escapeHtml(t.companyName)}`
+        : '';
+      return `
+      <div class="tpl-row">
+        <div class="tpl-meta">
+          <div class="tpl-name">${escapeHtml(t.name)} ${estado}</div>
+          <div class="tpl-sub">${t.aspects ? t.aspects.length : 0} aspectos · ${t.responses} respuestas${empresa}</div>
+          <div class="tpl-sub">${aspectos}</div>
+        </div>
+        <button class="btn-primary text-xs tpl-edit" data-id="${t.id}">Editar</button>
+      </div>`;
+    })
+    .join('');
+
+  cont.querySelectorAll('.tpl-edit').forEach((b) =>
+    b.addEventListener('click', () => openTemplateModal(b.dataset.id))
+  );
+}
+
+// --- Modal de plantilla (crear/editar) -------------------------------------
+let editingTemplateId = null;
+
+function tplAspectRow(value = '', id = '') {
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-2 tpl-aspect-row';
+  row.dataset.aspectId = id || '';
+  row.innerHTML = `
+    <input type="text" class="input w-full tpl-aspect-input" placeholder="Ej: Atención" value="${escapeHtml(value)}" />
+    <button type="button" class="btn-ghost btn-ghost-danger tpl-aspect-del" aria-label="Quitar aspecto">${icon('x', { size: 16 })}</button>`;
+  row.querySelector('.tpl-aspect-del').addEventListener('click', () => row.remove());
+  return row;
+}
+
+function openTemplateModal(id) {
+  editingTemplateId = id || null;
+  const msg = $('#tplMsg');
+  msg.textContent = '';
+  const aspectsBox = $('#tplAspects');
+  aspectsBox.innerHTML = '';
+
+  // Selector de empresa: solo superadmin al crear (no se cambia al editar).
+  const wrap = $('#tplCompanyWrap');
+  const sel = $('#tplCompany');
+  if (!id && state.role === 'superadmin') {
+    sel.innerHTML = (state.companies || [])
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
+      .join('');
+    if (state.companyId) sel.value = state.companyId;
+    wrap.classList.remove('hidden');
+  } else {
+    wrap.classList.add('hidden');
+  }
+
+  if (id) {
+    const t = (state.surveyTemplates || []).find((x) => x.id === id);
+    $('#templateModalTitle').textContent = 'Editar plantilla';
+    $('#tplName').value = t ? t.name : '';
+    (t && t.aspects ? t.aspects : []).forEach((a) =>
+      aspectsBox.appendChild(tplAspectRow(a.label, a.id))
+    );
+    $('#tplDelete').classList.remove('hidden');
+  } else {
+    $('#templateModalTitle').textContent = 'Nueva plantilla';
+    $('#tplName').value = '';
+    aspectsBox.appendChild(tplAspectRow());
+    $('#tplDelete').classList.add('hidden');
+  }
+
+  const m = $('#templateModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+
+function closeTemplateModal() {
+  const m = $('#templateModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+  editingTemplateId = null;
+}
+
+async function saveTemplate() {
+  const name = $('#tplName').value.trim();
+  const msg = $('#tplMsg');
+  const rows = Array.prototype.slice.call(document.querySelectorAll('#tplAspects .tpl-aspect-row'));
+  const aspects = rows
+    .map((r) => ({
+      id: r.dataset.aspectId || undefined,
+      label: r.querySelector('.tpl-aspect-input').value.trim(),
+    }))
+    .filter((a) => a.label);
+
+  if (!name) {
+    msg.textContent = 'El nombre es obligatorio.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+  if (!aspects.length) {
+    msg.textContent = 'Añade al menos un aspecto.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+
+  let res;
+  if (editingTemplateId) {
+    res = await fetch(`/api/survey-templates/${editingTemplateId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, aspects }),
+    });
+  } else {
+    const payload = { name, aspects: aspects.map((a) => a.label) };
+    if (state.role === 'superadmin') {
+      const company_id = $('#tplCompany').value;
+      if (!company_id) {
+        msg.textContent = 'Selecciona la empresa de la plantilla.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+      payload.company_id = company_id;
+    }
+    res = await fetch('/api/survey-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    msg.textContent = err.error || 'Error al guardar.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+
+  closeTemplateModal();
+  await renderTemplatesList();
+  toast('Plantilla guardada');
+}
+
+async function deleteTemplate() {
+  if (!editingTemplateId) return;
+  const ok = await confirmDialog({
+    title: 'Eliminar plantilla',
+    message:
+      'Se eliminarán la plantilla, sus aspectos y TODAS sus respuestas. Los puntos que la usaban quedarán sin encuesta. Esta acción no se puede deshacer.',
+    confirmText: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
+  const res = await fetch(`/api/survey-templates/${editingTemplateId}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+  });
+  if (!res.ok) {
+    toast('No se pudo eliminar la plantilla.', false);
+    return;
+  }
+  closeTemplateModal();
+  await renderTemplatesList();
+  toast('Plantilla eliminada');
+}
+
+function setupSurveyModals() {
+  $('#newTemplateBtn').addEventListener('click', () => openTemplateModal(null));
+  $('#closeTemplateModal').addEventListener('click', closeTemplateModal);
+  $('#cancelTemplate').addEventListener('click', closeTemplateModal);
+  $('#saveTemplate').addEventListener('click', saveTemplate);
+  $('#tplDelete').addEventListener('click', deleteTemplate);
+  $('#tplAddAspect').addEventListener('click', () =>
+    $('#tplAspects').appendChild(tplAspectRow())
+  );
+  $('#templateModal').addEventListener('click', (e) => {
+    if (e.target.id === 'templateModal') closeTemplateModal();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Modal de edición
 // ---------------------------------------------------------------------------
 let editingId = null;
 
-function openEdit(id) {
+// Objetivo del punto en edición: 'redirect' | 'survey'. Excluyente.
+let editMode = 'redirect';
+
+// Aplica visualmente la rama activa (URL vs. selector de plantilla).
+function setEditMode(mode) {
+  editMode = mode === 'survey' ? 'survey' : 'redirect';
+  $('#editModeRedirect').classList.toggle('active', editMode === 'redirect');
+  $('#editModeRedirect').setAttribute('aria-checked', String(editMode === 'redirect'));
+  $('#editModeSurvey').classList.toggle('active', editMode === 'survey');
+  $('#editModeSurvey').setAttribute('aria-checked', String(editMode === 'survey'));
+  $('#editRedirectWrap').classList.toggle('hidden', editMode !== 'redirect');
+  $('#editSurveyWrap').classList.toggle('hidden', editMode !== 'survey');
+}
+
+async function openEdit(id) {
   const d = state.devices.find((x) => x.id === id);
   if (!d) return;
   editingId = id;
@@ -1616,9 +1960,26 @@ function openEdit(id) {
   $('#editTargetUrl').value = d.target_url;
   $('#editStatus').value = d.status;
   $('#editMsg').textContent = '';
+
+  // Poblar el selector de plantillas con las de la empresa de la sede del punto.
+  const sel = $('#editSurveyTemplate');
+  sel.innerHTML = '<option value="">Cargando…</option>';
+  setEditMode(d.mode === 'survey' ? 'survey' : 'redirect');
   const m = $('#editModal');
   m.classList.remove('hidden');
   m.classList.add('flex');
+
+  try {
+    const cq = d.company_id ? `?companyId=${encodeURIComponent(d.company_id)}` : '';
+    const templates = await api(`/api/survey-templates${cq}`);
+    const activos = templates.filter((t) => t.status === 'active');
+    sel.innerHTML = activos.length
+      ? activos.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+      : '<option value="">No hay plantillas activas</option>';
+    if (d.survey_template_id) sel.value = d.survey_template_id;
+  } catch {
+    sel.innerHTML = '<option value="">No se pudieron cargar las plantillas</option>';
+  }
 }
 
 function closeEdit() {
@@ -1630,22 +1991,35 @@ function closeEdit() {
 
 async function saveEdit() {
   if (!editingId) return;
-  const target_url = $('#editTargetUrl').value.trim();
   const status = $('#editStatus').value;
   const msg = $('#editMsg');
 
-  try {
-    new URL(target_url);
-  } catch {
-    msg.textContent = 'URL inválida.';
-    msg.style.color = '#dc2626';
-    return;
+  let payload;
+  if (editMode === 'survey') {
+    const survey_template_id = $('#editSurveyTemplate').value;
+    if (!survey_template_id) {
+      msg.textContent = 'Elige una plantilla de encuesta.';
+      msg.style.color = '#dc2626';
+      return;
+    }
+    // No se envía target_url: queda intacta en la BD al pasar a encuesta.
+    payload = { mode: 'survey', survey_template_id, status };
+  } else {
+    const target_url = $('#editTargetUrl').value.trim();
+    try {
+      new URL(target_url);
+    } catch {
+      msg.textContent = 'URL inválida.';
+      msg.style.color = '#dc2626';
+      return;
+    }
+    payload = { mode: 'redirect', target_url, status };
   }
 
   const res = await fetch(`/api/devices/${editingId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_url, status }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -1655,15 +2029,18 @@ async function saveEdit() {
     return;
   }
 
-  // Actualizar estado local
+  const data = await res.json().catch(() => ({}));
+  // Actualizar estado local con lo que devolvió el servidor.
   const d = state.devices.find((x) => x.id === editingId);
-  if (d) {
-    d.target_url = target_url;
-    d.status = status;
+  if (d && data.device) {
+    d.target_url = data.device.target_url;
+    d.status = data.device.status;
+    d.mode = data.device.mode;
+    d.survey_template_id = data.device.survey_template_id;
   }
   closeEdit();
   renderDevicesTable($('#devSearch').value);
-  toast('Destino actualizado en tiempo real');
+  toast(editMode === 'survey' ? 'Punto en modo encuesta' : 'Destino actualizado en tiempo real');
 }
 
 // ---------------------------------------------------------------------------
@@ -2331,6 +2708,7 @@ function setupFilters() {
     if (!$('#view-dashboard').classList.contains('hidden')) loadDashboard();
     if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
     if (!$('#view-operations').classList.contains('hidden')) loadOperations();
+    if (!$('#view-survey').classList.contains('hidden')) loadSurvey();
   }
 
   // "Aplicar rango" (personalizado): toma las dos fechas y cierra el menú.
@@ -2395,6 +2773,9 @@ function setupModal() {
   $('#editModal').addEventListener('click', (e) => {
     if (e.target.id === 'editModal') closeEdit();
   });
+  // Objetivo del punto: alternar redirección / medición (excluyente).
+  $('#editModeRedirect').addEventListener('click', () => setEditMode('redirect'));
+  $('#editModeSurvey').addEventListener('click', () => setEditMode('survey'));
 }
 
 // ---------------------------------------------------------------------------
@@ -2730,6 +3111,7 @@ async function init() {
   setupCombo();
   setupModal();
   setupCreateModals();
+  setupSurveyModals();
 
   // Rango por defecto: últimos 30 días
   setRangeDays(30);

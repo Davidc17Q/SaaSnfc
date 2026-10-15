@@ -1,10 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { pool } from '../db/pool';
-import { redis, deviceCacheKey, dedupeKey } from '../db/redis';
+import { redis, deviceCacheKey, dedupeKey, surveyDedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
 import { detectChannel } from '../lib/channel';
 import { config } from '../config';
 import { transitionHtml } from '../lib/transition';
+import { surveyHtml } from '../lib/survey';
 import type { DeviceCache } from '../types';
 
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
@@ -51,6 +52,38 @@ const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
 </body>
 </html>`;
 
+// Página sobria para un punto en modo encuesta sin plantilla válida/activa.
+// Mismo tono carbón cálido que la encuesta; no expone detalles internos.
+const SURVEY_UNAVAILABLE_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Encuesta no disponible</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #141312; color: #fafaf9; min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .card {
+      background: #1c1a18; border: 1px solid #322e2b; border-radius: 16px;
+      padding: 40px 32px; max-width: 420px; text-align: center;
+    }
+    h1 { font-size: 20px; margin-bottom: 12px; }
+    p { color: #a8a29e; line-height: 1.6; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Encuesta no disponible</h1>
+    <p>Este punto aún no tiene una encuesta activa. Contacta al administrador para activarla.</p>
+  </div>
+</body>
+</html>`;
+
 // Acepta tanto el código corto (nuevos) como el UUID (compatibilidad).
 async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   // 1) Intentar caché Redis (ruta rápida <50ms). La clave usa el valor tal cual.
@@ -73,7 +106,7 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   try {
     rows = await pool.query(
       `SELECT d.id AS device_id, d.location_id, d.target_url, d.status,
-              d.transition, co.name AS company_name
+              d.transition, d.mode, d.survey_template_id, co.name AS company_name
          FROM devices d
          LEFT JOIN locations l ON l.id = d.location_id
          LEFT JOIN companies co ON co.id = l.company_id
@@ -117,6 +150,62 @@ export async function redirectRoutes(app: FastifyInstance) {
         .code(404)
         .type('text/html; charset=utf-8')
         .send(NOT_CONFIGURED_HTML(deviceId));
+    }
+
+    // ----- MODO ENCUESTA (Función 1) -----
+    // Si el punto está en modo 'survey', NO redirige y NO registra scan_events.
+    // Sirve la encuesta propia. Cualquier otro valor (incluye undefined de
+    // esquema/caché antiguo) sigue el camino de redirección intacto.
+    if ((device as any).mode === 'survey') {
+      const templateId = (device as any).survey_template_id as string | null | undefined;
+      if (!templateId) {
+        return reply
+          .header('Cache-Control', 'no-store')
+          .type('text/html; charset=utf-8')
+          .send(SURVEY_UNAVAILABLE_HTML);
+      }
+      try {
+        const tpl = await pool.query(
+          `SELECT id, name, scale_max, status FROM survey_templates WHERE id = $1 LIMIT 1`,
+          [templateId]
+        );
+        const t = tpl.rows[0];
+        if (!t || t.status !== 'active') {
+          return reply
+            .header('Cache-Control', 'no-store')
+            .type('text/html; charset=utf-8')
+            .send(SURVEY_UNAVAILABLE_HTML);
+        }
+        const asp = await pool.query(
+          `SELECT id, label FROM survey_aspects WHERE template_id = $1
+            ORDER BY position ASC, created_at ASC`,
+          [templateId]
+        );
+        if (asp.rowCount === 0) {
+          return reply
+            .header('Cache-Control', 'no-store')
+            .type('text/html; charset=utf-8')
+            .send(SURVEY_UNAVAILABLE_HTML);
+        }
+        return reply
+          .header('Cache-Control', 'no-store')
+          .header('ngrok-skip-browser-warning', 'true')
+          .type('text/html; charset=utf-8')
+          .send(
+            surveyHtml({
+              deviceCode: deviceId,
+              templateName: t.name,
+              aspects: asp.rows.map((a: any) => ({ id: a.id, label: a.label })),
+              scaleMax: t.scale_max,
+              companyName: device.company_name,
+            })
+          );
+      } catch {
+        return reply
+          .header('Cache-Control', 'no-store')
+          .type('text/html; charset=utf-8')
+          .send(SURVEY_UNAVAILABLE_HTML);
+      }
     }
 
     // Pantalla de transición OPCIONAL (solo con ?preview=1). Por defecto el
@@ -170,5 +259,117 @@ export async function redirectRoutes(app: FastifyInstance) {
         console.error('[scan_event] insert error:', err.message);
       }
     });
+  });
+
+  // Recepción de respuestas de encuesta (Función 1). Hereda la exención del
+  // guard por el prefijo /r/. Anónima: solo guarda notas, comentario e IP (esta
+  // última solo para el anti-doble-conteo).
+  app.post<{
+    Params: { deviceId: string };
+    Body: { ratings?: Record<string, number>; comment?: string };
+  }>('/r/:deviceId/survey', async (req, reply) => {
+    const { deviceId } = req.params;
+
+    const valido =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId) ||
+      /^[A-Za-z0-9]{6,12}$/.test(deviceId);
+
+    const device = valido ? await resolveDevice(deviceId) : null;
+    if (
+      !device ||
+      device.status !== 'active' ||
+      (device as any).mode !== 'survey' ||
+      !(device as any).survey_template_id
+    ) {
+      return reply.code(404).send({ error: 'Encuesta no disponible.' });
+    }
+
+    const templateId = (device as any).survey_template_id as string;
+    const ip = req.ip;
+
+    // Anti-doble-conteo: una respuesta por dispositivo+IP dentro de la ventana.
+    // Si ya existe la clave, respondemos OK sin insertar (gracias idempotente).
+    if (config.scanDedupeSeconds > 0) {
+      try {
+        const ok = await redis.set(
+          surveyDedupeKey(device.device_id, ip || 'unknown'),
+          '1',
+          'EX',
+          config.scanDedupeSeconds,
+          'NX'
+        );
+        if (ok === null) return reply.send({ ok: true });
+      } catch {
+        // Redis caído: seguimos y registramos igual (no perder datos).
+      }
+    }
+
+    // Validar body.
+    const ratings = (req.body?.ratings || {}) as Record<string, number>;
+    const aspectIds = Object.keys(ratings);
+    if (aspectIds.length === 0) {
+      return reply.code(400).send({ error: 'Faltan calificaciones.' });
+    }
+
+    // Plantilla + aspectos esperados (y escala).
+    const tpl = await pool.query(
+      `SELECT scale_max, status FROM survey_templates WHERE id = $1 LIMIT 1`,
+      [templateId]
+    );
+    const t = tpl.rows[0];
+    if (!t || t.status !== 'active') {
+      return reply.code(404).send({ error: 'Encuesta no disponible.' });
+    }
+    const scaleMax = Number(t.scale_max) || 5;
+
+    const aspRows = await pool.query(
+      `SELECT id FROM survey_aspects WHERE template_id = $1`,
+      [templateId]
+    );
+    const validAspectIds = new Set(aspRows.rows.map((r: any) => String(r.id)));
+
+    // Todos los aspectos de la plantilla deben venir calificados y pertenecer
+    // a ella; cada nota es un entero entre 1 y scale_max.
+    if (aspectIds.length !== validAspectIds.size) {
+      return reply.code(400).send({ error: 'Calificación incompleta.' });
+    }
+    for (const aid of aspectIds) {
+      if (!validAspectIds.has(aid)) {
+        return reply.code(400).send({ error: 'Aspecto no válido.' });
+      }
+      const r = ratings[aid];
+      if (!Number.isInteger(r) || r < 1 || r > scaleMax) {
+        return reply.code(400).send({ error: 'Nota fuera de rango.' });
+      }
+    }
+
+    const comment = (req.body?.comment || '').toString().slice(0, 2000).trim() || null;
+
+    // Insertar respuesta + notas en una transacción.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const resp = await client.query(
+        `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [device.device_id, device.location_id, templateId, comment, ip]
+      );
+      const responseId = resp.rows[0].id;
+      for (const aid of aspectIds) {
+        await client.query(
+          `INSERT INTO survey_answers (response_id, aspect_id, rating) VALUES ($1, $2, $3)`,
+          [responseId, aid, ratings[aid]]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err: any) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('[survey_response] insert error:', err.message);
+      return reply.code(500).send({ error: 'No se pudo registrar la respuesta.' });
+    } finally {
+      client.release();
+    }
+
+    return reply.send({ ok: true });
   });
 }

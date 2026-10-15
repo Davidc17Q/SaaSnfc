@@ -169,3 +169,77 @@ UPDATE locations l
   FROM companies c
  WHERE l.company_id IS NULL
    AND c.name = l.brand;
+
+-- ============================================================================
+-- FUNCIÓN 1: Calificación interna por aspectos (encuestas propias por punto)
+--
+-- Un punto NFC/QR puede operar en modo 'redirect' (comportamiento actual) o
+-- 'survey' (muestra una encuesta corta y anónima en vez de redirigir). Ambos
+-- modos son EXCLUYENTES por punto. Todo es aditivo e idempotente para no romper
+-- bases existentes. El orden importa: survey_templates se crea ANTES de la FK
+-- de devices que la referencia.
+-- ============================================================================
+
+-- Plantilla de encuesta por empresa (define los aspectos a calificar y la escala).
+CREATE TABLE IF NOT EXISTS survey_templates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  UUID        REFERENCES companies(id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,              -- Ej: "Satisfacción spa"
+  scale_max   INT         NOT NULL DEFAULT 5,    -- escala 1..scale_max (por defecto 1-5)
+  status      TEXT        NOT NULL DEFAULT 'active', -- active | inactive
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Aspectos a calificar dentro de una plantilla (ej: atención, limpieza, espera).
+CREATE TABLE IF NOT EXISTS survey_aspects (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID        NOT NULL REFERENCES survey_templates(id) ON DELETE CASCADE,
+  label       TEXT        NOT NULL,
+  position    INT         NOT NULL DEFAULT 0,    -- orden de presentación
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Respuesta anónima a una encuesta (una por envío). Se registra por sede/punto,
+-- igual que los escaneos, para poder medir y comparar después.
+CREATE TABLE IF NOT EXISTS survey_responses (
+  id           BIGSERIAL PRIMARY KEY,
+  device_id    UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  location_id  UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  template_id  UUID        NOT NULL REFERENCES survey_templates(id) ON DELETE CASCADE,
+  comment      TEXT,                              -- comentario libre y opcional
+  ip           TEXT,                              -- solo para anti-doble-conteo
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Nota (rating) por aspecto dentro de una respuesta.
+CREATE TABLE IF NOT EXISTS survey_answers (
+  id          BIGSERIAL PRIMARY KEY,
+  response_id BIGINT      NOT NULL REFERENCES survey_responses(id) ON DELETE CASCADE,
+  aspect_id   UUID        NOT NULL REFERENCES survey_aspects(id) ON DELETE CASCADE,
+  rating      SMALLINT    NOT NULL               -- 1..scale_max de la plantilla
+);
+
+-- Modo del punto: 'redirect' (actual) o 'survey'. Excluyentes.
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'redirect';
+-- Plantilla de encuesta asociada cuando el modo es 'survey'.
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS survey_template_id UUID;
+
+-- FK idempotente de devices.survey_template_id (survey_templates ya existe arriba).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'devices_survey_template_fk') THEN
+    ALTER TABLE devices
+      ADD CONSTRAINT devices_survey_template_fk
+      FOREIGN KEY (survey_template_id) REFERENCES survey_templates(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- Índices de la Función 1
+CREATE INDEX IF NOT EXISTS idx_survey_aspects_template   ON survey_aspects(template_id);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_location ON survey_responses(location_id);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_template ON survey_responses(template_id);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_date     ON survey_responses(submitted_at);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_device   ON survey_responses(device_id);
+CREATE INDEX IF NOT EXISTS idx_survey_answers_response   ON survey_answers(response_id);
+CREATE INDEX IF NOT EXISTS idx_survey_answers_aspect     ON survey_answers(aspect_id);
+CREATE INDEX IF NOT EXISTS idx_devices_survey_template   ON devices(survey_template_id);
