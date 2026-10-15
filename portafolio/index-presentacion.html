@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NFCloud — David Quintero Gallego (presentación)</title>
+<meta name="description" content="NFCloud convierte cada punto físico de tu negocio en un canal medible y actualizable a distancia: tarjetas NFC y QR con destino editable desde un panel." />
+<link rel="icon" href="../public/favicon.svg" type="image/svg+xml" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="NFCloud — Reputación y presencia digital para negocios físicos" />
+<meta property="og:description" content="Tarjetas NFC y QR medibles, con destino editable desde un panel. David Quintero Gallego, Fundador de NFCloud." />
+<meta property="og:image" content="mock_hojas.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#2350e8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --cobalt:#2350e8; --cobalt-d:#1633a8; --sky:#dfe7ff; --paper:#f1f4fb; --ink:#0b1233;
+  --muted:#58617f; --signal:#ffcf3f; --ok:#16a36a; --white:#fff;
+  --display:'Bricolage Grotesque','Arial Black',system-ui,sans-serif;
+  --body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--body);color:var(--ink);background:var(--paper);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:3px solid var(--signal);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.03em;line-height:1}
+
+/* ===== Deck ===== */
+#deck{display:flex;height:100svh;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
+#deck::-webkit-scrollbar{display:none}
+.s{flex:none;width:100vw;height:100svh;scroll-snap-align:start;overflow-y:auto;overflow-x:hidden;
+  padding:104px clamp(24px,6vw,96px) 72px;display:flex;flex-direction:column;justify-content:center;position:relative}
+.s.cobalt{background:var(--cobalt);color:var(--white)}
+.s.ink{background:var(--ink);color:var(--white)}
+.s.sky{background:var(--sky)}
+.s p.lead{font-size:clamp(16px,1.5vw,20px);color:var(--muted);max-width:56ch}
+.cobalt p.lead,.ink p.lead{color:rgba(255,255,255,.82)}
+h2{font-size:clamp(34px,4.6vw,68px);max-width:18ch}
+
+/* ===== Barra flotante ===== */
+.bar{position:fixed;z-index:50;top:18px;left:50%;transform:translateX(-50%);width:min(960px,calc(100vw - 32px));
+  display:flex;align-items:center;gap:14px;background:var(--white);border-radius:999px;padding:7px 8px 7px 20px;
+  box-shadow:0 10px 40px rgba(11,18,51,.22)}
+.bar img{height:30px;width:auto;display:block}
+.dots{display:flex;gap:6px;margin:0 auto}
+.dots button{width:10px;height:10px;border-radius:99px;border:0;background:#c5cde6;cursor:pointer;padding:0;transition:width .25s,background .25s}
+.dots button.on{width:30px;background:var(--cobalt)}
+.btn{display:inline-flex;align-items:center;gap:8px;font:700 15px var(--body);padding:12px 22px;border-radius:999px;border:2px solid transparent;cursor:pointer;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn-y{background:var(--signal);color:var(--ink)}
+.btn-b{background:var(--cobalt);color:var(--white)}
+.btn-o{border-color:currentColor;background:transparent}
+.bar .btn{padding:10px 18px;font-size:14px}
+.arrows{position:fixed;z-index:50;right:22px;bottom:20px;display:flex;gap:8px}
+.arrows button{width:48px;height:48px;border-radius:50%;border:0;background:var(--white);color:var(--ink);font-size:22px;cursor:pointer;box-shadow:0 6px 24px rgba(11,18,51,.25)}
+.arrows button:hover{background:var(--signal)}
+@media(max-width:700px){.bar .btn{display:none}.dots{margin:0 auto 0 0}.arrows{display:none}}
+
+/* ===== 1 Hero ===== */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center}
+.hero h1{font-size:clamp(40px,6.4vw,100px);max-width:11ch}
+.hero .q{font-family:var(--display);font-weight:600;font-size:clamp(20px,2.3vw,32px);letter-spacing:-.02em;line-height:1.15;margin:28px 0 0;max-width:24ch;color:var(--signal)}
+.hero .lead{margin-top:18px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.hv{position:relative}
+.hv img{width:130%;max-width:none;display:block;margin-left:-8%;filter:drop-shadow(0 30px 40px rgba(5,12,60,.45));animation:float 7s ease-in-out infinite}
+.stat{position:absolute;left:0;bottom:2%;background:var(--white);color:var(--ink);border-radius:20px;padding:16px 22px;box-shadow:0 18px 50px rgba(5,12,60,.35)}
+.stat b{display:block;font:800 clamp(34px,3.6vw,52px)/1 var(--display);letter-spacing:-.03em;color:var(--cobalt)}
+.stat span{font-size:14px;color:var(--muted)}
+@keyframes float{50%{transform:translateY(-12px)}}
+.go .hero>*>*{animation:rise .8s cubic-bezier(.16,1,.3,1) both}
+.go .hero>*>*:nth-child(2){animation-delay:.12s}.go .hero>*>*:nth-child(3){animation-delay:.24s}.go .hero>*>*:nth-child(4){animation-delay:.36s}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.hv{order:-1}.hv img{width:100%;margin:0}.stat{display:none}}
+
+/* ===== 2 Cómo funciona ===== */
+.how{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(24px,4vw,64px);align-items:center}
+.steps{display:grid;gap:14px;margin-top:30px;counter-reset:st}
+.step{display:grid;grid-template-columns:52px 1fr;gap:16px;align-items:start;background:var(--white);border-radius:20px;padding:18px 20px}
+.step::before{counter-increment:st;content:counter(st);width:52px;height:52px;border-radius:16px;background:var(--cobalt);color:#fff;display:grid;place-items:center;font:800 24px var(--display)}
+.step h3{font-size:20px;margin-bottom:4px;letter-spacing:-.02em}
+.step p{font-size:15px;color:var(--muted)}
+.how .pic{border-radius:32px;overflow:hidden;box-shadow:0 30px 70px rgba(35,80,232,.3);max-height:70svh}
+.how .pic img{width:100%;height:100%;min-height:340px;object-fit:cover;display:block}
+@media(max-width:900px){.how{grid-template-columns:1fr}}
+
+/* ===== 3 Plataforma ===== */
+.plat{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(24px,4vw,64px);align-items:center}
+.feats{list-style:none;display:grid;gap:12px;margin:28px 0 32px}
+.feats li{display:flex;gap:12px;font-size:17px}
+.feats li::before{content:"";flex:none;width:22px;height:22px;margin-top:2px;border-radius:50%;background:var(--signal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b1233' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/13px no-repeat}
+.panel{background:#151e4a;border:1px solid rgba(255,255,255,.14);border-radius:28px;padding:26px;box-shadow:0 40px 80px rgba(0,0,0,.4)}
+.panel .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}
+.panel .top b{font:800 20px var(--display)}
+.panel .top span{font-size:13px;color:rgba(255,255,255,.6)}
+.row{display:grid;grid-template-columns:110px 1fr 52px;gap:14px;align-items:center;padding:11px 0;border-top:1px solid rgba(255,255,255,.1);font-size:15px}
+.row i{display:block;height:14px;border-radius:99px;background:linear-gradient(90deg,var(--cobalt),#6f93ff);width:var(--w);transform-origin:left;animation:grow 1.2s cubic-bezier(.16,1,.3,1) both}
+.row.low i{background:var(--signal)}
+.row em{font:800 16px var(--display);font-style:normal;text-align:right}
+.alert{margin-top:16px;background:rgba(255,207,63,.14);border:1px solid var(--signal);color:var(--signal);border-radius:14px;padding:12px 16px;font-size:14px}
+.note{font-size:12px;color:rgba(255,255,255,.5);margin-top:12px}
+@keyframes grow{from{transform:scaleX(0)}}
+@media(max-width:900px){.plat{grid-template-columns:1fr}.row{grid-template-columns:84px 1fr 44px}}
+
+/* ===== 4 Casos ===== */
+.head{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-bottom:28px}
+.cases{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.case{background:var(--white);border-radius:24px;overflow:hidden;display:flex;flex-direction:column}
+.case img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.case div{padding:18px 20px 22px;display:flex;flex-direction:column;gap:8px;flex:1}
+.case small{font-size:13px;color:var(--muted)}
+.case h3{font-size:22px;letter-spacing:-.02em}
+.case p{font-size:14.5px;color:var(--muted)}
+.case .res{margin-top:auto;align-self:flex-start;font-weight:700;font-size:13px;color:#0b6b45;background:#dff5ea;padding:6px 12px;border-radius:99px}
+@media(max-width:1000px){.cases{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.cases{grid-template-columns:1fr}}
+
+/* ===== 5 Diseños ===== */
+.mos{display:grid;grid-template-columns:1.4fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;height:min(56svh,520px)}
+.mos img{width:100%;height:100%;object-fit:cover;display:block;border-radius:22px;min-height:0}
+.mos .big{grid-row:span 2;position:relative}
+.mos .big img{position:absolute;inset:0}
+@media(max-width:800px){.mos{grid-template-columns:1fr 1fr;grid-template-rows:auto;height:auto}.mos .big{grid-column:span 2;grid-row:auto;height:240px}.mos img{aspect-ratio:4/3}}
+
+/* ===== 6 Precios ===== */
+.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:6px}
+.plan{background:var(--white);border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:6px;position:relative}
+.plan.f{background:var(--cobalt);color:#fff;box-shadow:0 26px 60px rgba(35,80,232,.4)}
+.plan .rb{position:absolute;top:-12px;left:20px;background:var(--signal);color:var(--ink);font:700 12px var(--body);padding:4px 12px;border-radius:99px}
+.plan small{font-size:13px;color:var(--muted)}.plan.f small{color:rgba(255,255,255,.8)}
+.plan h3{font-size:26px}
+.plan .pr{font:800 clamp(26px,2.6vw,36px) var(--display);letter-spacing:-.03em;margin-top:6px}
+.plan .pr span{font:500 13px var(--body);letter-spacing:0;opacity:.7}
+.plan ul{list-style:none;margin:12px 0 18px;display:grid;gap:7px;font-size:14.5px}
+.plan li::before{content:"✓  ";font-weight:700;color:var(--ok)}.plan.f li::before{color:var(--signal)}
+.plan .btn{margin-top:auto;justify-content:center;padding:11px 16px;font-size:14px}
+.hw{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+.hw div{border-top:3px solid var(--ink);padding-top:10px;font-size:14px;color:var(--muted)}
+.hw b{display:block;color:var(--ink);font:800 19px var(--display);letter-spacing:-.02em}
+.hw strong{color:var(--ink);font-size:17px}
+.iva{font-size:12.5px;color:var(--muted);margin-top:14px}
+@media(max-width:1000px){.plans,.hw{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.plans,.hw{grid-template-columns:1fr}}
+
+/* ===== 7 Contacto ===== */
+.end h2{font-size:clamp(40px,7vw,108px);max-width:14ch}
+.end .lead{margin-top:26px}
+.end .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+.end footer{position:absolute;left:clamp(24px,6vw,96px);bottom:26px;font-size:13px;opacity:.7}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#deck{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<nav class="bar" aria-label="Navegación">
+  <a href="#" data-go="0" aria-label="NFCloud, inicio"><img src="logoazulrecortado.png" alt="NFCloud" /></a>
+  <div class="dots" id="dots"></div>
+  <a class="btn btn-b" href="https://wa.me/573007240273">WhatsApp</a>
+</nav>
+
+<main id="deck">
+
+  <!-- 1 -->
+  <section class="s cobalt" data-n="Inicio" id="s0">
+    <div class="hero">
+      <div>
+        <h1>Tus clientes contentos se van en silencio. Los molestos publican.</h1>
+        <p class="q">¿Quién escribe hoy la reputación de tus sedes: tú, o el cliente más enojado de la semana?</p>
+        <p class="lead">Soy David Quintero, fundador de NFCloud. Convierto cada punto de tu negocio en un canal que mides y cambias a distancia, sin reimprimir nada.</p>
+        <div class="cta">
+          <a class="btn btn-y" href="https://wa.me/573007240273">Hablemos por WhatsApp</a>
+          <a class="btn btn-o" href="#" data-go="3">Ver casos reales</a>
+        </div>
+      </div>
+      <div class="hv">
+        <img src="Tarjetasconhojasrecortada.png" alt="Tarjetas NFC de RioVivo Spa flotando entre hojas" />
+        <div class="stat"><b id="cnt">5 → 29</b><span>reseñas en Google en 2 semanas (Lalico)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="s sky" data-n="Cómo funciona">
+    <div class="how">
+      <div>
+        <h2>Tu punto físico es el único canal que no controlas.</h2>
+        <p class="lead" style="margin-top:20px">Ya tienes un panel para tu web y otro para tus redes. NFCloud le da uno a la tarjeta, al QR y al mostrador de cada sede.</p>
+        <div class="steps">
+          <div class="step"><div><h3>Toque o escaneo</h3><p>El cliente acerca el celular a la tarjeta o escanea el QR. Sin apps.</p></div></div>
+          <div class="step"><div><h3>Destino editable</h3><p>La tarjeta guarda un código, no un enlace. Lo cambias desde el panel en segundos.</p></div></div>
+          <div class="step"><div><h3>Todo medido</h3><p>Cada interacción queda registrada por sede, hora y canal.</p></div></div>
+        </div>
+      </div>
+      <div class="pic"><img src="Imagen_quehago.jpg" alt="Una mano sostiene una tarjeta NFC de la que salen accesos a WhatsApp, Instagram, LinkedIn y portafolio" /></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="s ink" data-n="Plataforma">
+    <div class="plat">
+      <div>
+        <h2>¿Sabes qué sede convierte y cuál solo gasta material?</h2>
+        <ul class="feats">
+          <li>Cada toque registrado por sede, en tiempo real</li>
+          <li>Alertas cuando una sede baja su flujo</li>
+          <li>Cambio de destino centralizado, sin reimprimir</li>
+          <li>Comparativa entre sedes y por canal</li>
+        </ul>
+        <a class="btn btn-y" href="https://wa.me/573007240273?text=Hola%2C%20quiero%20ver%20una%20demo%20de%20NFCloud">Agenda una demo</a>
+      </div>
+      <div>
+        <div class="panel" role="img" aria-label="Ejemplo ilustrativo del panel: toques por sede y una alerta de flujo bajo">
+          <div class="top"><b>Toques esta semana</b><span>Panel NFCloud</span></div>
+          <div class="row"><span>Laureles</span><i style="--w:92%"></i><em>412</em></div>
+          <div class="row"><span>Poblado</span><i style="--w:86%"></i><em>388</em></div>
+          <div class="row"><span>Envigado</span><i style="--w:45%"></i><em>201</em></div>
+          <div class="row low"><span>Bello</span><i style="--w:14%"></i><em>64</em></div>
+          <div class="alert">Bello recibe 70 % menos toques que el promedio. Revisa si el soporte sigue en su lugar.</div>
+        </div>
+        <p class="note">Datos de ejemplo para ilustrar el panel.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="s" data-n="Casos">
+    <div class="head">
+      <h2>Negocios reales, resultados medibles.</h2>
+      <p class="lead">Cada caso es un negocio en funcionamiento, no una maqueta.</p>
+    </div>
+    <div class="cases">
+      <article class="case"><img src="mock_aguaenelpiso.jpg" alt="Tarjeta NFC de RioVivo Spa" /><div><small>Spa en Medellín</small><h3>RioVivo Spa</h3><p>Hablador en recepción y tarjetas hacia reseñas, Instagram y WhatsApp. Primera venta formal.</p><span class="res">Reputación y contacto por sede</span></div></article>
+      <article class="case"><img src="hogarymoda-set.png" alt="Set de tarjetas NFC de Hogar y Moda" /><div><small>Comercio con varias sedes</small><h3>Hogar y Moda</h3><p>Set de tarjetas por sede: Google, Instagram y WhatsApp de crédito, con cambio centralizado.</p><span class="res">Una acción por tarjeta, medida por sede</span></div></article>
+      <article class="case"><img src="profe-libro.png" alt="Tarjeta NFC del libro Algoritmos Deshumanizantes" /><div><small>Autor y marca personal</small><h3>Algoritmos Deshumanizantes</h3><p>Tarjeta que lleva al libro con un toque. Diseño sobrio, coherente con la portada.</p><span class="res">Marca personal con NFC</span></div></article>
+      <article class="case"><img src="mockup-4.jpg" alt="Tarjeta NFC profesional negra de Santiago Jiménez" /><div><small>Perfil profesional</small><h3>Tarjeta digital</h3><p>Un toque abre el portafolio. Se actualiza sin reimprimir y mide su uso.</p><span class="res">Networking medible</span></div></article>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="s" data-n="Diseños" style="background:var(--paper)">
+    <div class="head">
+      <h2>Cada pieza lleva la marca del negocio.</h2>
+      <p class="lead">Tarjetas y banner de mostrador: varias acciones en una sola pieza, cada una medida por separado.</p>
+    </div>
+    <div class="mos">
+      <div class="big"><img src="mockup-6.jpg" alt="Banner NFC de RioVivo Spa en recepción" /></div>
+      <img src="mockup-2.jpg" alt="Tarjeta NFC Hogar y Moda - Google" />
+      <img src="algodesh.png" alt="Tarjeta NFC vinotinto del libro Algoritmos Deshumanizantes" />
+      <img src="mockup-3.jpg" alt="Tarjeta NFC Hogar y Moda" />
+      <img src="mockup-1.jpg" alt="Tarjeta NFC profesional" />
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="s sky" data-n="Precios">
+    <div class="head" style="margin-bottom:22px">
+      <h2 style="max-width:22ch">Eliges el plan según tus sedes.</h2>
+      <p class="lead">La mensualidad es la plataforma. El equipo se paga una sola vez.</p>
+    </div>
+    <div class="plans">
+      <div class="plan"><small>Un negocio, una sede</small><h3>Punto</h3><div class="pr">$39.900 <span>/ mes</span></div>
+        <ul><li>Hasta 6 puntos NFC/QR</li><li>Cambio de destino en segundos</li><li>Informe mensual imprimible</li></ul>
+        <a class="btn btn-o" href="https://wa.me/573007240273?text=Hola%2C%20me%20interesa%20el%20plan%20Punto">Empezar</a></div>
+      <div class="plan f"><span class="rb">Más elegido</span><small>2 a 10 sedes</small><h3>Sedes</h3><div class="pr">$34.900 <span>/ sede / mes</span></div>
+        <ul><li>Todo lo de Punto</li><li>Comparativa entre sedes</li><li>Cambio masivo con reversión</li></ul>
+        <a class="btn btn-y" href="https://wa.me/573007240273?text=Hola%2C%20me%20interesa%20el%20plan%20Sedes">Empezar</a></div>
+      <div class="plan"><small>11 sedes o más</small><h3>Red</h3><div class="pr">$19.900 <span>/ sede / mes</span></div>
+        <ul><li>Desde 50 sedes: $14.900</li><li>Usuarios por región</li><li>Informe ejecutivo y acuerdo de servicio</li></ul>
+        <a class="btn btn-o" href="https://wa.me/573007240273?text=Hola%2C%20me%20interesa%20el%20plan%20Red">Hablar con ventas</a></div>
+      <div class="plan"><small>Atención al ciudadano</small><h3>Institución</h3><div class="pr">$49.900 <span>/ punto / mes</span></div>
+        <ul><li>Mínimo 3 puntos</li><li>Calificación anónima por ventanilla</li><li>Informe para indicadores de servicio</li></ul>
+        <a class="btn btn-o" href="https://wa.me/573007240273?text=Hola%2C%20me%20interesa%20el%20plan%20Instituci%C3%B3n">Hablar con ventas</a></div>
+    </div>
+    <div class="hw">
+      <div><b>Kit de inicio · $249.000</b>Incluye 1 mes de plataforma. La forma más simple de empezar.</div>
+      <div><b>Tarjeta NFC · $44.900</b>Cada una. Menor precio por unidad al comprar más.</div>
+      <div><b>Paquete de 10 · $199.000</b>$19.900 por tarjeta. Ideal para varias sedes.</div>
+      <div><b>Hablador acrílico · $129.000</b>Soporte de mostrador con NFC y QR.</div>
+    </div>
+    <p class="iva">Precios antes de IVA.</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="s cobalt end" data-n="Contacto">
+    <h2>¿Cuántos de tus puntos físicos están trabajando hoy?</h2>
+    <p class="lead">Lo llevo a negocios de cualquier tamaño, desde un local hasta cadenas con decenas de sedes.</p>
+    <div class="cta">
+      <a class="btn btn-y" href="https://wa.me/573007240273">WhatsApp · 300 724 0273</a>
+      <a class="btn btn-o" href="mailto:davidquinterogallego1@gmail.com">davidquinterogallego1@gmail.com</a>
+    </div>
+    <footer>© 2026 NFCloud · David Quintero Gallego</footer>
+  </section>
+
+</main>
+
+<div class="arrows">
+  <button id="prev" aria-label="Slide anterior">‹</button>
+  <button id="next" aria-label="Slide siguiente">›</button>
+</div>
+
+<script>
+(function(){
+  var deck=document.getElementById('deck'),slides=[].slice.call(deck.children),dots=document.getElementById('dots'),cur=0,lock=false;
+  slides.forEach(function(s,i){
+    var b=document.createElement('button');b.setAttribute('aria-label',s.dataset.n);b.title=s.dataset.n;
+    b.onclick=function(){go(i)};dots.appendChild(b);
+  });
+  function go(i){cur=Math.max(0,Math.min(slides.length-1,i));deck.scrollTo({left:cur*deck.clientWidth})}
+  function mark(){
+    cur=Math.round(deck.scrollLeft/deck.clientWidth);
+    [].forEach.call(dots.children,function(d,i){d.classList.toggle('on',i===cur)});
+  }
+  deck.addEventListener('scroll',mark,{passive:true});mark();
+  document.getElementById('prev').onclick=function(){go(cur-1)};
+  document.getElementById('next').onclick=function(){go(cur+1)};
+  [].forEach.call(document.querySelectorAll('[data-go]'),function(a){
+    a.addEventListener('click',function(e){e.preventDefault();go(+a.dataset.go)});
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown')go(cur+1);
+    else if(e.key==='ArrowLeft'||e.key==='PageUp')go(cur-1);
+  });
+  /* rueda vertical -> avanza de slide, salvo que el slide tenga scroll propio */
+  deck.addEventListener('wheel',function(e){
+    if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
+    var s=slides[cur];
+    if(s.scrollHeight>s.clientHeight+4){
+      var atEnd=s.scrollTop+s.clientHeight>=s.scrollHeight-2,atTop=s.scrollTop<=0;
+      if((e.deltaY>0&&!atEnd)||(e.deltaY<0&&!atTop))return;
+    }
+    e.preventDefault();
+    if(lock)return;lock=true;setTimeout(function(){lock=false},650);
+    go(cur+(e.deltaY>0?1:-1));
+  },{passive:false});
+  /* única animación orquestada: entrada del hero + contador */
+  requestAnimationFrame(function(){document.body.classList.add('go')});
+  var c=document.getElementById('cnt'),t0=null;
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    (function tick(ts){if(!t0)t0=ts;var p=Math.min((ts-t0-500)/1200,1);
+      if(p<0){requestAnimationFrame(tick);return}
+      c.textContent='5 → '+Math.round(5+24*(1-Math.pow(1-p,3)));
+      if(p<1)requestAnimationFrame(tick)})(performance.now());
+  }
+})();
+</script>
+</body>
+</html>

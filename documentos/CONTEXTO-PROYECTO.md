@@ -180,6 +180,16 @@ debilidad. La narrativa de venta es resultado (reputación, leads), no tecnolog�
 
 ---
 
+## 7.1. Portafolio personal (carpeta `portafolio/`)
+
+Página web (HTML autocontenido) que presenta a David como **Fundador de NFCloud** y
+muestra casos reales, diseños y contacto. Archivo: `portafolio/index.html`. Imágenes
+(mockups) en la misma carpeta. Sigue el sistema de diseño de NFCloud pero con licencia
+de marketing: fondo con degradado azul de marca en el hero (es pieza de venta, no
+dashboard). Tiene lightbox (clic para ampliar imágenes), sección de casos, banner NFC y
+galería. Pendiente de añadir: sección de precios/planes. Ver
+`documentos/CONTEXTO-PORTAFOLIO.md` para el detalle y objetivo.
+
 ## 8. Documentos de apoyo (carpeta `documentos/`)
 
 - `RESUMEN-PROYECTO-PROFESOR.md` — resumen para el profe (con fotos del producto).
