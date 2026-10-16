@@ -212,11 +212,12 @@ const VIEW_TITLES = {
   survey: 'Calificación',
   locations: 'Sedes',
   devices: 'Dispositivos NFC',
+  reports: 'Informes',
   admin: 'Empresas y usuarios',
 };
 
 function setupNav() {
-  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'admin'];
+  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'reports', 'admin'];
 
   function activate(target) {
     views.forEach((v) => {
@@ -245,6 +246,7 @@ function setupNav() {
     if (target === 'executive') loadExecutive();
     if (target === 'operations') loadOperations();
     if (target === 'survey') loadSurvey();
+    if (target === 'reports') loadReports();
     if (target === 'admin') loadAdmin();
   }
 
@@ -2698,6 +2700,76 @@ function closeRangeMenu() {
   if (menu) menu.classList.add('hidden');
   const btn = $('#rangeBtn');
   if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// ---------------------------------------------------------------------------
+// Informes (Función 2, Fase A): selector de empresa/sede/mes + generar informe.
+// ---------------------------------------------------------------------------
+let reportsWired = false;
+function loadReports() {
+  // Empresa: solo superadmin elige; company_admin usa la suya (del servidor).
+  const compWrap = $('#repCompanyWrap');
+  const compSel = $('#repCompany');
+  if (state.role === 'superadmin' && compSel) {
+    compSel.innerHTML = (state.companies || [])
+      .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
+      .join('');
+    if (state.companyId) compSel.value = state.companyId;
+    if (compWrap) compWrap.classList.remove('hidden');
+  } else if (compWrap) {
+    compWrap.classList.add('hidden');
+  }
+
+  // Mes por defecto: el mes anterior completo.
+  const monthEl = $('#repMonth');
+  if (monthEl && !monthEl.value) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 1);
+    monthEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  fillReportLocations();
+
+  if (!reportsWired) {
+    reportsWired = true;
+    const gen = $('#repGenerate');
+    if (gen) gen.addEventListener('click', generateReport);
+    // Al cambiar la empresa (superadmin), recargar sus sedes.
+    if (compSel) compSel.addEventListener('change', fillReportLocations);
+  }
+}
+
+// Rellena el selector de sedes del informe según la empresa elegida.
+function fillReportLocations() {
+  const locSel = $('#repLocation');
+  if (!locSel) return;
+  const compSel = $('#repCompany');
+  const companyId =
+    state.role === 'superadmin' && compSel ? compSel.value : state.companyId;
+  const locs = (state.locations || []).filter(
+    (l) => !companyId || l.companyId === companyId
+  );
+  locSel.innerHTML =
+    '<option value="">Todas las sedes</option>' +
+    locs
+      .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+      .join('');
+}
+
+// Abre el informe (HTML imprimible) en una pestaña nueva con los filtros elegidos.
+function generateReport() {
+  const month = $('#repMonth').value;
+  const locationId = $('#repLocation').value;
+  const compSel = $('#repCompany');
+  const companyId =
+    state.role === 'superadmin' && compSel ? compSel.value : state.companyId;
+
+  const p = new URLSearchParams();
+  if (month) p.set('month', month);
+  if (locationId) p.set('locationId', locationId);
+  if (companyId) p.set('companyId', companyId);
+  window.open(`/api/report?${p.toString()}`, '_blank');
 }
 
 function setupFilters() {

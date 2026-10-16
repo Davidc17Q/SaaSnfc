@@ -4,6 +4,7 @@ import { redis, deviceCacheKey } from '../db/redis';
 import type { DeviceCache } from '../types';
 import { getSession, hashPassword } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
+import { reportHtml } from '../lib/report';
 
 // Zona horaria del negocio. Los escaneos se guardan en UTC (timestamptz),
 // pero los filtros de fecha del dashboard se interpretan en hora local.
@@ -1801,6 +1802,192 @@ export async function apiRoutes(app: FastifyInstance) {
       .header('Content-Disposition', `attachment; filename="nfcloud-backup-${stamp}.json"`)
       .send(JSON.stringify(payload, null, 2));
   });
+
+  // ==========================================================================
+  // INFORME MENSUAL (Función 2, Fase A) — HTML autocontenido imprimible a PDF.
+  // Reutiliza las mismas consultas de la analítica, acotadas al mes elegido.
+  // GET /api/report?month=YYYY-MM&companyId=&locationId=
+  // ==========================================================================
+  app.get<{ Querystring: { month?: string; companyId?: string; locationId?: string } }>(
+    '/api/report',
+    async (req, reply) => {
+      const q = req.query;
+      const companyId = resolveCompanyId(req);
+
+      // Mes del informe: por defecto el mes anterior completo.
+      let month = (q.month || '').trim();
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - 1);
+        month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+      const from = `${month}-01`;
+      // 'to' se interpreta como fin exclusivo del mes en buildFilters (suma 1 día
+      // al 'to'), por eso pasamos el último día del mes.
+      const [yy, mm] = month.split('-').map((x) => parseInt(x, 10));
+      const lastDay = new Date(yy, mm, 0).getDate();
+      const to = `${month}-${String(lastDay).padStart(2, '0')}`;
+
+      const filterQ: any = { from, to };
+      if (q.locationId) filterQ.locationId = q.locationId;
+      const { where, params } = buildFilters(filterQ, companyId);
+
+      // Nombre de empresa y sede para el encabezado.
+      let companyName = 'Todas las empresas';
+      if (companyId !== undefined) {
+        const c = await query<{ name: string }>(
+          `SELECT name FROM companies WHERE id = $1`,
+          [companyId]
+        );
+        companyName = c[0]?.name || 'Empresa';
+      }
+      let locationName: string | null = null;
+      if (q.locationId) {
+        const l = await query<{ name: string }>(
+          `SELECT name FROM locations WHERE id = $1`,
+          [q.locationId]
+        );
+        locationName = l[0]?.name || null;
+      }
+
+      // Total + sede top + hora pico (mismas consultas que /api/kpis).
+      const totalRow = await query<{ total: string }>(
+        `SELECT COUNT(*) AS total FROM scan_events se ${where}`,
+        params
+      );
+      const topLoc = await query<{ name: string; city: string; scans: string }>(
+        `SELECT l.name, l.city, COUNT(*) AS scans
+           FROM scan_events se JOIN locations l ON l.id = se.location_id
+           ${where} GROUP BY l.id, l.name, l.city ORDER BY scans DESC LIMIT 1`,
+        params
+      );
+      const peak = await query<{ hour: string }>(
+        `SELECT EXTRACT(HOUR FROM se.scanned_at AT TIME ZONE '${APP_TZ}')::int AS hour,
+                COUNT(*) AS scans FROM scan_events se ${where}
+           GROUP BY hour ORDER BY scans DESC LIMIT 1`,
+        params
+      );
+
+      // Evolución diaria.
+      const trend = await query<{ day: string; scans: string }>(
+        `SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
+                COUNT(*) AS scans FROM scan_events se ${where}
+           GROUP BY day ORDER BY day ASC`,
+        params
+      );
+
+      // Top sedes.
+      const topLocations = await query<{ name: string; city: string; scans: string }>(
+        `SELECT l.name, l.city, COUNT(*) AS scans
+           FROM scan_events se JOIN locations l ON l.id = se.location_id
+           ${where} GROUP BY l.id, l.name, l.city ORDER BY scans DESC LIMIT 10`,
+        params
+      );
+
+      // Por canal.
+      const channels = await query<{ channel: string; scans: string }>(
+        `SELECT se.channel, COUNT(*) AS scans FROM scan_events se ${where}
+           GROUP BY se.channel ORDER BY scans DESC`,
+        params
+      );
+
+      // Calificación por aspecto (Función 1): mismos filtros sobre survey_responses.
+      // Solo se incluye en el informe si hay respuestas en el periodo.
+      let survey: {
+        total: number;
+        avg: number | null;
+        aspects: { label: string; avg: number; count: number }[];
+      } | null = null;
+      try {
+        const svClauses: string[] = [];
+        const svParams: any[] = [];
+        svParams.push(from);
+        svClauses.push(
+          `sr.submitted_at >= (($${svParams.length}::date)::timestamp AT TIME ZONE '${APP_TZ}')`
+        );
+        svParams.push(to);
+        svClauses.push(
+          `sr.submitted_at < ((($${svParams.length}::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')`
+        );
+        if (q.locationId) {
+          svParams.push(q.locationId);
+          svClauses.push(`sr.location_id = $${svParams.length}`);
+        }
+        if (companyId !== undefined) {
+          svParams.push(companyId);
+          svClauses.push(
+            `sr.location_id IN (SELECT id FROM locations WHERE company_id = $${svParams.length})`
+          );
+        }
+        const svWhere = `WHERE ${svClauses.join(' AND ')}`;
+        const svAspects = await query<{ label: string; avg: string; count: string }>(
+          `SELECT a.label, AVG(ans.rating)::numeric(10,2) AS avg, COUNT(*) AS count
+             FROM survey_answers ans
+             JOIN survey_responses sr ON sr.id = ans.response_id
+             JOIN survey_aspects a ON a.id = ans.aspect_id
+             ${svWhere}
+             GROUP BY a.id, a.label, a.position
+             ORDER BY a.position ASC, a.label ASC`,
+          svParams
+        );
+        const svTotal = await query<{ total: string }>(
+          `SELECT COUNT(*) AS total FROM survey_responses sr ${svWhere}`,
+          svParams
+        );
+        const total = parseInt(svTotal[0]?.total || '0', 10);
+        if (total > 0 && svAspects.length) {
+          const aspects = svAspects.map((a) => ({
+            label: a.label,
+            avg: parseFloat(a.avg),
+            count: parseInt(a.count, 10),
+          }));
+          const avg =
+            aspects.reduce((s, a) => s + a.avg, 0) / (aspects.length || 1);
+          survey = { total, avg: Math.round(avg * 100) / 100, aspects };
+        }
+      } catch {
+        // Si las tablas de encuesta no existen (esquema antiguo), se omite el bloque.
+        survey = null;
+      }
+
+      // Etiqueta del periodo en español.
+      const meses = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      ];
+      const periodLabel = `${meses[mm - 1]} ${yy}`;
+      const generatedAt = new Date().toLocaleString('es-CO', {
+        timeZone: APP_TZ,
+        dateStyle: 'long',
+        timeStyle: 'short',
+      });
+
+      const html = reportHtml({
+        companyName,
+        periodLabel,
+        locationName,
+        generatedAt,
+        kpis: {
+          totalScans: parseInt(totalRow[0]?.total || '0', 10),
+          topLocation: topLoc[0]
+            ? { name: topLoc[0].name, city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
+            : null,
+          peakHour: peak[0] ? parseInt(peak[0].hour, 10) : null,
+        },
+        trend: trend.map((t) => ({ day: t.day, scans: parseInt(t.scans, 10) })),
+        topLocations: topLocations.map((l) => ({
+          name: l.name,
+          city: l.city,
+          scans: parseInt(l.scans, 10),
+        })),
+        channels: channels.map((c) => ({ channel: c.channel, scans: parseInt(c.scans, 10) })),
+        survey,
+      });
+
+      reply.type('text/html; charset=utf-8').send(html);
+    }
+  );
 
   // ---------- Health ----------
   app.get('/api/health', async () => {

@@ -35,6 +35,7 @@
         <a href="#survey" class="nav-link"><span data-icon="star"></span> Calificación</a>
         <a href="#locations" class="nav-link"><span data-icon="store"></span> Sedes</a>
         <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
+        <a href="#reports" class="nav-link"><span data-icon="file-text"></span> Informes</a>
         <a href="#admin" class="nav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
       </nav>
       <div class="sidebar-footer">
@@ -442,6 +443,32 @@
               <tbody id="devTableBody"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- Informes (Función 2) -->
+      <section id="view-reports" class="p-6 space-y-6 hidden">
+        <div class="card">
+          <h3 class="font-semibold mb-1">Informe mensual</h3>
+          <p class="text-sm text-slate-500 mb-4">Resumen del mes por empresa y sede, listo para imprimir o guardar como PDF.</p>
+          <div class="flex flex-wrap items-end gap-3">
+            <div id="repCompanyWrap" class="hidden">
+              <label class="kpi-label block mb-1">Empresa</label>
+              <select id="repCompany" class="input text-sm"></select>
+            </div>
+            <div>
+              <label class="kpi-label block mb-1">Sede</label>
+              <select id="repLocation" class="input text-sm">
+                <option value="">Todas las sedes</option>
+              </select>
+            </div>
+            <div>
+              <label class="kpi-label block mb-1">Mes</label>
+              <input id="repMonth" type="month" class="input text-sm" />
+            </div>
+            <button id="repGenerate" class="btn-primary text-sm section-title-icon"><span data-icon="file-text"></span> Generar informe</button>
+          </div>
+          <p class="text-xs text-slate-500 mt-3">El informe se abre en una pestaña nueva. Desde ahí usa “Descargar / Imprimir PDF”.</p>
         </div>
       </section>
 
