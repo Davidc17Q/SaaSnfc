@@ -28,7 +28,7 @@ export function normalizeMonth(month?: string): string {
 }
 
 export interface ReportScope {
-  month: string; // 'YYYY-MM' (se normaliza)
+  month?: string; // 'YYYY-MM' (se normaliza; si falta, usa el mes anterior)
   companyId?: string; // undefined = todas (solo superadmin)
   locationId?: string;
 }
