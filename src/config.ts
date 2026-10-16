@@ -23,8 +23,13 @@ export const config = {
   // no vuelve a registrar escaneo. 0 = desactivado. Por defecto 30s.
   scanDedupeSeconds: parseInt(process.env.SCAN_DEDUPE_SECONDS || '30', 10),
 
+  // Resend por API HTTP (Función 2, Fase B). Si RESEND_API_KEY está presente,
+  // se usa esta vía (sortea el bloqueo de puertos SMTP de algunos hosts como
+  // Railway). Tiene prioridad sobre SMTP.
+  resendApiKey: process.env.RESEND_API_KEY || '',
+
   // Correo SMTP (Función 2, Fase B: envío programado de informes).
-  // Si no hay SMTP_HOST configurado, el envío queda deshabilitado (la UI avisa).
+  // Si no hay SMTP_HOST ni RESEND_API_KEY, el envío queda deshabilitado (la UI avisa).
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: parseInt(process.env.SMTP_PORT || '587', 10),

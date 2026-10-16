@@ -2775,24 +2775,39 @@ async function sendReportNow() {
     toast('Escribe el correo del destinatario.', false);
     return;
   }
-  const body = {
-    email,
-    month: $('#repMonth').value,
-    location_id: $('#repLocation').value || undefined,
-    company_id: reportCompanyId() || undefined,
-  };
-  const res = await fetch('/api/report-send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    toast(err.error || 'No se pudo enviar.', false);
-    return;
+  const btn = $('#repSendNow');
+  const prev = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
   }
-  toast('Informe enviado por correo');
+  try {
+    const body = {
+      email,
+      month: $('#repMonth').value,
+      location_id: $('#repLocation').value || undefined,
+      company_id: reportCompanyId() || undefined,
+    };
+    const res = await fetch('/api/report-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast(data.error || `No se pudo enviar (${res.status}).`, false);
+      return;
+    }
+    toast('Informe enviado por correo');
+  } catch (e) {
+    toast('Error de red al enviar.', false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  }
 }
 
 // Crea una programación recurrente.

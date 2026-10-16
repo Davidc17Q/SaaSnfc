@@ -15,7 +15,7 @@ import { config } from '../config';
 let _transport: nodemailer.Transporter | null = null;
 
 export function isMailEnabled(): boolean {
-  return !!config.smtp.host;
+  return !!config.resendApiKey || !!config.smtp.host;
 }
 
 function transport(): nodemailer.Transporter {
@@ -70,8 +70,52 @@ function mailHtml(d: ReportMailInput): string {
   </div>`;
 }
 
+/** Envío por la API HTTP de Resend (sortea bloqueos de puerto SMTP). */
+async function sendViaResend(d: ReportMailInput): Promise<void> {
+  const subject = `Informe NFCloud · ${d.companyName} · ${d.periodLabel}`;
+  // Timeout defensivo para que el endpoint no quede colgado.
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  let res: Response;
+  try {
+    res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: config.smtp.from,
+        to: [d.to],
+        subject,
+        html: mailHtml(d),
+      }),
+      signal: ctrl.signal,
+    });
+  } catch (e: any) {
+    throw new Error(e.name === 'AbortError' ? 'tiempo de espera agotado con Resend' : e.message);
+  } finally {
+    clearTimeout(t);
+  }
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      const body: any = await res.json();
+      if (body?.message) detail = body.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`Resend rechazó el envío: ${detail}`);
+  }
+}
+
 export async function sendReportMail(d: ReportMailInput): Promise<void> {
-  if (!isMailEnabled()) throw new Error('SMTP no configurado (define SMTP_HOST).');
+  if (!isMailEnabled()) throw new Error('Correo no configurado (define RESEND_API_KEY o SMTP_HOST).');
+  // Resend por HTTP tiene prioridad (más fiable en hosts con SMTP bloqueado).
+  if (config.resendApiKey) {
+    await sendViaResend(d);
+    return;
+  }
   await transport().sendMail({
     from: config.smtp.from,
     to: d.to,
