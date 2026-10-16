@@ -1867,11 +1867,26 @@ export async function apiRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: 'La sede no pertenece a la empresa.' });
       }
     }
+    // Primer envío = inicio del próximo periodo según la frecuencia, para que la
+    // fecha mostrada refleje semanal vs. mensual desde el inicio (no "hoy").
+    const now = new Date();
+    const firstRun = new Date(now);
+    if (frequency === 'weekly') {
+      // Próximo lunes (si hoy es lunes, el de la semana siguiente).
+      const day = firstRun.getDay(); // 0=domingo..6=sábado
+      const add = ((8 - day) % 7) || 7;
+      firstRun.setDate(firstRun.getDate() + add);
+    } else {
+      // Día 1 del próximo mes.
+      firstRun.setMonth(firstRun.getMonth() + 1, 1);
+    }
+    firstRun.setHours(8, 0, 0, 0); // 08:00 local aprox.
+
     const r = await pool.query(
-      `INSERT INTO report_schedules (company_id, location_id, email, frequency)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO report_schedules (company_id, location_id, email, frequency, next_run_at)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, company_id, location_id, email, frequency, active, next_run_at`,
-      [companyId, locationId, email, frequency]
+      [companyId, locationId, email, frequency, firstRun]
     );
     return reply.code(201).send({ ok: true, schedule: r.rows[0] });
   });
