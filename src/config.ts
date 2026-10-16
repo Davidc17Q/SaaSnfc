@@ -22,4 +22,16 @@ export const config = {
   // Anti-doble-conteo: ventana (segundos) en la que un mismo dispositivo+IP
   // no vuelve a registrar escaneo. 0 = desactivado. Por defecto 30s.
   scanDedupeSeconds: parseInt(process.env.SCAN_DEDUPE_SECONDS || '30', 10),
+
+  // Correo SMTP (Función 2, Fase B: envío programado de informes).
+  // Si no hay SMTP_HOST configurado, el envío queda deshabilitado (la UI avisa).
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    // secure=true para puerto 465 (TLS implícito); false para 587 (STARTTLS).
+    secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'NFCloud <no-reply@nfcloud>',
+  },
 };

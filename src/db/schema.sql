@@ -243,3 +243,25 @@ CREATE INDEX IF NOT EXISTS idx_survey_responses_device   ON survey_responses(dev
 CREATE INDEX IF NOT EXISTS idx_survey_answers_response   ON survey_answers(response_id);
 CREATE INDEX IF NOT EXISTS idx_survey_answers_aspect     ON survey_answers(aspect_id);
 CREATE INDEX IF NOT EXISTS idx_devices_survey_template   ON devices(survey_template_id);
+
+-- ============================================================================
+-- INFORMES PROGRAMADOS POR CORREO (Función 2, Fase B)
+-- Cada fila es un envío automático recurrente de un informe a un destinatario.
+-- Un worker revisa periódicamente las filas con next_run_at vencido, envía el
+-- informe del periodo correspondiente y reprograma next_run_at. Persistir la
+-- programación (en vez de un setInterval en memoria) la hace sobrevivir a los
+-- reinicios del proceso (Railway reinicia contenedores).
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS report_schedules (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id   UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  location_id  UUID        REFERENCES locations(id) ON DELETE CASCADE, -- NULL = todas las sedes
+  email        TEXT        NOT NULL,                 -- destinatario (gerente/directivo)
+  frequency    TEXT        NOT NULL DEFAULT 'monthly', -- 'monthly' | 'weekly'
+  active       BOOLEAN     NOT NULL DEFAULT true,
+  next_run_at  TIMESTAMPTZ NOT NULL DEFAULT now(),   -- próximo envío programado
+  last_run_at  TIMESTAMPTZ,                          -- último envío realizado
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_report_schedules_company ON report_schedules(company_id);
+CREATE INDEX IF NOT EXISTS idx_report_schedules_due     ON report_schedules(active, next_run_at);

@@ -470,6 +470,31 @@
           </div>
           <p class="text-xs text-slate-500 mt-3">El informe se abre en una pestaña nueva. Desde ahí usa “Descargar / Imprimir PDF”.</p>
         </div>
+
+        <!-- Envío por correo (Fase B) -->
+        <div class="card">
+          <h3 class="font-semibold mb-1">Enviar por correo</h3>
+          <p class="text-sm text-slate-500 mb-4">Envía el informe a un gerente ahora, o prográmalo cada semana o mes. Usa la empresa, sede y mes seleccionados arriba.</p>
+          <div id="repMailDisabled" class="hidden" style="color:var(--warn);font-size:13px;margin-bottom:12px">
+            El envío por correo no está configurado en el servidor (faltan variables SMTP). Puedes seguir descargando el PDF.
+          </div>
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[220px]">
+              <label class="kpi-label block mb-1">Correo del destinatario</label>
+              <input id="repEmail" type="email" class="input text-sm w-full" placeholder="gerente@empresa.com" autocomplete="off" />
+            </div>
+            <div>
+              <label class="kpi-label block mb-1">Frecuencia</label>
+              <select id="repFrequency" class="input text-sm">
+                <option value="monthly">Mensual</option>
+                <option value="weekly">Semanal</option>
+              </select>
+            </div>
+            <button id="repSendNow" class="btn-ghost text-sm" style="border:1px solid var(--card-border)">Enviar ahora</button>
+            <button id="repSchedule" class="btn-primary text-sm">Programar envío</button>
+          </div>
+          <div id="repScheduleList" class="mt-5 space-y-2"></div>
+        </div>
       </section>
 
       <!-- Admin: empresas y usuarios (solo superadmin) -->

@@ -2735,9 +2735,162 @@ function loadReports() {
     reportsWired = true;
     const gen = $('#repGenerate');
     if (gen) gen.addEventListener('click', generateReport);
-    // Al cambiar la empresa (superadmin), recargar sus sedes.
-    if (compSel) compSel.addEventListener('change', fillReportLocations);
+    // Al cambiar la empresa (superadmin), recargar sus sedes y programaciones.
+    if (compSel)
+      compSel.addEventListener('change', () => {
+        fillReportLocations();
+        renderSchedules();
+      });
+    const sendBtn = $('#repSendNow');
+    if (sendBtn) sendBtn.addEventListener('click', sendReportNow);
+    const schBtn = $('#repSchedule');
+    if (schBtn) schBtn.addEventListener('click', createSchedule);
   }
+
+  // Estado del correo: si SMTP no está configurado, avisar y desactivar envío.
+  api('/api/mail-status')
+    .then((st) => {
+      const warn = $('#repMailDisabled');
+      const sendBtn = $('#repSendNow');
+      const schBtn = $('#repSchedule');
+      if (warn) warn.classList.toggle('hidden', !!st.enabled);
+      if (sendBtn) sendBtn.disabled = !st.enabled;
+      if (schBtn) schBtn.disabled = !st.enabled;
+    })
+    .catch(() => {});
+
+  renderSchedules();
+}
+
+// Empresa activa en la vista de informes (según rol).
+function reportCompanyId() {
+  const compSel = $('#repCompany');
+  return state.role === 'superadmin' && compSel ? compSel.value : state.companyId;
+}
+
+// Envía el informe ahora al correo indicado.
+async function sendReportNow() {
+  const email = $('#repEmail').value.trim();
+  if (!email) {
+    toast('Escribe el correo del destinatario.', false);
+    return;
+  }
+  const body = {
+    email,
+    month: $('#repMonth').value,
+    location_id: $('#repLocation').value || undefined,
+    company_id: reportCompanyId() || undefined,
+  };
+  const res = await fetch('/api/report-send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'No se pudo enviar.', false);
+    return;
+  }
+  toast('Informe enviado por correo');
+}
+
+// Crea una programación recurrente.
+async function createSchedule() {
+  const email = $('#repEmail').value.trim();
+  if (!email) {
+    toast('Escribe el correo del destinatario.', false);
+    return;
+  }
+  const body = {
+    email,
+    frequency: $('#repFrequency').value,
+    location_id: $('#repLocation').value || undefined,
+    company_id: reportCompanyId() || undefined,
+  };
+  const res = await fetch('/api/report-schedules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'No se pudo programar.', false);
+    return;
+  }
+  toast('Envío programado');
+  renderSchedules();
+}
+
+// Lista las programaciones existentes con acciones (pausar/reanudar/eliminar).
+async function renderSchedules() {
+  const cont = $('#repScheduleList');
+  if (!cont) return;
+  let rows;
+  try {
+    const cid = reportCompanyId();
+    const cq = state.role === 'superadmin' && cid ? `?companyId=${encodeURIComponent(cid)}` : '';
+    rows = await api(`/api/report-schedules${cq}`);
+  } catch {
+    cont.innerHTML = '';
+    return;
+  }
+  if (!rows.length) {
+    cont.innerHTML = '<p class="text-xs text-slate-500">No hay envíos programados.</p>';
+    return;
+  }
+  const freqLabel = (f) => (f === 'weekly' ? 'Semanal' : 'Mensual');
+  cont.innerHTML = rows
+    .map((r) => {
+      const alcance = r.location_name ? escapeHtml(r.location_name) : 'Todas las sedes';
+      const next = r.next_run_at ? new Date(r.next_run_at).toLocaleDateString('es-CO') : '—';
+      const estado = r.active
+        ? '<span class="state-badge state-active"><span class="dot"></span> Activo</span>'
+        : '<span class="badge-inactive">pausado</span>';
+      return `<div class="flex items-center justify-between gap-3 flex-wrap p-3" style="border:1px solid var(--card-border);border-radius:10px">
+          <div class="min-w-0">
+            <div class="font-medium text-sm">${escapeHtml(r.email)}</div>
+            <div class="text-xs text-slate-500">${freqLabel(r.frequency)} · ${alcance} · próximo: ${next}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${estado}
+            <button class="btn-ghost text-xs sch-toggle" data-id="${r.id}" data-active="${r.active ? '1' : '0'}" style="border:1px solid var(--card-border)">${r.active ? 'Pausar' : 'Reanudar'}</button>
+            <button class="icon-btn sch-del" data-id="${r.id}" aria-label="Eliminar programación">${icon('trash', { size: 15 })}</button>
+          </div>
+        </div>`;
+    })
+    .join('');
+
+  cont.querySelectorAll('.sch-toggle').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const active = b.dataset.active !== '1';
+      await fetch(`/api/report-schedules/${b.dataset.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ active }),
+      });
+      renderSchedules();
+    })
+  );
+  cont.querySelectorAll('.sch-del').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const ok = await confirmDialog({
+        title: 'Eliminar programación',
+        message: '¿Dejar de enviar este informe automáticamente?',
+        confirmText: 'Eliminar',
+        danger: true,
+      });
+      if (!ok) return;
+      await fetch(`/api/report-schedules/${b.dataset.id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      toast('Programación eliminada');
+      renderSchedules();
+    })
+  );
 }
 
 // Rellena el selector de sedes del informe según la empresa elegida.

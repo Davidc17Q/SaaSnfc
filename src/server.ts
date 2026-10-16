@@ -6,6 +6,7 @@ import { config } from './config';
 import { redirectRoutes } from './routes/redirect';
 import { apiRoutes } from './routes/api';
 import { authRoutes, registerAuthGuard } from './lib/auth';
+import { startReportScheduler } from './lib/scheduler';
 
 async function main() {
   const app = Fastify({
@@ -45,6 +46,8 @@ async function main() {
     await app.listen({ port: config.port, host: config.host });
     app.log.info(`Dashboard:  ${config.publicBaseUrl}/`);
     app.log.info(`Redirect:   ${config.publicBaseUrl}/r/:deviceId`);
+    // Worker de informes programados por correo (Función 2, Fase B).
+    startReportScheduler();
   } catch (err) {
     app.log.error(err);
     process.exit(1);

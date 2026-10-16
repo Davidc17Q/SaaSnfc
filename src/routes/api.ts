@@ -5,6 +5,9 @@ import type { DeviceCache } from '../types';
 import { getSession, hashPassword } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
 import { reportHtml } from '../lib/report';
+import { buildReportData } from '../lib/report-data';
+import { config } from '../config';
+import { isMailEnabled, sendReportMail } from '../lib/mailer';
 
 // Zona horaria del negocio. Los escaneos se guardan en UTC (timestamptz),
 // pero los filtros de fecha del dashboard se interpretan en hora local.
@@ -1804,6 +1807,174 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ==========================================================================
+  // INFORMES PROGRAMADOS POR CORREO (Función 2, Fase B)
+  // CRUD de report_schedules + "enviar ahora". Multi-tenant: company_admin solo
+  // su empresa; superadmin según ?companyId / body. Si SMTP no está configurado,
+  // los envíos informan el estado (no fallan silenciosamente).
+  // ==========================================================================
+
+  // Estado del correo (para que la UI muestre si el envío está disponible).
+  app.get('/api/mail-status', async () => ({ enabled: isMailEnabled() }));
+
+  // Listar programaciones visibles.
+  app.get('/api/report-schedules', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = 'WHERE rs.company_id = $1';
+    }
+    const rows = await query(
+      `SELECT rs.id, rs.company_id, rs.location_id, rs.email, rs.frequency, rs.active,
+              rs.next_run_at, rs.last_run_at,
+              co.name AS company_name, l.name AS location_name
+         FROM report_schedules rs
+         LEFT JOIN companies co ON co.id = rs.company_id
+         LEFT JOIN locations l ON l.id = rs.location_id
+         ${cWhere}
+         ORDER BY rs.created_at DESC`,
+      cParams
+    );
+    return rows;
+  });
+
+  // Crear una programación.
+  app.post<{
+    Body: { company_id?: string; location_id?: string; email?: string; frequency?: string };
+  }>('/api/report-schedules', async (req, reply) => {
+    const s = getSession(req);
+    const email = (req.body?.email || '').trim();
+    const frequency = req.body?.frequency === 'weekly' ? 'weekly' : 'monthly';
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return reply.code(400).send({ error: 'Correo del destinatario inválido.' });
+    }
+    // Empresa: company_admin usa la suya; superadmin la enviada.
+    let companyId: string | null = null;
+    if (s?.role === 'company_admin') companyId = s.companyId;
+    else companyId = req.body?.company_id || (req.query as any).companyId || null;
+    if (!companyId) {
+      return reply.code(400).send({ error: 'Debes indicar la empresa.' });
+    }
+    const locationId = req.body?.location_id || null;
+    // Validar que la sede (si llega) pertenece a la empresa.
+    if (locationId) {
+      const l = await query<{ company_id: string | null }>(
+        `SELECT company_id FROM locations WHERE id = $1`,
+        [locationId]
+      );
+      if (!l[0] || l[0].company_id !== companyId) {
+        return reply.code(400).send({ error: 'La sede no pertenece a la empresa.' });
+      }
+    }
+    const r = await pool.query(
+      `INSERT INTO report_schedules (company_id, location_id, email, frequency)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, company_id, location_id, email, frequency, active, next_run_at`,
+      [companyId, locationId, email, frequency]
+    );
+    return reply.code(201).send({ ok: true, schedule: r.rows[0] });
+  });
+
+  // Activar/desactivar o cambiar frecuencia de una programación.
+  app.patch<{ Params: { id: string }; Body: { active?: boolean; frequency?: string } }>(
+    '/api/report-schedules/:id',
+    async (req, reply) => {
+      const companyId = resolveCompanyId(req);
+      // Comprobar propiedad.
+      const owned = await query<{ company_id: string }>(
+        `SELECT company_id FROM report_schedules WHERE id = $1`,
+        [req.params.id]
+      );
+      if (!owned[0]) return reply.code(404).send({ error: 'Programación no encontrada.' });
+      if (companyId !== undefined && owned[0].company_id !== companyId) {
+        return reply.code(403).send({ error: 'No autorizado.' });
+      }
+      const fields: string[] = [];
+      const params: any[] = [];
+      if (typeof req.body?.active === 'boolean') {
+        params.push(req.body.active);
+        fields.push(`active = $${params.length}`);
+      }
+      if (req.body?.frequency === 'weekly' || req.body?.frequency === 'monthly') {
+        params.push(req.body.frequency);
+        fields.push(`frequency = $${params.length}`);
+      }
+      if (!fields.length) return reply.code(400).send({ error: 'Nada que actualizar.' });
+      params.push(req.params.id);
+      const r = await pool.query(
+        `UPDATE report_schedules SET ${fields.join(', ')} WHERE id = $${params.length}
+         RETURNING id, active, frequency`,
+        params
+      );
+      return { ok: true, schedule: r.rows[0] };
+    }
+  );
+
+  // Eliminar una programación.
+  app.delete<{ Params: { id: string } }>('/api/report-schedules/:id', async (req, reply) => {
+    const companyId = resolveCompanyId(req);
+    const owned = await query<{ company_id: string }>(
+      `SELECT company_id FROM report_schedules WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!owned[0]) return reply.code(404).send({ error: 'Programación no encontrada.' });
+    if (companyId !== undefined && owned[0].company_id !== companyId) {
+      return reply.code(403).send({ error: 'No autorizado.' });
+    }
+    await pool.query(`DELETE FROM report_schedules WHERE id = $1`, [req.params.id]);
+    return { ok: true };
+  });
+
+  // Enviar un informe AHORA por correo (prueba / envío manual).
+  app.post<{
+    Body: { email?: string; company_id?: string; location_id?: string; month?: string };
+  }>('/api/report-send', async (req, reply) => {
+    if (!isMailEnabled()) {
+      return reply.code(400).send({ error: 'El envío por correo no está configurado (SMTP).' });
+    }
+    const s = getSession(req);
+    const email = (req.body?.email || '').trim();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return reply.code(400).send({ error: 'Correo del destinatario inválido.' });
+    }
+    const companyId = resolveCompanyId(req);
+    // Empresa concreta para el enlace del informe.
+    let targetCompany: string | undefined;
+    if (s?.role === 'company_admin') targetCompany = s.companyId || undefined;
+    else targetCompany = req.body?.company_id || (req.query as any).companyId || undefined;
+
+    const locationId = req.body?.location_id || undefined;
+    const data = await buildReportData({
+      month: req.body?.month,
+      companyId: targetCompany ?? companyId,
+      locationId,
+    });
+
+    const p = new URLSearchParams();
+    const month = (req.body?.month && /^\d{4}-\d{2}$/.test(req.body.month)) ? req.body.month : '';
+    if (month) p.set('month', month);
+    if (targetCompany) p.set('companyId', targetCompany);
+    if (locationId) p.set('locationId', locationId);
+    const reportUrl = `${config.publicBaseUrl}/api/report?${p.toString()}`;
+
+    try {
+      await sendReportMail({
+        to: email,
+        companyName: data.companyName,
+        periodLabel: data.periodLabel,
+        locationName: data.locationName,
+        reportUrl,
+        totalScans: data.kpis.totalScans,
+        surveyAvg: data.survey ? data.survey.avg : null,
+      });
+      return { ok: true };
+    } catch (e: any) {
+      return reply.code(502).send({ error: 'No se pudo enviar el correo: ' + e.message });
+    }
+  });
+
+  // ==========================================================================
   // INFORME MENSUAL (Función 2, Fase A) — HTML autocontenido imprimible a PDF.
   // Reutiliza las mismas consultas de la analítica, acotadas al mes elegido.
   // GET /api/report?month=YYYY-MM&companyId=&locationId=
@@ -1813,179 +1984,12 @@ export async function apiRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const q = req.query;
       const companyId = resolveCompanyId(req);
-
-      // Mes del informe: por defecto el mes anterior completo.
-      let month = (q.month || '').trim();
-      if (!/^\d{4}-\d{2}$/.test(month)) {
-        const d = new Date();
-        d.setDate(1);
-        d.setMonth(d.getMonth() - 1);
-        month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      }
-      const from = `${month}-01`;
-      // 'to' se interpreta como fin exclusivo del mes en buildFilters (suma 1 día
-      // al 'to'), por eso pasamos el último día del mes.
-      const [yy, mm] = month.split('-').map((x) => parseInt(x, 10));
-      const lastDay = new Date(yy, mm, 0).getDate();
-      const to = `${month}-${String(lastDay).padStart(2, '0')}`;
-
-      const filterQ: any = { from, to };
-      if (q.locationId) filterQ.locationId = q.locationId;
-      const { where, params } = buildFilters(filterQ, companyId);
-
-      // Nombre de empresa y sede para el encabezado.
-      let companyName = 'Todas las empresas';
-      if (companyId !== undefined) {
-        const c = await query<{ name: string }>(
-          `SELECT name FROM companies WHERE id = $1`,
-          [companyId]
-        );
-        companyName = c[0]?.name || 'Empresa';
-      }
-      let locationName: string | null = null;
-      if (q.locationId) {
-        const l = await query<{ name: string }>(
-          `SELECT name FROM locations WHERE id = $1`,
-          [q.locationId]
-        );
-        locationName = l[0]?.name || null;
-      }
-
-      // Total + sede top + hora pico (mismas consultas que /api/kpis).
-      const totalRow = await query<{ total: string }>(
-        `SELECT COUNT(*) AS total FROM scan_events se ${where}`,
-        params
-      );
-      const topLoc = await query<{ name: string; city: string; scans: string }>(
-        `SELECT l.name, l.city, COUNT(*) AS scans
-           FROM scan_events se JOIN locations l ON l.id = se.location_id
-           ${where} GROUP BY l.id, l.name, l.city ORDER BY scans DESC LIMIT 1`,
-        params
-      );
-      const peak = await query<{ hour: string }>(
-        `SELECT EXTRACT(HOUR FROM se.scanned_at AT TIME ZONE '${APP_TZ}')::int AS hour,
-                COUNT(*) AS scans FROM scan_events se ${where}
-           GROUP BY hour ORDER BY scans DESC LIMIT 1`,
-        params
-      );
-
-      // Evolución diaria.
-      const trend = await query<{ day: string; scans: string }>(
-        `SELECT to_char(date_trunc('day', se.scanned_at AT TIME ZONE '${APP_TZ}'), 'YYYY-MM-DD') AS day,
-                COUNT(*) AS scans FROM scan_events se ${where}
-           GROUP BY day ORDER BY day ASC`,
-        params
-      );
-
-      // Top sedes.
-      const topLocations = await query<{ name: string; city: string; scans: string }>(
-        `SELECT l.name, l.city, COUNT(*) AS scans
-           FROM scan_events se JOIN locations l ON l.id = se.location_id
-           ${where} GROUP BY l.id, l.name, l.city ORDER BY scans DESC LIMIT 10`,
-        params
-      );
-
-      // Por canal.
-      const channels = await query<{ channel: string; scans: string }>(
-        `SELECT se.channel, COUNT(*) AS scans FROM scan_events se ${where}
-           GROUP BY se.channel ORDER BY scans DESC`,
-        params
-      );
-
-      // Calificación por aspecto (Función 1): mismos filtros sobre survey_responses.
-      // Solo se incluye en el informe si hay respuestas en el periodo.
-      let survey: {
-        total: number;
-        avg: number | null;
-        aspects: { label: string; avg: number; count: number }[];
-      } | null = null;
-      try {
-        const svClauses: string[] = [];
-        const svParams: any[] = [];
-        svParams.push(from);
-        svClauses.push(
-          `sr.submitted_at >= (($${svParams.length}::date)::timestamp AT TIME ZONE '${APP_TZ}')`
-        );
-        svParams.push(to);
-        svClauses.push(
-          `sr.submitted_at < ((($${svParams.length}::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')`
-        );
-        if (q.locationId) {
-          svParams.push(q.locationId);
-          svClauses.push(`sr.location_id = $${svParams.length}`);
-        }
-        if (companyId !== undefined) {
-          svParams.push(companyId);
-          svClauses.push(
-            `sr.location_id IN (SELECT id FROM locations WHERE company_id = $${svParams.length})`
-          );
-        }
-        const svWhere = `WHERE ${svClauses.join(' AND ')}`;
-        const svAspects = await query<{ label: string; avg: string; count: string }>(
-          `SELECT a.label, AVG(ans.rating)::numeric(10,2) AS avg, COUNT(*) AS count
-             FROM survey_answers ans
-             JOIN survey_responses sr ON sr.id = ans.response_id
-             JOIN survey_aspects a ON a.id = ans.aspect_id
-             ${svWhere}
-             GROUP BY a.id, a.label, a.position
-             ORDER BY a.position ASC, a.label ASC`,
-          svParams
-        );
-        const svTotal = await query<{ total: string }>(
-          `SELECT COUNT(*) AS total FROM survey_responses sr ${svWhere}`,
-          svParams
-        );
-        const total = parseInt(svTotal[0]?.total || '0', 10);
-        if (total > 0 && svAspects.length) {
-          const aspects = svAspects.map((a) => ({
-            label: a.label,
-            avg: parseFloat(a.avg),
-            count: parseInt(a.count, 10),
-          }));
-          const avg =
-            aspects.reduce((s, a) => s + a.avg, 0) / (aspects.length || 1);
-          survey = { total, avg: Math.round(avg * 100) / 100, aspects };
-        }
-      } catch {
-        // Si las tablas de encuesta no existen (esquema antiguo), se omite el bloque.
-        survey = null;
-      }
-
-      // Etiqueta del periodo en español.
-      const meses = [
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-      ];
-      const periodLabel = `${meses[mm - 1]} ${yy}`;
-      const generatedAt = new Date().toLocaleString('es-CO', {
-        timeZone: APP_TZ,
-        dateStyle: 'long',
-        timeStyle: 'short',
+      const data = await buildReportData({
+        month: q.month,
+        companyId,
+        locationId: q.locationId,
       });
-
-      const html = reportHtml({
-        companyName,
-        periodLabel,
-        locationName,
-        generatedAt,
-        kpis: {
-          totalScans: parseInt(totalRow[0]?.total || '0', 10),
-          topLocation: topLoc[0]
-            ? { name: topLoc[0].name, city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
-            : null,
-          peakHour: peak[0] ? parseInt(peak[0].hour, 10) : null,
-        },
-        trend: trend.map((t) => ({ day: t.day, scans: parseInt(t.scans, 10) })),
-        topLocations: topLocations.map((l) => ({
-          name: l.name,
-          city: l.city,
-          scans: parseInt(l.scans, 10),
-        })),
-        channels: channels.map((c) => ({ channel: c.channel, scans: parseInt(c.scans, 10) })),
-        survey,
-      });
-
-      reply.type('text/html; charset=utf-8').send(html);
+      reply.type('text/html; charset=utf-8').send(reportHtml(data));
     }
   );
 
