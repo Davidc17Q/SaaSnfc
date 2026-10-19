@@ -313,21 +313,96 @@ function setupTheme() {
 // ---------------------------------------------------------------------------
 // KPIs
 // ---------------------------------------------------------------------------
+// Porcentaje con máximo 1 decimal en formato es-CO (12,4 %).
+const pctFmt = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(n);
+
+// Texto del periodo activo ("Últimos 30 días", "2026-09-01 → 2026-09-30"...).
+function periodLabel() {
+  const el = $('#rangeLabel');
+  const t = el ? el.textContent.trim() : '';
+  return t || 'Todo el historial';
+}
+
 async function loadKpis() {
   const k = await api(`/api/kpis${qs()}`);
   $('#kpiTotal').textContent = fmt(k.totalScans);
-  $('#kpiWeek').textContent = fmt(k.scansWeek);
-  $('#kpiTopLoc').textContent = k.topLocation ? k.topLocation.name : '—';
+  $('#kpiPeriod').textContent = k.variationPct === null || k.variationPct === undefined
+    ? periodLabel()
+    : 'vs. periodo anterior';
+
+  // Variación: el color solo aparece cuando el cambio importa (≥ 5 %).
+  const delta = $('#kpiDelta');
+  if (k.variationPct === null || k.variationPct === undefined) {
+    delta.classList.add('hidden');
+  } else {
+    const v = k.variationPct;
+    const tone = Math.abs(v) < 5 ? 'flat' : v > 0 ? 'up' : 'down';
+    const ic = v > 0 ? 'trending-up' : v < 0 ? 'trending-down' : 'minus';
+    delta.className = `kpi-delta kpi-delta-${tone}`;
+    delta.innerHTML = `${icon(ic, { size: 14 })} ${v > 0 ? '+' : ''}${pctFmt(v)} %`;
+  }
+
+  $('#kpiLocActive').textContent = fmt(k.locationsWithActivity || 0);
+  $('#kpiLocTotal').textContent = k.locationsTotal ? ` de ${fmt(k.locationsTotal)}` : '';
+
+  const topEl = $('#kpiTopLoc');
+  topEl.textContent = k.topLocation ? k.topLocation.name : 'Sin datos';
+  topEl.title = k.topLocation ? k.topLocation.name : '';
   $('#kpiTopLocScans').textContent = k.topLocation
-    ? `${fmt(k.topLocation.scans)} escaneos`
-    : '—';
-  $('#kpiPeak').textContent = k.peakHour
-    ? `${String(k.peakHour.hour).padStart(2, '0')}:00`
-    : '—';
-  $('#kpiPeakScans').textContent = k.peakHour ? `${fmt(k.peakHour.scans)} escaneos` : '—';
-  $('#kpiIos').textContent = fmt(k.devices.iOS || 0);
-  $('#kpiAndroid').textContent = fmt(k.devices.Android || 0);
+    ? `${fmt(k.topLocation.scans)} interacciones · ${pctFmt(
+        k.totalScans ? (k.topLocation.scans / k.totalScans) * 100 : 0
+      )} % del total`
+    : 'Aún no hay interacciones en el periodo';
   return k;
+}
+
+// Completa los KPIs que dependen de otras consultas (destino y alertas).
+function fillDerivedKpis(k, channels, alerts) {
+  const total = channels.reduce((a, d) => a + d.scans, 0);
+  const top = channels[0];
+  $('#kpiChannel').textContent = top ? top.channel : 'Sin datos';
+  $('#kpiChannelShare').textContent = top
+    ? `${pctFmt((top.scans / total) * 100)} % de las interacciones`
+    : 'Aún no hay redirecciones en el periodo';
+
+  const status = $('#kpiLocStatus');
+  const n = alerts.length;
+  status.className = n ? 'kpi-sub kpi-sub-alert' : 'kpi-sub';
+  status.textContent = n
+    ? `${n} ${n === 1 ? 'requiere' : 'requieren'} atención`
+    : 'Todas operando con normalidad';
+}
+
+// Resumen en lenguaje natural: cómo vamos → qué cambió → qué hacer.
+function renderInsight(k, alerts) {
+  const parts = [];
+  if (!k.totalScans) {
+    parts.push('No hay interacciones en este periodo. Amplía el rango de fechas o revisa que los puntos NFC/QR estén instalados.');
+  } else {
+    const v = k.variationPct;
+    if (v === null || v === undefined) {
+      parts.push(`Llevas ${fmt(k.totalScans)} interacciones en el periodo.`);
+    } else if (Math.abs(v) < 5) {
+      parts.push(`Las interacciones se mantienen estables (${fmt(k.totalScans)}, ${v > 0 ? '+' : ''}${pctFmt(v)} % frente al periodo anterior).`);
+    } else {
+      parts.push(`Las interacciones ${v > 0 ? 'subieron' : 'cayeron'} ${pctFmt(Math.abs(v))} % frente al periodo anterior (${fmt(k.totalScans)} en total).`);
+    }
+    if (k.topLocation) parts.push(`${k.topLocation.name} lidera con ${fmt(k.topLocation.scans)}.`);
+    if (k.peakHour) {
+      parts.push(`Hora de más movimiento: ${String(k.peakHour.hour).padStart(2, '0')}:00.`);
+    }
+    parts.push(
+      alerts.length
+        ? `${alerts.length} ${alerts.length === 1 ? 'sede requiere' : 'sedes requieren'} atención.`
+        : 'Todas las sedes dentro de lo normal.'
+    );
+  }
+  const [lead, ...rest] = parts;
+  $('#insightText').innerHTML =
+    `<strong>${escapeHtml(lead)}</strong>${rest.length ? ' ' + escapeHtml(rest.join(' ')) : ''}`;
+  $('#insightCard').classList.toggle('insight-alert', alerts.length > 0);
+  const now = new Date().toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
+  $('#insightUpdated').textContent = `${periodLabel()} · Actualizado ${now}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -647,7 +722,7 @@ async function renderChannels() {
     destroyChart('channel');
     const legend = $('#channelLegend');
     if (legend) legend.innerHTML = '';
-    return;
+    return data;
   }
 
   // Gradientes suaves por canal (mismo estilo que el doughnut de SO).
@@ -739,6 +814,7 @@ async function renderChannels() {
       sel.appendChild(opt);
     }
   }
+  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -2573,13 +2649,13 @@ const ALERT_ICON = { grave: 'alert-triangle', alerta: 'circle', drop: 'trending-
 
 async function renderAlerts() {
   const panel = $('#alertsPanel');
-  if (!panel) return;
+  if (!panel) return [];
   let data;
   try {
     data = await api(`/api/alerts${qs()}`);
   } catch {
     panel.classList.add('hidden');
-    return;
+    return [];
   }
   const alerts = data.alerts || [];
   const list = $('#alertsList');
@@ -2588,7 +2664,7 @@ async function renderAlerts() {
   // Sin alertas: no robamos espacio en el dashboard.
   if (!alerts.length) {
     panel.classList.add('hidden');
-    return;
+    return alerts;
   }
 
   countEl.textContent = alerts.length;
@@ -2633,6 +2709,7 @@ async function renderAlerts() {
       }
     });
   });
+  return alerts;
 }
 
 // silent=true (auto-refresco) omite el loader para no distraer cada 8s.
@@ -2641,7 +2718,15 @@ async function loadDashboard({ silent = false } = {}) {
   cards.forEach((c) => c.classList.add('is-loading'));
   try {
     const k = await loadKpis();
-    await Promise.all([renderTrend(), renderTop(), renderHourly(), renderChannels(), renderAlerts()]);
+    const [, , , channels, alerts] = await Promise.all([
+      renderTrend(),
+      renderTop(),
+      renderHourly(),
+      renderChannels(),
+      renderAlerts(),
+    ]);
+    fillDerivedKpis(k, channels || [], alerts || []);
+    renderInsight(k, alerts || []);
     renderOs(k);
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));

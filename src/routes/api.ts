@@ -175,8 +175,59 @@ export async function apiRoutes(app: FastifyInstance) {
     const osMap: Record<string, number> = { iOS: 0, Android: 0, Other: 0 };
     for (const d of devices) osMap[d.os] = parseInt(d.scans, 10);
 
+    const totalScans = parseInt(totals[0]?.total || '0', 10);
+
+    // Periodo anterior equivalente (mismo nº de días justo antes) para dar
+    // contexto al KPI principal. Solo aplica con rango de fechas.
+    let prevTotal: number | null = null;
+    let variationPct: number | null = null;
+    if (q.from && q.to) {
+      const prevParams: any[] = [q.from, q.to, q.from];
+      let prevWhere = `se.scanned_at >= (($1::date - ($2::date - $3::date + 1))::timestamp AT TIME ZONE '${APP_TZ}')
+                       AND se.scanned_at < (($3::date)::timestamp AT TIME ZONE '${APP_TZ}')`;
+      if (q.locationId) {
+        prevParams.push(q.locationId);
+        prevWhere += ` AND se.location_id = $${prevParams.length}`;
+      }
+      if (q.channel) {
+        prevParams.push(q.channel);
+        prevWhere += ` AND se.channel = $${prevParams.length}`;
+      }
+      if (companyId !== undefined) {
+        prevParams.push(companyId);
+        prevWhere += ` AND se.location_id IN (SELECT id FROM locations WHERE company_id = $${prevParams.length})`;
+      }
+      const prevRow = await query<{ total: string }>(
+        `SELECT COUNT(*) AS total FROM scan_events se WHERE ${prevWhere}`,
+        prevParams
+      );
+      prevTotal = parseInt(prevRow[0]?.total || '0', 10);
+      variationPct =
+        prevTotal > 0 ? Math.round(((totalScans - prevTotal) / prevTotal) * 1000) / 10 : null;
+    }
+
+    // Cobertura: sedes activas con al menos una interacción en el periodo.
+    const locParams: any[] = [];
+    let locWhere = `WHERE status = 'active'`;
+    if (companyId !== undefined) {
+      locParams.push(companyId);
+      locWhere += ` AND company_id = $1`;
+    }
+    const locRow = await query<{ c: string }>(
+      `SELECT COUNT(*) AS c FROM locations ${locWhere}`,
+      locParams
+    );
+    const withActivityRow = await query<{ c: string }>(
+      `SELECT COUNT(DISTINCT se.location_id) AS c FROM scan_events se ${where}`,
+      params
+    );
+
     return {
-      totalScans: parseInt(totals[0]?.total || '0', 10),
+      totalScans,
+      prevTotal,
+      variationPct,
+      locationsTotal: parseInt(locRow[0]?.c || '0', 10),
+      locationsWithActivity: parseInt(withActivityRow[0]?.c || '0', 10),
       scansWeek: parseInt(totals[0]?.week || '0', 10),
       scansMonth: parseInt(totals[0]?.month || '0', 10),
       topLocation: topLocation[0]

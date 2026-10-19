@@ -79,6 +79,25 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     `SELECT COUNT(*) AS total FROM scan_events se ${where}`,
     params
   );
+  // Mes anterior completo, mismo alcance: da contexto al KPI principal.
+  const prevDate = new Date(yy, mm - 2, 1);
+  const prevFrom = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
+  const prevParams: any[] = [prevFrom, from];
+  let prevWhere = `se.scanned_at >= (($1::date)::timestamp AT TIME ZONE '${APP_TZ}')
+                   AND se.scanned_at < (($2::date)::timestamp AT TIME ZONE '${APP_TZ}')`;
+  if (scope.locationId) {
+    prevParams.push(scope.locationId);
+    prevWhere += ` AND se.location_id = $${prevParams.length}`;
+  }
+  if (scope.companyId !== undefined) {
+    prevParams.push(scope.companyId);
+    prevWhere += ` AND se.location_id IN (SELECT id FROM locations WHERE company_id = $${prevParams.length})`;
+  }
+  const prevRow = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total FROM scan_events se WHERE ${prevWhere}`,
+    prevParams
+  );
+
   const topLoc = await query<{ name: string; city: string; scans: string }>(
     `SELECT l.name, l.city, COUNT(*) AS scans
        FROM scan_events se JOIN locations l ON l.id = se.location_id
@@ -168,6 +187,8 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     generatedAt,
     kpis: {
       totalScans: parseInt(totalRow[0]?.total || '0', 10),
+      prevTotal: parseInt(prevRow[0]?.total || '0', 10),
+      prevPeriodLabel: `${MESES[prevDate.getMonth()]} ${prevDate.getFullYear()}`,
       topLocation: topLoc[0]
         ? { name: topLoc[0].name, city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
         : null,

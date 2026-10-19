@@ -22,7 +22,7 @@
   <div class="app-shell">
     <aside class="app-sidebar" id="appSidebar">
       <div class="sidebar-brand">
-        <div class="brand-logo-plain"><img src="/logo-icono-blanco.png" alt="NFCloud" /></div>
+        <div class="brand-logo-plain"><img src="/logo-icono.png" alt="NFCloud" class="logo-on-light" /><img src="/logo-icono-blanco.png" alt="" aria-hidden="true" class="logo-on-dark" /></div>
         <div>
           <p class="brand-name leading-tight">NFCloud</p>
           <p class="brand-sub">Plataforma de analítica NFC</p>
@@ -128,6 +128,15 @@
 
       <!-- Dashboard view -->
       <section id="view-dashboard" class="p-6 space-y-6">
+        <!-- Resumen en lenguaje natural: la respuesta antes que el dato -->
+        <div id="insightCard" class="insight-card">
+          <span class="insight-icon" data-icon="activity"></span>
+          <div class="insight-body">
+            <p id="insightText" class="insight-text">Preparando el resumen del periodo…</p>
+            <p id="insightUpdated" class="insight-updated"></p>
+          </div>
+        </div>
+
         <!-- Alertas accionables: lo que el dueño debe atender hoy -->
         <div id="alertsPanel" class="alerts-panel hidden">
           <div class="alerts-head">
@@ -138,28 +147,26 @@
         </div>
 
         <!-- KPI cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div class="card">
-            <p class="kpi-label">Total de Escaneos</p>
+        <div class="kpi-grid">
+          <div class="card kpi-card kpi-hero">
+            <p class="kpi-label">Interacciones</p>
             <p id="kpiTotal" class="kpi-value">—</p>
-            <p class="text-xs text-slate-500 mt-1"><span id="kpiWeek">—</span> últimos 7 días</p>
+            <p class="kpi-sub"><span id="kpiDelta" class="kpi-delta hidden"></span><span id="kpiPeriod">—</span></p>
           </div>
-          <div class="card">
-            <p class="kpi-label">Sede Más Activa</p>
-            <p id="kpiTopLoc" class="kpi-value text-2xl truncate">—</p>
-            <p id="kpiTopLocScans" class="text-xs text-slate-500 mt-1">—</p>
+          <div class="card kpi-card">
+            <p class="kpi-label">Sedes con actividad</p>
+            <p class="kpi-value"><span id="kpiLocActive">—</span><span id="kpiLocTotal" class="kpi-value-of"></span></p>
+            <p id="kpiLocStatus" class="kpi-sub">—</p>
           </div>
-          <div class="card">
-            <p class="kpi-label">Pico de Hora</p>
-            <p id="kpiPeak" class="kpi-value">—</p>
-            <p id="kpiPeakScans" class="text-xs text-slate-500 mt-1">—</p>
+          <div class="card kpi-card">
+            <p class="kpi-label">Destino principal</p>
+            <p id="kpiChannel" class="kpi-value kpi-value-text">—</p>
+            <p id="kpiChannelShare" class="kpi-sub">—</p>
           </div>
-          <div class="card">
-            <p class="kpi-label">Dispositivos</p>
-            <div class="flex items-end gap-4 mt-2">
-              <div><p id="kpiIos" class="text-2xl font-bold"></p><p class="text-xs text-slate-500"> iOS</p></div>
-              <div><p id="kpiAndroid" class="text-2xl font-bold"></p><p class="text-xs text-slate-500"> Android</p></div>
-            </div>
+          <div class="card kpi-card">
+            <p class="kpi-label">Sede líder</p>
+            <p id="kpiTopLoc" class="kpi-value kpi-value-text" title="">—</p>
+            <p id="kpiTopLocScans" class="kpi-sub">—</p>
           </div>
         </div>
 
@@ -169,7 +176,7 @@
           <div class="card xl:col-span-2">
             <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <div class="flex items-center gap-3">
-                <h3 class="font-semibold">Tendencia de escaneos</h3>
+                <h3 class="font-semibold">Tendencia de interacciones</h3>
                 <span id="trendVariation" class="variation-badge hidden"></span>
               </div>
               <div class="flex items-center gap-3 text-xs text-slate-500">
@@ -183,7 +190,7 @@
           </div>
           <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 class="font-semibold">Escaneos por hora del día</h3>
+              <h3 class="font-semibold">Interacciones por hora del día</h3>
               <div class="flex items-center gap-3 text-xs text-slate-500 shift-legend">
                 <span class="shift-band-chip band-manana"></span> Mañana
                 <span class="shift-band-chip band-tarde"></span> Tarde
@@ -196,29 +203,19 @@
           </div>
         </div>
 
-        <!-- Fila secundaria: top sedes + distribución por SO (dato técnico, menor jerarquía) -->
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div class="card xl:col-span-2">
-            <h3 class="font-semibold mb-4">Top 10 sedes con más tráfico</h3>
-            <canvas id="topChart" height="160"></canvas>
+        <!-- Comparar sedes es el valor central para cadenas -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 class="font-semibold">Sedes con más interacciones</h3>
+            <span class="text-xs text-muted">Top 10 del periodo</span>
           </div>
-          <div class="card">
-            <h3 class="font-semibold mb-4">Distribución por SO</h3>
-            <div class="donut-wrap">
-              <canvas id="osChart" height="200"></canvas>
-              <div class="donut-center">
-                <span id="osCenterTotal" class="donut-center-total">—</span>
-                <span class="donut-center-label">Escaneos totales</span>
-              </div>
-            </div>
-            <div id="osLegend" class="os-legend"></div>
-          </div>
+          <canvas id="topChart" height="160"></canvas>
         </div>
 
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 class="font-semibold">Escaneos por destino</h3>
-            <span class="text-xs text-slate-500">Canal al que redirige cada punto NFC</span>
+            <h3 class="font-semibold">Interacciones por destino</h3>
+            <span class="text-xs text-muted">A dónde llevaron los puntos NFC/QR</span>
           </div>
           <div class="channel-layout">
             <div class="channel-chart-wrap">
@@ -227,6 +224,24 @@
             <div id="channelLegend" class="channel-legend"></div>
           </div>
         </div>
+
+        <!-- Dato técnico: menor jerarquía, plegado por defecto -->
+        <details id="techDetails" class="card tech-details">
+          <summary class="tech-summary">
+            <span class="font-semibold">Detalle técnico</span>
+            <span class="text-xs text-muted">Sistema operativo de quienes escanean</span>
+          </summary>
+          <div class="tech-body">
+            <div class="donut-wrap">
+              <canvas id="osChart" height="200"></canvas>
+              <div class="donut-center">
+                <span id="osCenterTotal" class="donut-center-total">—</span>
+                <span class="donut-center-label">Interacciones</span>
+              </div>
+            </div>
+            <div id="osLegend" class="os-legend"></div>
+          </div>
+        </details>
       </section>
 
       <!-- Executive / Benchmarking view -->
@@ -394,7 +409,7 @@
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Sedes</h3>
-            <div class="flex items-center gap-2">
+            <div class="table-toolbar">
               <input id="locSearch" type="search" name="nfc-loc-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="newLocationBtn" class="btn-primary text-sm">+ Nueva sede</button>
             </div>
@@ -423,7 +438,7 @@
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-semibold">Dispositivos NFC</h3>
-            <div class="flex items-center gap-2">
+            <div class="table-toolbar">
               <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
               <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
