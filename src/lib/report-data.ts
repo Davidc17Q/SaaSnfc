@@ -10,6 +10,7 @@
  */
 import { query } from '../db/pool';
 import type { ReportData } from './report';
+import { campaignUplift } from './campaign-effect';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
@@ -184,8 +185,40 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
         ORDER BY starts_on ASC`,
       [scope.companyId, from, to]
     );
-    campaigns = rows.map((r) => ({ name: r.name, startsOn: r.starts_on, endsOn: r.ends_on }));
+    campaigns = [];
+    for (const r of rows) {
+      campaigns.push({
+        name: r.name,
+        startsOn: r.starts_on,
+        endsOn: r.ends_on,
+        upliftPct: await campaignUplift(scope.companyId, r.starts_on, r.ends_on),
+      });
+    }
   }
+
+  // Sedes activas que no registraron ninguna interacción en el mes.
+  const inactiveParams: any[] = [from, to];
+  let inactiveScope = '';
+  if (scope.companyId !== undefined) {
+    inactiveParams.push(scope.companyId);
+    inactiveScope += ` AND l.company_id = $${inactiveParams.length}`;
+  }
+  if (scope.locationId) {
+    inactiveParams.push(scope.locationId);
+    inactiveScope += ` AND l.id = $${inactiveParams.length}`;
+  }
+  const inactiveRow = await query<{ c: string }>(
+    `SELECT COUNT(*) AS c FROM locations l
+      WHERE l.status = 'active'
+        AND l.created_at < (($2::date + 1)::timestamp AT TIME ZONE '${APP_TZ}')
+        ${inactiveScope}
+        AND NOT EXISTS (
+          SELECT 1 FROM scan_events se
+           WHERE se.location_id = l.id
+             AND se.scanned_at >= (($1::date)::timestamp AT TIME ZONE '${APP_TZ}')
+             AND se.scanned_at < (($2::date + 1)::timestamp AT TIME ZONE '${APP_TZ}'))`,
+    inactiveParams
+  );
 
   const generatedAt = new Date().toLocaleString('es-CO', {
     timeZone: APP_TZ,
@@ -216,5 +249,6 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     channels: channels.map((c) => ({ channel: c.channel, scans: parseInt(c.scans, 10) })),
     survey,
     campaigns,
+    inactiveLocations: parseInt(inactiveRow[0]?.c || '0', 10),
   };
 }

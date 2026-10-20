@@ -214,6 +214,9 @@ const campaignBandsPlugin = {
     if (!campaigns.length || !chartArea || !scales.x || !labels.length) return;
     const x = scales.x;
     const step = labels.length > 1 ? x.getPixelForValue(1) - x.getPixelForValue(0) : 20;
+    // Fin (px) de la última etiqueta pintada en cada fila: si una campaña se
+    // solapa con otra, su nombre baja a la fila siguiente en vez de encimarse.
+    const rowEnds = [];
     ctx.save();
     for (const c of campaigns) {
       let first = -1, last = -1;
@@ -239,7 +242,10 @@ const campaignBandsPlugin = {
         ctx.fillStyle = token('--muted', '#78716c');
         let text = c.name;
         while (text.length > 1 && ctx.measureText(text).width > width) text = text.slice(0, -2) + '…';
-        ctx.fillText(text, left + 6, chartArea.top + 14);
+        let row = rowEnds.findIndex((end) => left + 6 > end + 6);
+        if (row < 0) row = rowEnds.length;
+        rowEnds[row] = left + 6 + ctx.measureText(text).width;
+        ctx.fillText(text, left + 6, chartArea.top + 14 + row * 14);
       }
     }
     ctx.restore();
@@ -431,10 +437,8 @@ function renderInsight(k, alerts) {
     } else {
       parts.push(`Las interacciones ${v > 0 ? 'subieron' : 'cayeron'} ${pctFmt(Math.abs(v))} % frente al periodo anterior (${fmt(k.totalScans)} en total).`);
     }
-    if (k.topLocation) parts.push(`${k.topLocation.name} lidera con ${fmt(k.topLocation.scans)}.`);
-    if (k.peakHour) {
-      parts.push(`Hora de más movimiento: ${String(k.peakHour.hour).padStart(2, '0')}:00.`);
-    }
+    // Sede líder y hora pico ya se ven en las tarjetas y gráficos: aquí solo
+    // va lo que cambió y lo que pide actuar.
     // La campaña del periodo con mayor efecto medible.
     const measured = (state.campaigns || []).filter((c) => c.upliftPct !== null);
     if (measured.length) {

@@ -33,7 +33,7 @@ export interface ReportMailOptions {
 }
 
 export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
-  const { variation, tone, topChannel, topChannelShare, insight, fmt, pct } = reportSummary(d);
+  const { variation, tone, topChannel, topChannelShare, insight, highlights, fmt, pct } = reportSummary(d);
   const k = d.kpis;
   const alcance = d.locationName ? esc(d.locationName) : 'Todas las sedes';
   const prev = k.prevPeriodLabel ? k.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
@@ -147,9 +147,23 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
       ${delta}
     </td></tr>
 
-    <!-- Resumen escrito -->
+    <!-- Lo más destacado: una idea por línea, de lo más a lo menos importante -->
     <tr><td class="pad" style="padding:30px 32px 6px">
-      <div style="font:400 16px/1.6 ${FONT};color:${INK}">${esc(insight.join(' '))}</div>
+      <div style="font:700 15px ${FONT};color:${INK};margin-bottom:12px">Lo más destacado</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${highlights
+          .map((h) => {
+            const dot = { alert: '#dc2626', good: '#16a34a', neutral: ACCENT, muted: '#cbd5e1' }[h.tone];
+            const color = h.tone === 'muted' ? MUTED : INK;
+            return `<tr>
+              <td width="22" valign="top" style="padding:7px 0 0">
+                <div style="width:8px;height:8px;border-radius:4px;background:${dot};font-size:0;line-height:0">&nbsp;</div>
+              </td>
+              <td style="padding:0 0 10px;font:${h.tone === 'muted' ? 400 : 500} 15px/1.5 ${FONT};color:${color}">${esc(h.text)}</td>
+            </tr>`;
+          })
+          .join('')}
+      </table>
     </td></tr>
 
     <!-- Tres datos clave -->

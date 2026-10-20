@@ -32,7 +32,15 @@ export interface ReportData {
     aspects: { label: string; avg: number; count: number }[];
   } | null;
   // Campañas comerciales que se cruzan con el periodo (opcional).
-  campaigns?: { name: string; startsOn: string; endsOn: string }[];
+  campaigns?: { name: string; startsOn: string; endsOn: string; upliftPct?: number | null }[];
+  // Sedes activas sin ninguna interacción en el periodo (opcional).
+  inactiveLocations?: number;
+}
+
+/** Una línea de "Lo más destacado". 'muted' = dato que ya se ve en otra parte. */
+export interface Highlight {
+  text: string;
+  tone: 'alert' | 'good' | 'neutral' | 'muted';
 }
 
 /** Escapa texto para incrustarlo con seguridad en HTML. */
@@ -71,27 +79,75 @@ export function reportSummary(d: ReportData) {
   const channelTotal = d.channels.reduce((a, c) => a + c.scans, 0);
   const topChannel = d.channels[0] || null;
   const topChannelShare = topChannel && channelTotal ? (topChannel.scans / channelTotal) * 100 : 0;
-  // Resumen escrito: lo primero que lee un directivo.
-  const insight: string[] = [];
+  // "Lo más destacado": una idea por línea, ordenadas por importancia:
+  // primero lo que pide actuar, luego lo que cambió, y al final los datos que
+  // ya aparecen en otra parte (por si al lector se le pasaron).
+  const prev = k.prevPeriodLabel ? k.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
+  const highlights: Highlight[] = [];
   if (!k.totalScans) {
-    insight.push('No se registraron interacciones en este periodo.');
+    highlights.push({
+      text: 'No se registraron interacciones en este periodo. Revisa que los puntos NFC sigan instalados y visibles.',
+      tone: 'alert',
+    });
   } else {
-    if (variation === null) {
-      insight.push(`Se registraron ${fmt(k.totalScans)} interacciones en ${d.periodLabel.toLowerCase()}.`);
-    } else if (Math.abs(variation) < 5) {
-      insight.push(`Las interacciones se mantuvieron estables frente a ${k.prevPeriodLabel?.toLowerCase() || 'el mes anterior'}: ${fmt(k.totalScans)} en total.`);
-    } else {
-      insight.push(`Las interacciones ${variation > 0 ? 'crecieron' : 'cayeron'} ${pct(Math.abs(variation))} % frente a ${k.prevPeriodLabel?.toLowerCase() || 'el mes anterior'}: ${fmt(k.totalScans)} en total.`);
+    const inactive = d.inactiveLocations || 0;
+    if (inactive > 0) {
+      highlights.push({
+        text: `${inactive} ${inactive === 1 ? 'sede no registró' : 'sedes no registraron'} interacciones en el mes: revisa que el punto NFC siga instalado.`,
+        tone: 'alert',
+      });
     }
-    if (k.topLocation) insight.push(`${k.topLocation.name} lideró con ${fmt(k.topLocation.scans)}.`);
-    if (topChannel) insight.push(`El ${pct(topChannelShare)} % llevó a ${topChannel.channel}.`);
-    const camps = d.campaigns || [];
-    if (camps.length === 1) insight.push(`En el periodo estuvo activa la campaña «${camps[0].name}».`);
-    else if (camps.length > 1) insight.push(`En el periodo hubo ${camps.length} campañas activas: ${camps.map((c) => '«' + c.name + '»').join(', ')}.`);
-    if (k.peakHour !== null) insight.push(`La hora de más movimiento fue las ${String(k.peakHour).padStart(2, '0')}:00.`);
+    if (variation !== null) {
+      highlights.push(
+        Math.abs(variation) < 5
+          ? { text: `Las interacciones se mantuvieron estables frente a ${prev}.`, tone: 'neutral' }
+          : {
+              text: `Las interacciones ${variation > 0 ? 'crecieron' : 'cayeron'} ${pct(Math.abs(variation))} % frente a ${prev}.`,
+              tone: variation > 0 ? 'good' : 'alert',
+            }
+      );
+    }
+    for (const c of (d.campaigns || []).slice(0, 2)) {
+      const u = c.upliftPct;
+      if (u === null || u === undefined) {
+        highlights.push({ text: `Campaña activa en el periodo: «${c.name}».`, tone: 'neutral' });
+      } else if (Math.abs(u) < 5) {
+        highlights.push({ text: `«${c.name}» no movió las interacciones frente a los días previos.`, tone: 'neutral' });
+      } else {
+        highlights.push({
+          text: `«${c.name}» coincidió con ${u > 0 ? 'un aumento' : 'una caída'} de ${pct(Math.abs(u))} % en las interacciones diarias frente a los días previos.`,
+          tone: u > 0 ? 'good' : 'alert',
+        });
+      }
+    }
+    if (k.peakHour !== null) {
+      highlights.push({
+        text: `Más movimiento a las ${String(k.peakHour).padStart(2, '0')}:00: buen momento para reforzar personal.`,
+        tone: 'neutral',
+      });
+    }
+    // Datos que ya se ven en el número grande y en las tarjetas.
+    highlights.push({ text: `${fmt(k.totalScans)} interacciones en total.`, tone: 'muted' });
+    if (k.topLocation) {
+      highlights.push({
+        text: `${k.topLocation.name} fue la sede con más interacciones (${fmt(k.topLocation.scans)}).`,
+        tone: 'muted',
+      });
+    }
+    if (topChannel) {
+      highlights.push({
+        text:
+          topChannelShare >= 99.95
+            ? `Todas las visitas fueron a ${topChannel.channel}.`
+            : `${pct(topChannelShare)} % de las visitas fueron a ${topChannel.channel}.`,
+        tone: 'muted',
+      });
+    }
   }
+  // Texto corrido (preencabezado del correo).
+  const insight = highlights.map((h) => h.text);
 
-  return { variation, tone, topChannel, topChannelShare, insight, fmt, pct };
+  return { variation, tone, topChannel, topChannelShare, insight, highlights, fmt, pct };
 }
 
 export function reportHtml(d: ReportData): string {
@@ -105,7 +161,7 @@ export function reportHtml(d: ReportData): string {
 
   const nf = (v: unknown) => JSON.stringify(v);
 
-  const { variation, tone, topChannel, topChannelShare, insight, pct } = reportSummary(d);
+  const { variation, tone, topChannel, topChannelShare, highlights, pct } = reportSummary(d);
   const k = d.kpis;
   const deltaHtml =
     variation === null
@@ -139,6 +195,14 @@ export function reportHtml(d: ReportData): string {
   .head h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
   .head .sub{color:var(--muted);font-size:13px;margin-top:4px}
   .head .right{text-align:right;flex:none}
+  .insight-title{font-size:14px;font-weight:700;margin-bottom:8px}
+  .hl{list-style:none;margin:0;padding:0}
+  .hl li{position:relative;padding-left:18px;margin:0 0 6px;font-weight:500}
+  .hl li::before{content:'';position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:4px;background:var(--accent)}
+  .hl .hl-alert::before{background:#dc2626}
+  .hl .hl-good::before{background:#16a34a}
+  .hl .hl-muted{color:var(--muted);font-weight:400}
+  .hl .hl-muted::before{background:#cbd5e1}
   .insight{background:var(--accent-soft);border-radius:12px;padding:14px 16px;margin-bottom:22px;
     font-size:14px;font-weight:600;line-height:1.55}
   .delta{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
@@ -213,7 +277,10 @@ export function reportHtml(d: ReportData): string {
       </div>
     </div>
 
-    <div class="insight">${esc(insight.join(' '))}</div>
+    <div class="insight">
+      <div class="insight-title">Lo más destacado</div>
+      <ul class="hl">${highlights.map((h) => `<li class="hl-${h.tone}">${esc(h.text)}</li>`).join('')}</ul>
+    </div>
 
     <div class="kpis">
       <div class="kpi">
@@ -296,7 +363,7 @@ export function reportHtml(d: ReportData): string {
   // Bandas de campañas detrás de la línea (mismo patrón que el panel).
   var campBands={id:'campBands',beforeDatasetsDraw:function(chart){
     var a=chart.chartArea,x=chart.scales.x; if(!a||!x||!camps.length) return;
-    var step=trend.length>1?x.getPixelForValue(1)-x.getPixelForValue(0):20, c=chart.ctx; c.save();
+    var step=trend.length>1?x.getPixelForValue(1)-x.getPixelForValue(0):20, c=chart.ctx, rows=[]; c.save();
     camps.forEach(function(cp){
       var f=-1,l=-1; trend.forEach(function(t,i){ if(t.day>=cp.startsOn&&t.day<=cp.endsOn){ if(f<0) f=i; l=i; } });
       if(f<0) return;
@@ -304,7 +371,9 @@ export function reportHtml(d: ReportData): string {
       c.fillStyle='rgba(37,99,235,.07)'; c.fillRect(L,a.top,R-L,a.bottom-a.top);
       c.fillStyle='rgba(37,99,235,.30)'; c.fillRect(L,a.top,1,a.bottom-a.top); c.fillRect(R-1,a.top,1,a.bottom-a.top);
       c.font="600 11px 'Plus Jakarta Sans',sans-serif"; c.fillStyle='#78716c';
-      var w=R-L-10, t=cp.name; if(w>24){ while(t.length>1&&c.measureText(t).width>w) t=t.slice(0,-2)+'…'; c.fillText(t,L+6,a.top+14); }
+      var w=R-L-10, t=cp.name; if(w>24){ while(t.length>1&&c.measureText(t).width>w) t=t.slice(0,-2)+'…';
+        var r=rows.findIndex(function(e){return L+6>e+6;}); if(r<0) r=rows.length; rows[r]=L+6+c.measureText(t).width;
+        c.fillText(t,L+6,a.top+14+r*14); }
     });
     c.restore();
   }};

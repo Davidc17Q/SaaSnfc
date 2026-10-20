@@ -8,6 +8,7 @@ import { reportHtml } from '../lib/report';
 import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
+import { campaignUplift } from '../lib/campaign-effect';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
 
@@ -2219,19 +2220,6 @@ export async function apiRoutes(app: FastifyInstance) {
     return c;
   }
 
-  // Interacciones diarias promedio de la empresa en [from, to] (fechas locales).
-  async function avgDailyScans(companyId: string, from: string, to: string, days: number) {
-    const rows = await query<{ total: string }>(
-      `SELECT COUNT(*) AS total
-         FROM scan_events se
-        WHERE se.scanned_at >= (($1::date)::timestamp AT TIME ZONE '${APP_TZ}')
-          AND se.scanned_at < ((($2::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')
-          AND se.location_id IN (SELECT id FROM locations WHERE company_id = $3)`,
-      [from, to, companyId]
-    );
-    return days > 0 ? parseInt(rows[0]?.total || '0', 10) / days : 0;
-  }
-
   app.get('/api/campaigns', async (req) => {
     const q = req.query as any;
     const companyId = resolveCompanyId(req);
@@ -2258,20 +2246,10 @@ export async function apiRoutes(app: FastifyInstance) {
       starts_on: string;
       ends_on: string;
       note: string | null;
-      days_run: number;
-      run_end: string;
-      before_from: string;
-      before_to: string;
     }>(
       `SELECT c.id, c.company_id, c.name, c.note,
               to_char(c.starts_on, 'YYYY-MM-DD') AS starts_on,
-              to_char(c.ends_on, 'YYYY-MM-DD') AS ends_on,
-              -- días ya transcurridos (una campaña en curso se mide hasta hoy)
-              (LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date) - c.starts_on + 1)::int AS days_run,
-              to_char(LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date), 'YYYY-MM-DD') AS run_end,
-              -- ventana previa del mismo largo, para comparar
-              to_char(c.starts_on - (LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date) - c.starts_on + 1), 'YYYY-MM-DD') AS before_from,
-              to_char(c.starts_on - 1, 'YYYY-MM-DD') AS before_to
+              to_char(c.ends_on, 'YYYY-MM-DD') AS ends_on
          FROM campaigns c
          ${where}
          ORDER BY c.starts_on ASC`,
@@ -2281,12 +2259,7 @@ export async function apiRoutes(app: FastifyInstance) {
     // Efecto: promedio diario durante la campaña vs. el mismo nº de días antes.
     const out = [];
     for (const c of rows) {
-      let upliftPct: number | null = null;
-      if (c.days_run > 0) {
-        const during = await avgDailyScans(c.company_id, c.starts_on, c.run_end, c.days_run);
-        const before = await avgDailyScans(c.company_id, c.before_from, c.before_to, c.days_run);
-        if (before > 0) upliftPct = Math.round(((during - before) / before) * 1000) / 10;
-      }
+      const upliftPct = await campaignUplift(c.company_id, c.starts_on, c.ends_on);
       out.push({
         id: c.id,
         name: c.name,
