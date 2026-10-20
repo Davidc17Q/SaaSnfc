@@ -3052,6 +3052,7 @@ async function renderCampaignList() {
           <div class="campaign-row-name">${escapeHtml(c.name)}</div>
           <div class="campaign-row-meta">${campaignRange(c)}${c.note ? ' · ' + escapeHtml(c.note) : ''}</div>
           <div class="campaign-row-effect">${effect}</div>
+          ${c.startsOn <= todayIso() ? `<button type="button" class="campaign-view" data-view="${c.id}">Ver en la tendencia</button>` : ''}
         </div>
         <div class="campaign-row-actions">
           <button class="btn-ghost" data-edit="${c.id}" data-icon="pencil" aria-label="Editar ${escapeHtml(c.name)}"></button>
@@ -3076,6 +3077,12 @@ async function renderCampaignList() {
       $('#campaignName').focus();
     })
   );
+  list.querySelectorAll('[data-view]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const c = all.find((x) => x.id === b.dataset.view);
+      if (c) showCampaignInTrend(c);
+    })
+  );
   list.querySelectorAll('[data-del]').forEach((b) =>
     b.addEventListener('click', async () => {
       const c = all.find((x) => x.id === b.dataset.del);
@@ -3092,6 +3099,38 @@ async function renderCampaignList() {
       await afterCampaignChange();
     })
   );
+}
+
+// Ajusta el periodo para ver la campaña completa con margen antes y después
+// (antes / durante / después), y recalcula KPIs, resumen y gráficos.
+async function showCampaignInTrend(c) {
+  const shift = (s, n) => {
+    const d = new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10) + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const len = Math.round((new Date(c.endsOn) - new Date(c.startsOn)) / 86400000) + 1;
+  const pad = Math.max(3, Math.round(len / 2));
+  const today = todayIso();
+  state.from = shift(c.startsOn, -pad);
+  const end = shift(c.endsOn, pad);
+  state.to = end > today ? today : end;
+  const fd = $('#fromDate');
+  const td = $('#toDate');
+  if (fd) fd.value = state.from;
+  if (td) td.value = state.to;
+  setRangeLabel(null);
+
+  const modal = $('#campaignModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  if ($('#view-dashboard').classList.contains('hidden')) {
+    const link = document.querySelector('.nav-link[href="#dashboard"]');
+    if (link) link.click();
+  }
+  renderActiveFilters();
+  await loadDashboard();
+  const card = $('#trendChart') && $('#trendChart').closest('.card');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function resetCampaignForm() {

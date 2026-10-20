@@ -1916,3 +1916,16 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 }
 .alerts-more:hover { text-decoration: underline; }
 .alerts-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.campaign-view {
+  margin-top: 0.45rem;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-contrast);
+}
+.campaign-view:hover { text-decoration: underline; }
+.campaign-view:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
