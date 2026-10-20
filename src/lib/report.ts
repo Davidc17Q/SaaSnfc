@@ -31,6 +31,8 @@ export interface ReportData {
     avg: number | null;
     aspects: { label: string; avg: number; count: number }[];
   } | null;
+  // Campañas comerciales que se cruzan con el periodo (opcional).
+  campaigns?: { name: string; startsOn: string; endsOn: string }[];
 }
 
 /** Escapa texto para incrustarlo con seguridad en HTML. */
@@ -97,6 +99,9 @@ export function reportHtml(d: ReportData): string {
     }
     if (k.topLocation) insight.push(`${k.topLocation.name} lideró con ${fmt(k.topLocation.scans)}.`);
     if (topChannel) insight.push(`El ${pct(topChannelShare)} % llevó a ${topChannel.channel}.`);
+    const camps = d.campaigns || [];
+    if (camps.length === 1) insight.push(`En el periodo estuvo activa la campaña «${camps[0].name}».`);
+    else if (camps.length > 1) insight.push(`En el periodo hubo ${camps.length} campañas activas: ${camps.map((c) => '«' + c.name + '»').join(', ')}.`);
     if (k.peakHour !== null) insight.push(`La hora de más movimiento fue las ${String(k.peakHour).padStart(2, '0')}:00.`);
   }
 
@@ -223,7 +228,7 @@ export function reportHtml(d: ReportData): string {
 
     <div class="section">
       <h2>Evolución del mes</h2>
-      <div class="desc">Interacciones por día en el periodo</div>
+      <div class="desc">Interacciones por día en el periodo${(d.campaigns || []).length ? ' · las franjas sombreadas son campañas' : ''}</div>
       <div class="chart-box"><canvas id="cTrend"></canvas></div>
     </div>
 
@@ -280,7 +285,24 @@ export function reportHtml(d: ReportData): string {
   var noLegend={legend:{display:false}};
 
   var trend=${nf(d.trend)};
+  var camps=${nf(d.campaigns || [])};
+  // Bandas de campañas detrás de la línea (mismo patrón que el panel).
+  var campBands={id:'campBands',beforeDatasetsDraw:function(chart){
+    var a=chart.chartArea,x=chart.scales.x; if(!a||!x||!camps.length) return;
+    var step=trend.length>1?x.getPixelForValue(1)-x.getPixelForValue(0):20, c=chart.ctx; c.save();
+    camps.forEach(function(cp){
+      var f=-1,l=-1; trend.forEach(function(t,i){ if(t.day>=cp.startsOn&&t.day<=cp.endsOn){ if(f<0) f=i; l=i; } });
+      if(f<0) return;
+      var L=Math.max(a.left,x.getPixelForValue(f)-step/2), R=Math.min(a.right,x.getPixelForValue(l)+step/2);
+      c.fillStyle='rgba(37,99,235,.07)'; c.fillRect(L,a.top,R-L,a.bottom-a.top);
+      c.fillStyle='rgba(37,99,235,.30)'; c.fillRect(L,a.top,1,a.bottom-a.top); c.fillRect(R-1,a.top,1,a.bottom-a.top);
+      c.font="600 11px 'Plus Jakarta Sans',sans-serif"; c.fillStyle='#78716c';
+      var w=R-L-10, t=cp.name; if(w>24){ while(t.length>1&&c.measureText(t).width>w) t=t.slice(0,-2)+'…'; c.fillText(t,L+6,a.top+14); }
+    });
+    c.restore();
+  }};
   new Chart(document.getElementById('cTrend'),{
+    plugins:[campBands],
     type:'line',
     data:{labels:trend.map(function(t){return t.day.slice(8)+'/'+t.day.slice(5,7);}),
       datasets:[{data:trend.map(function(t){return t.scans;}),borderColor:ACC,

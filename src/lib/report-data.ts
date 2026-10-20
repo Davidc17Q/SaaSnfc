@@ -174,6 +174,19 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     survey = null;
   }
 
+  // Campañas de la empresa que se cruzan con el mes (bandas en la tendencia).
+  let campaigns: ReportData['campaigns'] = [];
+  if (scope.companyId !== undefined) {
+    const rows = await query<{ name: string; starts_on: string; ends_on: string }>(
+      `SELECT name, to_char(starts_on, 'YYYY-MM-DD') AS starts_on, to_char(ends_on, 'YYYY-MM-DD') AS ends_on
+         FROM campaigns
+        WHERE company_id = $1 AND ends_on >= $2::date AND starts_on <= $3::date
+        ORDER BY starts_on ASC`,
+      [scope.companyId, from, to]
+    );
+    campaigns = rows.map((r) => ({ name: r.name, startsOn: r.starts_on, endsOn: r.ends_on }));
+  }
+
   const generatedAt = new Date().toLocaleString('es-CO', {
     timeZone: APP_TZ,
     dateStyle: 'long',
@@ -202,5 +215,6 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     })),
     channels: channels.map((c) => ({ channel: c.channel, scans: parseInt(c.scans, 10) })),
     survey,
+    campaigns,
   };
 }

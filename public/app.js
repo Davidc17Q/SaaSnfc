@@ -202,6 +202,50 @@ const shiftBandsPlugin = {
   },
 };
 
+// Plugin Chart.js: bandas de campañas sobre la tendencia diaria. Mismo
+// principio que las bandas de turno: el contexto va en el FONDO, nunca en el
+// color de la línea. Las etiquetas del eje x son fechas 'YYYY-MM-DD'.
+const campaignBandsPlugin = {
+  id: 'campaignBands',
+  beforeDatasetsDraw(chart) {
+    const campaigns = state.campaigns || [];
+    const { ctx, chartArea, scales } = chart;
+    const labels = chart.data.labels || [];
+    if (!campaigns.length || !chartArea || !scales.x || !labels.length) return;
+    const x = scales.x;
+    const step = labels.length > 1 ? x.getPixelForValue(1) - x.getPixelForValue(0) : 20;
+    ctx.save();
+    for (const c of campaigns) {
+      let first = -1, last = -1;
+      labels.forEach((d, i) => {
+        if (d >= c.startsOn && d <= c.endsOn) {
+          if (first < 0) first = i;
+          last = i;
+        }
+      });
+      if (first < 0) continue;
+      const left = Math.max(chartArea.left, x.getPixelForValue(first) - step / 2);
+      const right = Math.min(chartArea.right, x.getPixelForValue(last) + step / 2);
+      ctx.fillStyle = token('--campaign-band', 'rgba(37,99,235,0.08)');
+      ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+      // Bordes finos para delimitar inicio y fin.
+      ctx.fillStyle = token('--campaign-edge', 'rgba(37,99,235,0.35)');
+      ctx.fillRect(left, chartArea.top, 1, chartArea.bottom - chartArea.top);
+      ctx.fillRect(right - 1, chartArea.top, 1, chartArea.bottom - chartArea.top);
+      // Nombre arriba a la izquierda, recortado al ancho de la banda.
+      const width = right - left - 10;
+      if (width > 24) {
+        ctx.font = "600 11px 'Plus Jakarta Sans', sans-serif";
+        ctx.fillStyle = token('--muted', '#78716c');
+        let text = c.name;
+        while (text.length > 1 && ctx.measureText(text).width > width) text = text.slice(0, -2) + '…';
+        ctx.fillText(text, left + 6, chartArea.top + 14);
+      }
+    }
+    ctx.restore();
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Navegación entre vistas
 // ---------------------------------------------------------------------------
@@ -391,6 +435,17 @@ function renderInsight(k, alerts) {
     if (k.peakHour) {
       parts.push(`Hora de más movimiento: ${String(k.peakHour.hour).padStart(2, '0')}:00.`);
     }
+    // La campaña del periodo con mayor efecto medible.
+    const measured = (state.campaigns || []).filter((c) => c.upliftPct !== null);
+    if (measured.length) {
+      const c = measured.reduce((a, b) => (Math.abs(b.upliftPct) > Math.abs(a.upliftPct) ? b : a));
+      const v = c.upliftPct;
+      parts.push(
+        Math.abs(v) < 5
+          ? `Durante «${c.name}» las interacciones se mantuvieron estables.`
+          : `Durante «${c.name}» las interacciones diarias ${v > 0 ? 'subieron' : 'bajaron'} ${pctFmt(Math.abs(v))} % frente a los días previos.`
+      );
+    }
     parts.push(
       alerts.length
         ? `${alerts.length} ${alerts.length === 1 ? 'sede requiere' : 'sedes requieren'} atención.`
@@ -532,6 +587,7 @@ async function renderTrend() {
         y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
+    plugins: [campaignBandsPlugin],
   });
 }
 
@@ -2717,6 +2773,7 @@ async function loadDashboard({ silent = false } = {}) {
   const cards = silent ? [] : dashboardLoadingTargets();
   cards.forEach((c) => c.classList.add('is-loading'));
   try {
+    if (!silent || !state.campaigns) await loadCampaigns();
     const k = await loadKpis();
     const [, , , channels, alerts] = await Promise.all([
       renderTrend(),
@@ -2731,6 +2788,175 @@ async function loadDashboard({ silent = false } = {}) {
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Campañas
+// ---------------------------------------------------------------------------
+let editingCampaignId = null;
+
+async function loadCampaigns() {
+  try {
+    state.campaigns = await api(`/api/campaigns${qs()}`);
+  } catch {
+    state.campaigns = [];
+  }
+  const legend = $('#campaignLegend');
+  if (legend) legend.classList.toggle('hidden', !state.campaigns.length);
+}
+
+// "28 sep – 31 oct" (con año solo si no es el actual).
+function campaignRange(c) {
+  const toDate = (s) => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  const thisYear = String(new Date().getFullYear());
+  const sameYear = c.startsOn.slice(0, 4) === thisYear && c.endsOn.slice(0, 4) === thisYear;
+  const f = new Intl.DateTimeFormat(
+    'es-CO',
+    sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }
+  );
+  return `${f.format(toDate(c.startsOn))} – ${f.format(toDate(c.endsOn))}`;
+}
+
+async function renderCampaignList() {
+  const list = $('#campaignList');
+  let all = [];
+  try {
+    // En el modal se listan todas, no solo las del rango visible.
+    const p = new URLSearchParams();
+    if (state.companyId) p.set('companyId', state.companyId);
+    const q = p.toString();
+    all = await api(`/api/campaigns${q ? '?' + q : ''}`);
+  } catch {
+    list.innerHTML = '<p class="campaign-empty">No se pudieron cargar las campañas.</p>';
+    return;
+  }
+  if (!all.length) {
+    list.innerHTML =
+      '<p class="campaign-empty">Aún no hay campañas. Registra la primera abajo, por ejemplo tu próxima temporada de descuentos.</p>';
+    return;
+  }
+  list.innerHTML = all
+    .slice()
+    .reverse()
+    .map((c) => {
+      let effect = '<span class="campaign-effect">Sin datos previos para comparar</span>';
+      if (c.upliftPct !== null) {
+        const v = c.upliftPct;
+        const tone = Math.abs(v) < 5 ? 'flat' : v > 0 ? 'up' : 'down';
+        effect = `<span class="kpi-delta kpi-delta-${tone}">${v > 0 ? '+' : ''}${pctFmt(v)} %</span><span class="campaign-effect">vs. días previos</span>`;
+      }
+      return `
+      <div class="campaign-row">
+        <div class="campaign-row-main">
+          <div class="campaign-row-name">${escapeHtml(c.name)}</div>
+          <div class="campaign-row-meta">${campaignRange(c)}${c.note ? ' · ' + escapeHtml(c.note) : ''}</div>
+          <div class="campaign-row-effect">${effect}</div>
+        </div>
+        <div class="campaign-row-actions">
+          <button class="btn-ghost" data-edit="${c.id}" data-icon="pencil" aria-label="Editar ${escapeHtml(c.name)}"></button>
+          <button class="btn-ghost" data-del="${c.id}" data-icon="trash" aria-label="Eliminar ${escapeHtml(c.name)}"></button>
+        </div>
+      </div>`;
+    })
+    .join('');
+  hydrateIcons(list);
+
+  list.querySelectorAll('[data-edit]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const c = all.find((x) => x.id === b.dataset.edit);
+      if (!c) return;
+      editingCampaignId = c.id;
+      $('#campaignName').value = c.name;
+      $('#campaignStart').value = c.startsOn;
+      $('#campaignEnd').value = c.endsOn;
+      $('#campaignNote').value = c.note || '';
+      $('#campaignFormTitle').textContent = 'Editar campaña';
+      $('#campaignCancelEdit').classList.remove('hidden');
+      $('#campaignName').focus();
+    })
+  );
+  list.querySelectorAll('[data-del]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const c = all.find((x) => x.id === b.dataset.del);
+      const ok = await confirmDialog({
+        title: 'Eliminar campaña',
+        message: `Se eliminará «${c ? c.name : ''}». Las interacciones registradas no cambian.`,
+        confirmText: 'Eliminar',
+        danger: true,
+      });
+      if (!ok) return;
+      const res = await fetch(`/api/campaigns/${b.dataset.del}`, { method: 'DELETE' });
+      if (!res.ok) return toast('No se pudo eliminar la campaña', false);
+      toast('Campaña eliminada');
+      await afterCampaignChange();
+    })
+  );
+}
+
+function resetCampaignForm() {
+  editingCampaignId = null;
+  $('#campaignForm').reset();
+  $('#campaignFormTitle').textContent = 'Nueva campaña';
+  $('#campaignCancelEdit').classList.add('hidden');
+  $('#campaignMsg').textContent = '';
+}
+
+async function afterCampaignChange() {
+  await renderCampaignList();
+  await loadCampaigns();
+  await loadDashboard({ silent: true });
+}
+
+function setupCampaigns() {
+  const modal = $('#campaignModal');
+  if (!modal) return;
+  const open = async () => {
+    resetCampaignForm();
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    await renderCampaignList();
+    $('#campaignName').focus();
+  };
+  const close = () => {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  };
+  $('#campaignsBtn').addEventListener('click', open);
+  $('#closeCampaignModal').addEventListener('click', close);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  });
+  $('#campaignCancelEdit').addEventListener('click', resetCampaignForm);
+
+  $('#campaignForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('#campaignMsg');
+    const body = {
+      name: $('#campaignName').value,
+      startsOn: $('#campaignStart').value,
+      endsOn: $('#campaignEnd').value,
+      note: $('#campaignNote').value,
+    };
+    if (state.companyId) body.company_id = state.companyId;
+    const url = editingCampaignId ? `/api/campaigns/${editingCampaignId}` : '/api/campaigns';
+    const res = await fetch(url, {
+      method: editingCampaignId ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      msg.className = 'text-sm mt-2 campaign-msg-error';
+      msg.textContent = data.error || 'No se pudo guardar la campaña.';
+      return;
+    }
+    toast(editingCampaignId ? 'Campaña actualizada' : 'Campaña creada');
+    resetCampaignForm();
+    await afterCampaignChange();
+  });
 }
 
 // Auto-refresco: recarga los datos de la vista visible sin recargar la página.
@@ -3438,6 +3664,7 @@ async function init() {
   setupModal();
   setupCreateModals();
   setupSurveyModals();
+  setupCampaigns();
 
   // Rango por defecto: últimos 30 días
   setRangeDays(30);

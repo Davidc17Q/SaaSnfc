@@ -265,3 +265,20 @@ CREATE TABLE IF NOT EXISTS report_schedules (
 );
 CREATE INDEX IF NOT EXISTS idx_report_schedules_company ON report_schedules(company_id);
 CREATE INDEX IF NOT EXISTS idx_report_schedules_due     ON report_schedules(active, next_run_at);
+
+-- ============================================================================
+-- Campañas comerciales (ej. "Ofertubre 25%"). Se dibujan como bandas sobre la
+-- tendencia de interacciones para que el gerente relacione picos con acciones
+-- comerciales. Aplican a toda la empresa.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS campaigns (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,
+  starts_on   DATE        NOT NULL,
+  ends_on     DATE        NOT NULL,              -- inclusivo
+  note        TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (ends_on >= starts_on)
+);
+CREATE INDEX IF NOT EXISTS idx_campaigns_company ON campaigns(company_id, starts_on);

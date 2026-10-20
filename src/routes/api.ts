@@ -2060,6 +2060,162 @@ export async function apiRoutes(app: FastifyInstance) {
   );
 
   // ---------- Health ----------
+  // ==========================================================================
+  // CAMPAÑAS: bandas sobre la tendencia + efecto frente a los días previos.
+  // ==========================================================================
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  // Campaña visible para el usuario (multi-tenant); null si no existe o no es suya.
+  async function campaignInScope(req: any, id: string) {
+    const companyId = resolveCompanyId(req);
+    const rows = await query<{ id: string; company_id: string }>(
+      `SELECT id, company_id FROM campaigns WHERE id = $1`,
+      [id]
+    );
+    const c = rows[0];
+    if (!c) return null;
+    if (companyId !== undefined && c.company_id !== companyId) return null;
+    return c;
+  }
+
+  // Interacciones diarias promedio de la empresa en [from, to] (fechas locales).
+  async function avgDailyScans(companyId: string, from: string, to: string, days: number) {
+    const rows = await query<{ total: string }>(
+      `SELECT COUNT(*) AS total
+         FROM scan_events se
+        WHERE se.scanned_at >= (($1::date)::timestamp AT TIME ZONE '${APP_TZ}')
+          AND se.scanned_at < ((($2::date + INTERVAL '1 day'))::timestamp AT TIME ZONE '${APP_TZ}')
+          AND se.location_id IN (SELECT id FROM locations WHERE company_id = $3)`,
+      [from, to, companyId]
+    );
+    return days > 0 ? parseInt(rows[0]?.total || '0', 10) / days : 0;
+  }
+
+  app.get('/api/campaigns', async (req) => {
+    const q = req.query as any;
+    const companyId = resolveCompanyId(req);
+    const params: any[] = [];
+    const clauses: string[] = [];
+    if (companyId !== undefined) {
+      params.push(companyId);
+      clauses.push(`c.company_id = $${params.length}`);
+    }
+    // Solo las que se cruzan con el rango pedido.
+    if (q.from && DATE_RE.test(q.from)) {
+      params.push(q.from);
+      clauses.push(`c.ends_on >= $${params.length}::date`);
+    }
+    if (q.to && DATE_RE.test(q.to)) {
+      params.push(q.to);
+      clauses.push(`c.starts_on <= $${params.length}::date`);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const rows = await query<{
+      id: string;
+      company_id: string;
+      name: string;
+      starts_on: string;
+      ends_on: string;
+      note: string | null;
+      days_run: number;
+      run_end: string;
+      before_from: string;
+      before_to: string;
+    }>(
+      `SELECT c.id, c.company_id, c.name, c.note,
+              to_char(c.starts_on, 'YYYY-MM-DD') AS starts_on,
+              to_char(c.ends_on, 'YYYY-MM-DD') AS ends_on,
+              -- días ya transcurridos (una campaña en curso se mide hasta hoy)
+              (LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date) - c.starts_on + 1)::int AS days_run,
+              to_char(LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date), 'YYYY-MM-DD') AS run_end,
+              -- ventana previa del mismo largo, para comparar
+              to_char(c.starts_on - (LEAST(c.ends_on, (now() AT TIME ZONE '${APP_TZ}')::date) - c.starts_on + 1), 'YYYY-MM-DD') AS before_from,
+              to_char(c.starts_on - 1, 'YYYY-MM-DD') AS before_to
+         FROM campaigns c
+         ${where}
+         ORDER BY c.starts_on ASC`,
+      params
+    );
+
+    // Efecto: promedio diario durante la campaña vs. el mismo nº de días antes.
+    const out = [];
+    for (const c of rows) {
+      let upliftPct: number | null = null;
+      if (c.days_run > 0) {
+        const during = await avgDailyScans(c.company_id, c.starts_on, c.run_end, c.days_run);
+        const before = await avgDailyScans(c.company_id, c.before_from, c.before_to, c.days_run);
+        if (before > 0) upliftPct = Math.round(((during - before) / before) * 1000) / 10;
+      }
+      out.push({
+        id: c.id,
+        name: c.name,
+        note: c.note,
+        startsOn: c.starts_on,
+        endsOn: c.ends_on,
+        upliftPct,
+      });
+    }
+    return out;
+  });
+
+  app.post<{ Body: { name?: string; startsOn?: string; endsOn?: string; note?: string; company_id?: string } }>(
+    '/api/campaigns',
+    async (req, reply) => {
+      const s = getSession(req);
+      const companyId =
+        s?.role === 'company_admin'
+          ? s.companyId
+          : req.body?.company_id || (req.query as any)?.companyId || null;
+      if (!companyId) return reply.code(400).send({ error: 'Selecciona una empresa antes de crear la campaña.' });
+
+      const name = (req.body?.name || '').trim();
+      const startsOn = (req.body?.startsOn || '').trim();
+      const endsOn = (req.body?.endsOn || '').trim();
+      const note = (req.body?.note || '').trim() || null;
+      if (!name) return reply.code(400).send({ error: 'Ponle un nombre a la campaña.' });
+      if (!DATE_RE.test(startsOn) || !DATE_RE.test(endsOn)) {
+        return reply.code(400).send({ error: 'Indica la fecha de inicio y de fin.' });
+      }
+      if (endsOn < startsOn) return reply.code(400).send({ error: 'La fecha de fin no puede ser anterior al inicio.' });
+
+      const r = await pool.query(
+        `INSERT INTO campaigns (company_id, name, starts_on, ends_on, note)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [companyId, name.slice(0, 80), startsOn, endsOn, note]
+      );
+      return { ok: true, id: r.rows[0].id };
+    }
+  );
+
+  app.patch<{ Params: { id: string }; Body: { name?: string; startsOn?: string; endsOn?: string; note?: string } }>(
+    '/api/campaigns/:id',
+    async (req, reply) => {
+      if (!(await campaignInScope(req, req.params.id))) {
+        return reply.code(404).send({ error: 'Campaña no encontrada.' });
+      }
+      const name = (req.body?.name || '').trim();
+      const startsOn = (req.body?.startsOn || '').trim();
+      const endsOn = (req.body?.endsOn || '').trim();
+      const note = (req.body?.note || '').trim() || null;
+      if (!name || !DATE_RE.test(startsOn) || !DATE_RE.test(endsOn) || endsOn < startsOn) {
+        return reply.code(400).send({ error: 'Revisa el nombre y las fechas de la campaña.' });
+      }
+      await pool.query(
+        `UPDATE campaigns SET name = $1, starts_on = $2, ends_on = $3, note = $4 WHERE id = $5`,
+        [name.slice(0, 80), startsOn, endsOn, note, req.params.id]
+      );
+      return { ok: true };
+    }
+  );
+
+  app.delete<{ Params: { id: string } }>('/api/campaigns/:id', async (req, reply) => {
+    if (!(await campaignInScope(req, req.params.id))) {
+      return reply.code(404).send({ error: 'Campaña no encontrada.' });
+    }
+    await pool.query(`DELETE FROM campaigns WHERE id = $1`, [req.params.id]);
+    return { ok: true };
+  });
+
   app.get('/api/health', async () => {
     let db = false;
     let cache = false;
