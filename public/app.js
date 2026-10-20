@@ -250,12 +250,12 @@ const campaignBandsPlugin = {
 // Navegación entre vistas
 // ---------------------------------------------------------------------------
 const VIEW_TITLES = {
-  dashboard: 'Panel de Control',
-  executive: 'Comparativa ejecutiva',
-  operations: 'Salud operativa',
+  dashboard: 'Resumen',
+  executive: 'Comparar sedes',
+  operations: 'Estado de sedes',
   survey: 'Calificación',
   locations: 'Sedes',
-  devices: 'Dispositivos NFC',
+  devices: 'Puntos NFC',
   reports: 'Informes',
   admin: 'Empresas y usuarios',
 };
@@ -1405,7 +1405,7 @@ function renderDevicesTable(filter = '') {
     }
   }
 
-  body.innerHTML = html || '<tr><td class="td text-slate-500" colspan="5">Sin dispositivos.</td></tr>';
+  body.innerHTML = html || '<tr><td class="td text-slate-500" colspan="5">Aún no hay puntos NFC.</td></tr>';
 
   // Toggle de expansión por sede
   body.querySelectorAll('.loc-group-row').forEach((row) =>
@@ -1458,7 +1458,7 @@ function renderDevicesTable(filter = '') {
 }
 
 // ---------------------------------------------------------------------------
-// Cambio masivo de destino (campañas)
+// Cambio masivo de destino
 // ---------------------------------------------------------------------------
 async function openBulk() {
   // Poblar marcas
@@ -1520,7 +1520,7 @@ async function applyBulk() {
   const count = $('#bulkCount').textContent;
   const okBulk = await confirmDialog({
     title: 'Cambio masivo de destino',
-    message: `Vas a cambiar el destino de ${count} dispositivos. Esta acción se puede revertir después.`,
+    message: `Vas a cambiar el destino de ${count} puntos NFC. Esta acción se puede revertir después.`,
     confirmText: 'Aplicar cambio',
   });
   if (!okBulk) return;
@@ -1541,13 +1541,13 @@ async function applyBulk() {
   msg.textContent = '';
   await Promise.all([loadDevices(), renderBulkHistory()]);
   renderDevicesTable($('#devSearch').value);
-  toast(`Campaña aplicada a ${data.affected} dispositivos`);
+  toast(`Cambio aplicado a ${data.affected} puntos NFC`);
 }
 async function renderBulkHistory() {
   const rows = await api('/api/bulk-updates');
   const box = $('#bulkHistory');
   if (!rows.length) {
-    box.innerHTML = '<p class="text-sm text-slate-500">Sin campañas registradas.</p>';
+    box.innerHTML = '<p class="text-sm text-slate-500">Aún no hay cambios masivos.</p>';
     return;
   }
   box.innerHTML = rows
@@ -1571,8 +1571,8 @@ async function renderBulkHistory() {
   box.querySelectorAll('.revert-btn').forEach((b) =>
     b.addEventListener('click', async () => {
       const okRevert = await confirmDialog({
-        title: 'Revertir campaña',
-        message: 'Se restaurarán los destinos anteriores de los dispositivos afectados por esta campaña.',
+        title: 'Revertir cambio masivo',
+        message: 'Se restaurarán los destinos anteriores de los puntos NFC afectados por este cambio.',
         confirmText: 'Revertir',
       });
       if (!okRevert) return;
@@ -1587,7 +1587,7 @@ async function renderBulkHistory() {
       const data = await res.json();
       await Promise.all([loadDevices(), renderBulkHistory()]);
       renderDevicesTable($('#devSearch').value);
-      toast(`Revertido: ${data.restored} dispositivos restaurados`);
+      toast(`Revertido: ${data.restored} puntos NFC restaurados`);
     })
   );
 }
@@ -2758,6 +2758,8 @@ function dashboardLoadingTargets() {
 // Panel de alertas accionables (arriba del dashboard). Respeta el estado de
 // "ocultar" que elija el usuario durante la sesión.
 let alertsHidden = false;
+let alertsExpanded = false;
+const ALERTS_VISIBLE = 5;
 
 const ALERT_ICON = { grave: 'alert-triangle', alerta: 'circle', drop: 'trending-down' };
 
@@ -2787,7 +2789,9 @@ async function renderAlerts() {
   list.classList.toggle('hidden', alertsHidden);
   $('#alertsToggle').textContent = alertsHidden ? 'Mostrar' : 'Ocultar';
 
-  list.innerHTML = alerts
+  // Un directivo necesita las más graves primero, no una lista de 80 filas.
+  const shown = alertsExpanded ? alerts : alerts.slice(0, ALERTS_VISIBLE);
+  list.innerHTML = shown
     .map((a) => {
       const ic = a.kind === 'drop' ? 'trending-down' : ALERT_ICON[a.level] || 'alert-triangle';
       const metric = a.metric
@@ -2804,7 +2808,19 @@ async function renderAlerts() {
         <button class="alert-link" data-loc="${a.locationId}">Ver sede</button>
       </div>`;
     })
-    .join('');
+    .join('') +
+    (alerts.length > ALERTS_VISIBLE
+      ? `<button id="alertsMore" class="alerts-more">${
+          alertsExpanded ? 'Mostrar solo las 5 primeras' : `Ver las ${alerts.length} sedes`
+        }</button>`
+      : '');
+  const more = $('#alertsMore');
+  if (more) {
+    more.addEventListener('click', () => {
+      alertsExpanded = !alertsExpanded;
+      renderAlerts();
+    });
+  }
 
   // "Ver sede": abre Salud operativa y escribe el nombre en su buscador.
   list.querySelectorAll('.alert-link').forEach((btn) => {
@@ -3598,7 +3614,7 @@ async function saveDevice() {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    msg.textContent = err.error || 'Error al crear el dispositivo.';
+    msg.textContent = err.error || 'No se pudo crear el punto NFC.';
     msg.style.color = '#dc2626';
     return;
   }
@@ -3612,7 +3628,7 @@ async function saveDevice() {
   // Refrescar datos en segundo plano
   await Promise.all([loadDevices(), loadLocations()]);
   renderDevicesTable($('#devSearch').value);
-  toast('Dispositivo creado');
+  toast('Punto NFC creado');
 }
 
 function setupCreateModals() {

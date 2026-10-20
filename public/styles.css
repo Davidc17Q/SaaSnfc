@@ -99,10 +99,8 @@
 .card { transition: box-shadow 0.18s ease, transform 0.18s ease; }
 
 .kpi-label {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--muted);
 }
 .kpi-value {
@@ -617,9 +615,7 @@ thead.bg-slate-50 { background: var(--input-bg); }
 .variation-flat { background: var(--neutral-state-soft); color: var(--neutral-state); }
 
 /* Punto de leyenda */
-/* Marcador de leyenda moderno tipo "status dot": punto nítido y pequeño con un
-   halo luminoso (glow) difuso del mismo color. El color real llega por el style
-   inline background de cada punto; el ::before lo hereda para el glow. */
+/* Marcador de leyenda: punto sólido y pequeño, sin efectos. */
 .legend-dot {
   display: inline-block;
   width: 0.55rem;
@@ -628,17 +624,6 @@ thead.bg-slate-50 { background: var(--input-bg); }
   margin-right: 0.35rem;
   vertical-align: middle;
   position: relative;
-}
-/* Halo radial luminoso detrás del punto, derivado de su propio color. */
-.legend-dot::before {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 9999px;
-  background: inherit;
-  opacity: 0.35;
-  filter: blur(3px);
-  z-index: -1;
 }
 /* Colores de leyenda por token (no hex inline), consistentes con la paleta. */
 .legend-accent  { background: var(--accent); }
@@ -832,17 +817,6 @@ thead.bg-slate-50 { background: var(--input-bg); }
 .os-legend-dot {
   width: 0.6rem; height: 0.6rem; border-radius: 9999px; display: inline-block;
   position: relative;
-}
-/* Mismo halo luminoso que .legend-dot para un look consistente y moderno. */
-.os-legend-dot::before {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 9999px;
-  background: inherit;
-  opacity: 0.35;
-  filter: blur(3px);
-  z-index: -1;
 }
 .os-legend-values { font-weight: 600; }
 .os-legend-pct { color: var(--muted); font-weight: 500; margin-left: 0.25rem; }
@@ -1704,12 +1678,11 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
   align-items: flex-start;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-left: 3px solid var(--accent);
   border-radius: 1rem;
   padding: 1rem 1.25rem;
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.03);
 }
-.insight-card.insight-alert { border-left-color: var(--danger); }
+
 .insight-icon {
   flex: none;
   display: inline-flex;
@@ -1887,3 +1860,11 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
   #compareA, #compareB { flex: 1 1 100%; width: 100%; }
   #compareBtn { flex: 1 1 100%; }
 }
+
+.alerts-more {
+  align-self: flex-start; margin-top: 0.25rem; padding: 0.35rem 0;
+  font-size: 0.85rem; font-weight: 600; color: var(--accent-contrast);
+  background: none; border: none; cursor: pointer;
+}
+.alerts-more:hover { text-decoration: underline; }
+.alerts-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }

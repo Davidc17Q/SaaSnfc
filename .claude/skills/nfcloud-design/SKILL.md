@@ -95,6 +95,25 @@ en este orden: **¿cómo vamos? → ¿qué cambió? → ¿qué hago?**
 11. **Móvil**: la vista ejecutiva y el informe deben leerse bien a 375 px; los
     directivos revisan desde el celular.
 
+## Que no parezca hecho por IA
+
+- Sin adornos de plantilla: nada de halos/glow en puntos de leyenda, íconos
+  dentro de cuadritos de color, franjas de color en el borde izquierdo de
+  tarjetas (excepto las filas de alerta, donde marcan la gravedad) ni emojis
+  en la interfaz.
+- Íconos solo donde ayudan a actuar (navegación, botones, estados). Los títulos
+  de sección van sin ícono.
+- Etiquetas en tipo oración ("Sedes con actividad"), no en MAYÚSCULAS con
+  espaciado. Las mayúsculas quedan solo para insignias cortas de estado.
+- Vocabulario del cliente, no de software: "Resumen", "Comparar sedes",
+  "Puntos NFC", "interacciones", "reseñas", "tiendas". Evitar "Dashboard",
+  "Gap", "Panel de Control", "dispositivos", "escaneos" en textos visibles.
+- "Campaña" significa campaña comercial (bandas en la tendencia). El cambio de
+  destino de varios puntos a la vez es "cambio masivo", nunca "campaña".
+- Textos concretos y útiles: un estado vacío dice qué hacer a continuación.
+- Datos de demo realistas: nombres reales o creíbles de tiendas, volúmenes
+  coherentes, nunca "Test", "asdf" ni listas obviamente generadas.
+
 ## Patrones ya implementados (reutilizar)
 
 - Resumen escrito arriba del dashboard: `.insight-card` + `renderInsight()`.

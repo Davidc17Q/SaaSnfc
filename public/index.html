@@ -25,16 +25,15 @@
         <div class="brand-logo-plain"><img src="/logo-icono.png" alt="NFCloud" class="logo-on-light" /><img src="/logo-icono-blanco.png" alt="" aria-hidden="true" class="logo-on-dark" /></div>
         <div>
           <p class="brand-name leading-tight">NFCloud</p>
-          <p class="brand-sub">Plataforma de analítica NFC</p>
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a href="#dashboard" class="nav-link active"><span data-icon="bar-chart-3"></span> Dashboard</a>
-        <a href="#executive" class="nav-link"><span data-icon="target"></span> Comparativa</a>
-        <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Salud operativa</a>
+        <a href="#dashboard" class="nav-link active"><span data-icon="bar-chart-3"></span> Resumen</a>
+        <a href="#executive" class="nav-link"><span data-icon="target"></span> Comparar sedes</a>
+        <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Estado de sedes</a>
         <a href="#survey" class="nav-link"><span data-icon="star"></span> Calificación</a>
         <a href="#locations" class="nav-link"><span data-icon="store"></span> Sedes</a>
-        <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Dispositivos NFC</a>
+        <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Puntos NFC</a>
         <a href="#reports" class="nav-link"><span data-icon="file-text"></span> Informes</a>
         <a href="#admin" class="nav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
       </nav>
@@ -61,8 +60,8 @@
         <div class="flex items-center gap-3 min-w-0">
           <button id="sidebarToggle" class="btn-ghost sidebar-toggle" title="Menú" aria-label="Abrir menú de navegación"><span data-icon="menu"></span></button>
           <div class="min-w-0">
-            <h1 class="text-xl font-bold" id="pageTitle">Panel de Control</h1>
-            <p class="text-sm text-slate-500 truncate">Cadena corporativa · <span id="locCount">—</span> sedes conectadas</p>
+            <h1 class="text-xl font-bold" id="pageTitle">Resumen</h1>
+            <p class="text-sm text-slate-500 truncate"><span id="locCount">—</span> sedes activas</p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap header-tools">
@@ -130,7 +129,6 @@
       <section id="view-dashboard" class="p-6 space-y-6">
         <!-- Resumen en lenguaje natural: la respuesta antes que el dato -->
         <div id="insightCard" class="insight-card">
-          <span class="insight-icon" data-icon="activity"></span>
           <div class="insight-body">
             <p id="insightText" class="insight-text">Preparando el resumen del periodo…</p>
             <p id="insightUpdated" class="insight-updated"></p>
@@ -140,7 +138,7 @@
         <!-- Alertas accionables: lo que el dueño debe atender hoy -->
         <div id="alertsPanel" class="alerts-panel hidden">
           <div class="alerts-head">
-            <h3 class="alerts-title section-title-icon"><span data-icon="alert-triangle"></span> Alertas <span id="alertsCount" class="alerts-count">0</span></h3>
+            <h3 class="alerts-title">Requieren atención <span id="alertsCount" class="alerts-count">0</span></h3>
             <button id="alertsToggle" class="btn-ghost text-xs" aria-label="Mostrar u ocultar alertas">Ocultar</button>
           </div>
           <div id="alertsList" class="alerts-list"></div>
@@ -263,7 +261,7 @@
         <div class="card">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 class="font-semibold">Gap de rendimiento</h3>
+              <h3 class="font-semibold">Brecha entre sedes</h3>
               <p class="text-sm text-slate-500">Diferencia entre la sede líder y la de menor rendimiento en el periodo</p>
             </div>
             <div class="text-right">
@@ -276,12 +274,12 @@
         <!-- Top 3 vs Bottom 3 -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div class="card">
-            <h3 class="font-semibold mb-1 section-title-icon"><span data-icon="trophy"></span> Líderes</h3>
+            <h3 class="font-semibold mb-1">Sedes líderes</h3>
             <p class="text-xs text-slate-500 mb-4">Top 3 sedes con mayor volumen</p>
             <div id="leadersList" class="space-y-2"></div>
           </div>
           <div class="card">
-            <h3 class="font-semibold mb-1 section-title-icon"><span data-icon="alert-triangle"></span> Sedes a auditar</h3>
+            <h3 class="font-semibold mb-1">Sedes a revisar</h3>
             <p class="text-xs text-slate-500 mb-4">3 sedes con menor volumen — posible soporte retirado o dañado</p>
             <div id="laggardsList" class="space-y-2"></div>
           </div>
@@ -450,11 +448,11 @@
       <section id="view-devices" class="p-6 hidden">
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-            <h3 class="font-semibold">Dispositivos NFC</h3>
+            <h3 class="font-semibold">Puntos NFC</h3>
             <div class="table-toolbar">
               <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
-              <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo dispositivo</button>
+              <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo punto NFC</button>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -660,7 +658,7 @@
     </div>
   </div>
 
-  <!-- Modal cambio masivo (campaña) -->
+  <!-- Modal cambio masivo de destino -->
   <div id="bulkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
@@ -690,7 +688,7 @@
       <label class="block text-sm font-medium mb-1 mt-3">Nueva Target URL</label>
       <input id="bulkUrl" type="url" class="input w-full" placeholder="https://…" />
 
-      <div class="bulk-preview" id="bulkPreview">Se actualizarán <b id="bulkCount">—</b> dispositivos.</div>
+      <div class="bulk-preview" id="bulkPreview">Se actualizarán <b id="bulkCount">—</b> puntos NFC.</div>
 
       <div class="flex justify-end gap-2 mt-4">
         <button id="cancelBulk" class="btn-ghost">Cancelar</button>
@@ -699,7 +697,7 @@
       <p id="bulkMsg" class="text-sm mt-3"></p>
 
       <div style="margin-top:1.25rem;border-top:1px solid var(--card-border);padding-top:1rem">
-        <h4 class="font-semibold text-sm" style="margin-bottom:0.5rem">Historial de campañas</h4>
+        <h4 class="font-semibold text-sm" style="margin-bottom:0.5rem">Historial de cambios masivos</h4>
         <div id="bulkHistory" class="bulk-history"></div>
       </div>
     </div>
@@ -839,7 +837,7 @@
   <div id="deviceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Nuevo dispositivo NFC</h3>
+        <h3 class="font-semibold text-lg">Nuevo punto NFC</h3>
         <button id="closeDeviceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <label class="block text-sm font-medium mb-1">Sede</label>
@@ -854,7 +852,7 @@
       <input id="devTarget" type="url" class="input w-full" placeholder="https://…" />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelDevice" class="btn-ghost">Cancelar</button>
-        <button id="saveDevice" class="btn-primary">Crear dispositivo</button>
+        <button id="saveDevice" class="btn-primary">Crear punto NFC</button>
       </div>
       <p id="devMsg" class="text-sm mt-3"></p>
       <!-- Resultado: URL para grabar en la tarjeta -->
@@ -870,7 +868,7 @@
   <div id="reputationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-2xl">
       <div class="flex items-center justify-between mb-1">
-        <h3 class="font-semibold text-lg section-title-icon"><span class="txt-amber" data-icon="star"></span> Reputación de Google</h3>
+        <h3 class="font-semibold text-lg">Reputación de Google</h3>
         <button id="closeReputation" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="repLocName" class="text-sm text-slate-500 mb-4">—</p>
