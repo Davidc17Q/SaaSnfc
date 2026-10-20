@@ -128,10 +128,13 @@
       <!-- Dashboard view -->
       <section id="view-dashboard" class="p-6 space-y-6">
         <!-- Resumen en lenguaje natural: la respuesta antes que el dato -->
-        <div id="insightCard" class="insight-card">
-          <div class="insight-body">
-            <p id="insightText" class="insight-text">Preparando el resumen del periodo…</p>
+        <div id="insightCard" class="insight-card" aria-live="polite">
+          <div id="insightRows" class="insight-rows">
+            <div class="insight-row lvl-neutral"><span class="insight-dot" aria-hidden="true"></span><p class="insight-row-text">Preparando el resumen del periodo…</p></div>
+          </div>
+          <div class="insight-foot">
             <p id="insightUpdated" class="insight-updated"></p>
+            <button id="insightToggle" type="button" class="insight-toggle hidden" aria-expanded="false" aria-controls="insightRows">Ver más</button>
           </div>
         </div>
 
@@ -177,7 +180,7 @@
                 <h3 class="font-semibold">Tendencia de interacciones</h3>
                 <span id="trendVariation" class="variation-badge hidden"></span>
               </div>
-              <div class="flex items-center gap-3 text-xs text-slate-500">
+              <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
                 <span class="legend-dot legend-accent"></span> Selección
                 <span class="legend-dot legend-neutral"></span> Promedio cadena
                 <span id="campaignLegend" class="campaign-legend hidden"><span class="campaign-swatch"></span> Campaña</span>
@@ -192,9 +195,9 @@
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h3 class="font-semibold">Interacciones por hora del día</h3>
               <div class="flex items-center gap-3 text-xs text-slate-500 shift-legend">
-                <span class="shift-band-chip band-manana"></span> Mañana
-                <span class="shift-band-chip band-tarde"></span> Tarde
-                <span class="shift-band-chip band-noche"></span> Noche
+                <span class="shift-band-chip band-manana" data-icon="sun" data-icon-size="12" aria-hidden="true"></span> Mañana
+                <span class="shift-band-chip band-tarde" data-icon="sunset" data-icon-size="12" aria-hidden="true"></span> Tarde
+                <span class="shift-band-chip band-noche" data-icon="moon" data-icon-size="12" aria-hidden="true"></span> Noche
               </div>
             </div>
             <div class="hourly-chart-wrap">

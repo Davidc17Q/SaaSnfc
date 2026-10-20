@@ -116,7 +116,13 @@ en este orden: **¿cómo vamos? → ¿qué cambió? → ¿qué hago?**
 
 ## Patrones ya implementados (reutilizar)
 
-- Resumen escrito arriba del dashboard: `.insight-card` + `renderInsight()`.
+- Resumen por gravedad arriba del dashboard: `.insight-card` + `buildInsights()`
+  / `renderInsight()`. Primera línea = la más grave; el resto se despliega.
+  Fondo solo en crítico (`--danger-soft`) y advertencia (`--warn-soft`); bueno
+  y neutro, solo un punto de color. Cada línea grave lleva su acción.
+- Protecciones de datos: si ≥ 50 % de las sedes están en alerta, un solo
+  mensaje general; el efecto de una campaña no se afirma con < 3 días o poca
+  base (`src/lib/campaign-effect.ts`).
 - KPI con contexto: `.kpi-grid`, `.kpi-card`, `.kpi-hero`, `.kpi-sub`,
   `.kpi-delta-up|down|flat` (color solo si |variación| ≥ 5 %).
 - Datos técnicos plegados: `<details class="card tech-details">`.

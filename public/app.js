@@ -423,45 +423,168 @@ function fillDerivedKpis(k, channels, alerts) {
     : 'Todas operando con normalidad';
 }
 
-// Resumen en lenguaje natural: cómo vamos → qué cambió → qué hacer.
-function renderInsight(k, alerts) {
-  const parts = [];
+// Resumen por gravedad: cómo vamos → qué cambió → qué hacer. La primera línea
+// es siempre la más grave; el resto se despliega. Solo lo que pide actuar lleva
+// fondo de color (crítico/advertencia); lo bueno y lo neutro van silenciosos.
+const INSIGHT_ORDER = { critical: 0, warning: 1, good: 2, neutral: 3 };
+let insightExpanded = false;
+try {
+  insightExpanded = localStorage.getItem('insightExpanded') === '1';
+} catch {
+  /* sin almacenamiento: queda plegado */
+}
+
+// Fecha local 'YYYY-MM-DD' (las campañas se guardan en fechas del negocio).
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function buildInsights(k, alerts) {
+  const items = [];
   if (!k.totalScans) {
-    parts.push('No hay interacciones en este periodo. Amplía el rango de fechas o revisa que los puntos NFC/QR estén instalados.');
-  } else {
-    const v = k.variationPct;
-    if (v === null || v === undefined) {
-      parts.push(`Llevas ${fmt(k.totalScans)} interacciones en el periodo.`);
-    } else if (Math.abs(v) < 5) {
-      parts.push(`Las interacciones se mantienen estables (${fmt(k.totalScans)}, ${v > 0 ? '+' : ''}${pctFmt(v)} % frente al periodo anterior).`);
-    } else {
-      parts.push(`Las interacciones ${v > 0 ? 'subieron' : 'cayeron'} ${pctFmt(Math.abs(v))} % frente al periodo anterior (${fmt(k.totalScans)} en total).`);
-    }
-    // Sede líder y hora pico ya se ven en las tarjetas y gráficos: aquí solo
-    // va lo que cambió y lo que pide actuar.
-    // La campaña del periodo con mayor efecto medible.
-    const measured = (state.campaigns || []).filter((c) => c.upliftPct !== null);
-    if (measured.length) {
-      const c = measured.reduce((a, b) => (Math.abs(b.upliftPct) > Math.abs(a.upliftPct) ? b : a));
-      const v = c.upliftPct;
-      parts.push(
-        Math.abs(v) < 5
-          ? `Durante «${c.name}» las interacciones se mantuvieron estables.`
-          : `Durante «${c.name}» las interacciones diarias ${v > 0 ? 'subieron' : 'bajaron'} ${pctFmt(Math.abs(v))} % frente a los días previos.`
-      );
-    }
-    parts.push(
-      alerts.length
-        ? `${alerts.length} ${alerts.length === 1 ? 'sede requiere' : 'sedes requieren'} atención.`
-        : 'Todas las sedes dentro de lo normal.'
-    );
+    items.push({
+      level: 'critical',
+      text: 'No hay interacciones en este periodo. Amplía el rango de fechas o revisa que los puntos NFC estén instalados.',
+    });
   }
-  const [lead, ...rest] = parts;
-  $('#insightText').innerHTML =
-    `<strong>${escapeHtml(lead)}</strong>${rest.length ? ' ' + escapeHtml(rest.join(' ')) : ''}`;
-  $('#insightCard').classList.toggle('insight-alert', alerts.length > 0);
+
+  // Sedes: si casi todas están en alerta, es un problema general y se dice una vez.
+  const total = k.locationsTotal || 0;
+  const n = alerts.length;
+  if (n && total >= 4 && n >= total * 0.5) {
+    items.push({
+      level: 'critical',
+      text: `${fmt(n)} de ${fmt(total)} sedes no registran actividad reciente. Al ser casi todas, puede ser un problema general (puntos retirados o captura de datos), no de cada tienda.`,
+      action: { label: 'Ver estado de sedes', go: 'operations' },
+    });
+  } else if (n) {
+    const grave = alerts.filter((a) => a.level === 'grave');
+    const leves = alerts.length - grave.length;
+    if (grave.length === 1) {
+      items.push({ level: 'critical', text: `${grave[0].title}.`, action: { label: 'Ver sede', go: 'alerts' } });
+    } else if (grave.length > 1) {
+      items.push({
+        level: 'critical',
+        text: `${grave.length} sedes en estado grave: sin interacciones recientes o con caídas fuertes.`,
+        action: { label: 'Ver sedes', go: 'alerts' },
+      });
+    }
+    if (leves) {
+      items.push({
+        level: 'warning',
+        text: `${leves} ${leves === 1 ? 'sede con' : 'sedes con'} menos interacciones de lo habitual.`,
+        action: { label: 'Ver sedes', go: 'alerts' },
+      });
+    }
+  } else if (k.totalScans) {
+    items.push({ level: 'good', text: 'Todas las sedes dentro de lo normal.' });
+  }
+
+  // Variación del periodo.
+  const v = k.variationPct;
+  if (k.totalScans) {
+    if (v === null || v === undefined) {
+      items.push({ level: 'neutral', text: `${fmt(k.totalScans)} interacciones en el periodo.` });
+    } else if (v <= -30) {
+      items.push({ level: 'critical', text: `Las interacciones cayeron ${pctFmt(Math.abs(v))} % frente al periodo anterior (${fmt(k.totalScans)} en total).` });
+    } else if (v <= -5) {
+      items.push({ level: 'warning', text: `Las interacciones bajaron ${pctFmt(Math.abs(v))} % frente al periodo anterior (${fmt(k.totalScans)} en total).` });
+    } else if (v >= 5) {
+      items.push({ level: 'good', text: `Las interacciones subieron ${pctFmt(v)} % frente al periodo anterior (${fmt(k.totalScans)} en total).` });
+    } else {
+      items.push({ level: 'neutral', text: `Las interacciones se mantienen estables frente al periodo anterior (${fmt(k.totalScans)} en total).` });
+    }
+  }
+
+  // Campañas del periodo: solo se afirma un efecto cuando hay base fiable.
+  const today = todayIso();
+  for (const c of state.campaigns || []) {
+    const action = { label: 'Ver campañas', go: 'campaigns' };
+    const u = c.upliftPct;
+    if (u !== null && u !== undefined) {
+      if (u <= -20) {
+        items.push({ level: 'warning', text: `«${c.name}» coincidió con una caída de ${pctFmt(Math.abs(u))} % en las interacciones diarias frente a los días previos.`, action });
+      } else if (u >= 5) {
+        items.push({ level: 'good', text: `«${c.name}» coincidió con un aumento de ${pctFmt(u)} % en las interacciones diarias frente a los días previos.`, action });
+      } else {
+        items.push({ level: 'neutral', text: `«${c.name}» no movió las interacciones frente a los días previos.`, action });
+      }
+    } else if (c.startsOn <= today && today <= c.endsOn) {
+      const dayN = Math.round((new Date(today) - new Date(c.startsOn)) / 86400000) + 1;
+      const days = Math.round((new Date(c.endsOn) - new Date(c.startsOn)) / 86400000) + 1;
+      items.push({ level: 'neutral', text: `«${c.name}» en curso: día ${dayN} de ${days}. Mediremos su efecto cuando haya más datos.`, action });
+    } else if (c.endsOn < today) {
+      items.push({ level: 'neutral', text: `«${c.name}» no tiene datos suficientes para medir su efecto.`, action });
+    }
+  }
+
+  // Orden estable por gravedad.
+  return items
+    .map((it, i) => ({ ...it, i }))
+    .sort((a, b) => INSIGHT_ORDER[a.level] - INSIGHT_ORDER[b.level] || a.i - b.i);
+}
+
+function runInsightAction(go) {
+  if (go === 'operations') {
+    const link = document.querySelector('.nav-link[href="#operations"]');
+    if (link) link.click();
+  } else if (go === 'campaigns') {
+    const btn = $('#campaignsBtn');
+    if (btn) btn.click();
+  } else if (go === 'alerts') {
+    const panel = $('#alertsPanel');
+    if (!panel) return;
+    if (alertsHidden) $('#alertsToggle').click();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderInsight(k, alerts) {
+  const items = buildInsights(k, alerts);
+  const card = $('#insightCard');
+  const rows = $('#insightRows');
+  rows.innerHTML = items
+    .map(
+      (it, idx) => `
+      <div class="insight-row lvl-${it.level}${idx > 0 ? ' insight-extra' : ''}">
+        <span class="insight-dot" aria-hidden="true"></span>
+        <p class="insight-row-text">${escapeHtml(it.text)}</p>
+        ${it.action ? `<button type="button" class="insight-action" data-go="${it.action.go}">${it.action.label}</button>` : ''}
+      </div>`
+    )
+    .join('');
+  rows.querySelectorAll('.insight-action').forEach((b) =>
+    b.addEventListener('click', () => runInsightAction(b.dataset.go))
+  );
+
+  const extra = items.length - 1;
+  const toggle = $('#insightToggle');
+  toggle.classList.toggle('hidden', extra < 1);
+  card.classList.toggle('is-open', insightExpanded && extra > 0);
+  toggle.setAttribute('aria-expanded', String(insightExpanded && extra > 0));
+  toggle.textContent = insightExpanded ? 'Ver menos' : `Ver ${extra} más`;
+
   const now = new Date().toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
   $('#insightUpdated').textContent = `${periodLabel()} · Actualizado ${now}`;
+}
+
+function setupInsightToggle() {
+  const toggle = $('#insightToggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', () => {
+    insightExpanded = !insightExpanded;
+    try {
+      localStorage.setItem('insightExpanded', insightExpanded ? '1' : '0');
+    } catch {
+      /* preferencia no persistida */
+    }
+    const card = $('#insightCard');
+    const extra = card.querySelectorAll('.insight-extra').length;
+    card.classList.toggle('is-open', insightExpanded);
+    toggle.setAttribute('aria-expanded', String(insightExpanded));
+    toggle.textContent = insightExpanded ? 'Ver menos' : `Ver ${extra} más`;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -3746,6 +3869,7 @@ async function init() {
   setupCreateModals();
   setupSurveyModals();
   setupCampaigns();
+  setupInsightToggle();
 
   // Rango por defecto: últimos 30 días
   setRangeDays(30);

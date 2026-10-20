@@ -7,7 +7,16 @@ import { query } from '../db/pool';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
-/** Variación % (1 decimal) o null si no hay base de comparación. */
+// Protecciones contra conclusiones engañosas: con muy pocos días o muy poco
+// volumen previo, una variación (+300 %, -95 %) no significa nada.
+const MIN_DAYS = 3;
+const MIN_BASE = 30; // interacciones mínimas en la ventana previa
+
+/**
+ * Variación % (1 decimal) o null si no hay base fiable: menos de MIN_DAYS días
+ * transcurridos, menos de MIN_BASE interacciones previas, o cero interacciones
+ * durante la campaña (eso apunta a un problema de captura, no a la campaña).
+ */
 export async function campaignUplift(
   companyId: string,
   startsOn: string,
@@ -33,9 +42,9 @@ export async function campaignUplift(
     [companyId, startsOn, endsOn]
   );
   const r = rows[0];
-  if (!r || r.days <= 0) return null;
+  if (!r || r.days < MIN_DAYS) return null;
   const during = parseInt(r.during, 10);
   const before = parseInt(r.before, 10);
-  if (before <= 0) return null;
+  if (before < MIN_BASE || during === 0) return null;
   return Math.round(((during - before) / before) * 1000) / 10;
 }
