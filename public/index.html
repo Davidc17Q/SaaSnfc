@@ -248,6 +248,17 @@
 
       <!-- Executive / Benchmarking view -->
       <section id="view-executive" class="p-6 space-y-6 hidden">
+        <!-- Impacto en reputación de Google: el argumento de retorno de inversión -->
+        <div id="impactCard" class="card impact-card">
+          <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
+            <div>
+              <h3 class="font-semibold">Impacto en reputación de Google</h3>
+              <p id="impactSince" class="text-sm text-muted">Desde la primera medición de cada sede</p>
+            </div>
+          </div>
+          <div id="impactBody"></div>
+        </div>
+
         <!-- Gap de rendimiento -->
         <div class="card">
           <div class="flex items-center justify-between flex-wrap gap-2">
@@ -280,7 +291,7 @@
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h3 class="font-semibold">Comparación directa A / B</h3>
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap compare-controls">
               <select id="compareA" class="input text-sm"></select>
               <span class="text-slate-400 text-sm">vs</span>
               <select id="compareB" class="input text-sm"></select>

@@ -2181,7 +2181,65 @@ async function saveEdit() {
 // ---------------------------------------------------------------------------
 // Módulo ejecutivo: benchmarking (Top3 vs Bottom3) + comparación A/B
 // ---------------------------------------------------------------------------
+async function renderImpact() {
+  const body = $('#impactBody');
+  if (!body) return;
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  let d;
+  try {
+    d = await api(`/api/reputation-impact${cq}`);
+  } catch {
+    body.innerHTML = '<p class="impact-empty">No se pudo cargar el impacto en reputación.</p>';
+    return;
+  }
+  if (!d.summary) {
+    body.innerHTML = `<p class="impact-empty">${
+      d.measuredLocations
+        ? 'Hace falta una segunda medición de la nota y las reseñas de Google para medir el cambio. Regístrala desde <b>Sedes → Reputación</b>.'
+        : 'Registra la nota y el número de reseñas de Google de tus sedes (en <b>Sedes → Reputación</b>). Con dos mediciones verás cuántas reseñas ganó cada tienda desde que usa NFCloud.'
+    }</p>`;
+    $('#impactSince').textContent = 'Desde la primera medición de cada sede';
+    return;
+  }
+  const s = d.summary;
+  const since = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    .format(new Date(+s.since.slice(0, 4), +s.since.slice(5, 7) - 1, +s.since.slice(8, 10)));
+  $('#impactSince').textContent = `Desde el ${since} · ${d.comparableLocations} ${d.comparableLocations === 1 ? 'sede medida' : 'sedes medidas'}`;
+  const ratingDelta = Math.round((s.ratingNow - s.ratingBefore) * 100) / 100;
+  const nf1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  body.innerHTML = `
+    <div class="impact-stats">
+      <div>
+        <p class="kpi-label">Reseñas nuevas</p>
+        <p class="impact-value">${s.reviewsGained >= 0 ? '+' : ''}${fmt(s.reviewsGained)}</p>
+      </div>
+      <div>
+        <p class="kpi-label">Nota promedio</p>
+        <p class="impact-value">${nf1.format(s.ratingBefore)} <span class="impact-arrow">→</span> ${nf1.format(s.ratingNow)}</p>
+        <p class="impact-sub ${ratingDelta > 0 ? 'impact-up' : ratingDelta < 0 ? 'impact-down' : ''}">${ratingDelta > 0 ? '+' : ''}${nf1.format(ratingDelta)} estrellas</p>
+      </div>
+      <div>
+        <p class="kpi-label">Reseñas por cada 100 interacciones</p>
+        <p class="impact-value">${s.reviewsPer100 === null ? '—' : pctFmt(s.reviewsPer100)}</p>
+        <p class="impact-sub">${fmt(s.scans)} interacciones en el periodo</p>
+      </div>
+    </div>
+    <table class="impact-table">
+      <thead><tr><th>Sede</th><th class="num">Nuevas</th><th class="num">Nota</th></tr></thead>
+      <tbody>${d.locations
+        .map(
+          (l) => `<tr>
+            <td><span class="impact-loc">${escapeHtml(l.name)}</span><span class="impact-city">${escapeHtml(l.city)}</span></td>
+            <td class="num">${l.reviewsGained >= 0 ? '+' : ''}${fmt(l.reviewsGained)}</td>
+            <td class="num">${nf1.format(l.ratingBefore)} → ${nf1.format(l.ratingNow)}</td>
+          </tr>`
+        )
+        .join('')}</tbody>
+    </table>`;
+}
+
 async function loadExecutive() {
+  await renderImpact();
   await renderBenchmark();
   populateCompareSelectors();
 }

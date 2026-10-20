@@ -2061,6 +2061,96 @@ export async function apiRoutes(app: FastifyInstance) {
 
   // ---------- Health ----------
   // ==========================================================================
+  // IMPACTO EN REPUTACIÓN: reseñas ganadas y nota de Google desde la primera
+  // medición de cada sede, frente a las interacciones del mismo periodo. Es el
+  // argumento de retorno de inversión para el directivo.
+  // ==========================================================================
+  app.get('/api/reputation-impact', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const params: any[] = [];
+    let scope = '';
+    if (companyId !== undefined) {
+      params.push(companyId);
+      scope = `AND l.company_id = $1`;
+    }
+    const rows = await query<{
+      id: string;
+      name: string;
+      city: string;
+      first_on: string;
+      last_on: string;
+      first_rating: string;
+      last_rating: string;
+      first_reviews: number;
+      last_reviews: number;
+      scans: string;
+    }>(
+      `WITH ranked AS (
+         SELECT rs.*,
+                ROW_NUMBER() OVER (PARTITION BY rs.location_id ORDER BY rs.measured_on ASC)  AS rn_first,
+                ROW_NUMBER() OVER (PARTITION BY rs.location_id ORDER BY rs.measured_on DESC) AS rn_last
+           FROM reputation_snapshots rs
+       ),
+       per_loc AS (
+         SELECT f.location_id,
+                f.measured_on AS first_on, l2.measured_on AS last_on,
+                f.rating AS first_rating, l2.rating AS last_rating,
+                f.review_count AS first_reviews, l2.review_count AS last_reviews
+           FROM ranked f
+           JOIN ranked l2 ON l2.location_id = f.location_id AND l2.rn_last = 1
+          WHERE f.rn_first = 1
+       )
+       SELECT l.id, l.name, l.city,
+              to_char(p.first_on, 'YYYY-MM-DD') AS first_on,
+              to_char(p.last_on, 'YYYY-MM-DD') AS last_on,
+              p.first_rating, p.last_rating, p.first_reviews, p.last_reviews,
+              (SELECT COUNT(*) FROM scan_events se
+                WHERE se.location_id = l.id
+                  AND se.scanned_at >= ((p.first_on)::timestamp AT TIME ZONE '${APP_TZ}')
+                  AND se.scanned_at < (((p.last_on + 1))::timestamp AT TIME ZONE '${APP_TZ}')) AS scans
+         FROM per_loc p
+         JOIN locations l ON l.id = p.location_id
+        WHERE l.status = 'active' ${scope}`,
+      params
+    );
+
+    // Solo cuentan para el impacto las sedes con al menos dos mediciones.
+    const locs = rows
+      .filter((r) => r.first_on !== r.last_on)
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        city: r.city,
+        since: r.first_on,
+        ratingBefore: parseFloat(r.first_rating),
+        ratingNow: parseFloat(r.last_rating),
+        reviewsGained: r.last_reviews - r.first_reviews,
+        scans: parseInt(r.scans, 10),
+      }));
+
+    if (!locs.length) {
+      return { measuredLocations: rows.length, comparableLocations: 0, summary: null, locations: [] };
+    }
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const reviewsGained = locs.reduce((a, l) => a + l.reviewsGained, 0);
+    const scans = locs.reduce((a, l) => a + l.scans, 0);
+    return {
+      measuredLocations: rows.length,
+      comparableLocations: locs.length,
+      summary: {
+        since: locs.map((l) => l.since).sort()[0],
+        reviewsGained,
+        ratingBefore: Math.round(avg(locs.map((l) => l.ratingBefore)) * 100) / 100,
+        ratingNow: Math.round(avg(locs.map((l) => l.ratingNow)) * 100) / 100,
+        scans,
+        // Reseñas nuevas por cada 100 interacciones en el mismo periodo.
+        reviewsPer100: scans > 0 ? Math.round((reviewsGained / scans) * 1000) / 10 : null,
+      },
+      locations: locs.sort((a, b) => b.reviewsGained - a.reviewsGained).slice(0, 5),
+    };
+  });
+
+  // ==========================================================================
   // CAMPAÑAS: bandas sobre la tendencia + efecto frente a los días previos.
   // ==========================================================================
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
