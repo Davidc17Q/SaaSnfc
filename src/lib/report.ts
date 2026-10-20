@@ -57,34 +57,20 @@ function logoDataUri(): string | null {
   return _logoCache;
 }
 
-export function reportHtml(d: ReportData): string {
-  const logo = logoDataUri();
-  const marca = logo
-    ? `<img src="${logo}" alt="NFCloud" style="height:34px" />`
-    : `<span style="font-weight:800;font-size:20px;color:#1e40af">NFCloud</span>`;
-
-  const hasSurvey = !!(d.survey && d.survey.total > 0 && d.survey.aspects.length);
+/** Cifras derivadas y resumen escrito, compartidos por el informe y el correo. */
+export function reportSummary(d: ReportData) {
   const fmt = (n: number) => new Intl.NumberFormat('es-CO').format(n);
-
-  const nf = (v: unknown) => JSON.stringify(v);
   const pct = (n: number) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(n);
-
-  // Variación vs mes anterior (solo si hay base de comparación).
   const k = d.kpis;
   const variation =
     k.prevTotal && k.prevTotal > 0
       ? Math.round(((k.totalScans - k.prevTotal) / k.prevTotal) * 1000) / 10
       : null;
-  const tone = variation === null || Math.abs(variation) < 5 ? 'flat' : variation > 0 ? 'up' : 'down';
-  const deltaHtml =
-    variation === null
-      ? ''
-      : `<span class="delta delta-${tone}">${variation > 0 ? '▲ +' : variation < 0 ? '▼ ' : ''}${pct(variation)} %</span>`;
-
+  const tone: 'up' | 'down' | 'flat' =
+    variation === null || Math.abs(variation) < 5 ? 'flat' : variation > 0 ? 'up' : 'down';
   const channelTotal = d.channels.reduce((a, c) => a + c.scans, 0);
   const topChannel = d.channels[0] || null;
   const topChannelShare = topChannel && channelTotal ? (topChannel.scans / channelTotal) * 100 : 0;
-
   // Resumen escrito: lo primero que lee un directivo.
   const insight: string[] = [];
   if (!k.totalScans) {
@@ -104,6 +90,27 @@ export function reportHtml(d: ReportData): string {
     else if (camps.length > 1) insight.push(`En el periodo hubo ${camps.length} campañas activas: ${camps.map((c) => '«' + c.name + '»').join(', ')}.`);
     if (k.peakHour !== null) insight.push(`La hora de más movimiento fue las ${String(k.peakHour).padStart(2, '0')}:00.`);
   }
+
+  return { variation, tone, topChannel, topChannelShare, insight, fmt, pct };
+}
+
+export function reportHtml(d: ReportData): string {
+  const logo = logoDataUri();
+  const marca = logo
+    ? `<img src="${logo}" alt="NFCloud" style="height:34px" />`
+    : `<span style="font-weight:800;font-size:20px;color:#1e40af">NFCloud</span>`;
+
+  const hasSurvey = !!(d.survey && d.survey.total > 0 && d.survey.aspects.length);
+  const fmt = (n: number) => new Intl.NumberFormat('es-CO').format(n);
+
+  const nf = (v: unknown) => JSON.stringify(v);
+
+  const { variation, tone, topChannel, topChannelShare, insight, pct } = reportSummary(d);
+  const k = d.kpis;
+  const deltaHtml =
+    variation === null
+      ? ''
+      : `<span class="delta delta-${tone}">${variation > 0 ? '▲ +' : variation < 0 ? '▼ ' : ''}${pct(variation)} %</span>`;
 
   return `<!DOCTYPE html>
 <html lang="es">

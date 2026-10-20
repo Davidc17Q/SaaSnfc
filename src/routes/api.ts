@@ -5,6 +5,7 @@ import type { DeviceCache } from '../types';
 import { getSession, hashPassword } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
 import { reportHtml } from '../lib/report';
+import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData } from '../lib/report-data';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
@@ -2025,15 +2026,7 @@ export async function apiRoutes(app: FastifyInstance) {
     const reportUrl = `${config.publicBaseUrl}/api/report?${p.toString()}`;
 
     try {
-      await sendReportMail({
-        to: email,
-        companyName: data.companyName,
-        periodLabel: data.periodLabel,
-        locationName: data.locationName,
-        reportUrl,
-        totalScans: data.kpis.totalScans,
-        surveyAvg: data.survey ? data.survey.avg : null,
-      });
+      await sendReportMail({ to: email, data, reportUrl });
       return { ok: true };
     } catch (e: any) {
       return reply.code(502).send({ error: 'No se pudo enviar el correo: ' + e.message });
@@ -2059,7 +2052,25 @@ export async function apiRoutes(app: FastifyInstance) {
     }
   );
 
-  // ---------- Health ----------
+  // Vista previa del correo del informe (mismo alcance que /api/report).
+  app.get<{ Querystring: { month?: string; companyId?: string; locationId?: string } }>(
+    '/api/report-mail-preview',
+    async (req, reply) => {
+      const q = req.query;
+      const companyId = resolveCompanyId(req);
+      const data = await buildReportData({ month: q.month, companyId, locationId: q.locationId });
+      const p = new URLSearchParams();
+      if (q.month) p.set('month', q.month);
+      if (companyId) p.set('companyId', companyId);
+      if (q.locationId) p.set('locationId', q.locationId);
+      const html = reportMailHtml(data, {
+        reportUrl: `${config.publicBaseUrl}/api/report?${p.toString()}`,
+        assetBaseUrl: config.publicBaseUrl.replace(/\/$/, ''),
+      });
+      reply.type('text/html; charset=utf-8').send(html);
+    }
+  );
+
   // ==========================================================================
   // IMPACTO EN REPUTACIÓN: reseñas ganadas y nota de Google desde la primera
   // medición de cada sede, frente a las interacciones del mismo periodo. Es el
@@ -2306,6 +2317,7 @@ export async function apiRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // ---------- Health ----------
   app.get('/api/health', async () => {
     let db = false;
     let cache = false;

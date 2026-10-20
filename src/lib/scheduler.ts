@@ -62,15 +62,7 @@ async function runDueSchedules(): Promise<void> {
       if (s.location_id) p.set('locationId', s.location_id);
       const reportUrl = `${config.publicBaseUrl}/api/report?${p.toString()}`;
 
-      await sendReportMail({
-        to: s.email,
-        companyName: data.companyName,
-        periodLabel: data.periodLabel,
-        locationName: data.locationName,
-        reportUrl,
-        totalScans: data.kpis.totalScans,
-        surveyAvg: data.survey ? data.survey.avg : null,
-      });
+      await sendReportMail({ to: s.email, data, reportUrl });
 
       await pool.query(
         `UPDATE report_schedules

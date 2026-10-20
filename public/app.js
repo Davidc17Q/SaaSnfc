@@ -3119,7 +3119,9 @@ function loadReports() {
   if (!reportsWired) {
     reportsWired = true;
     const gen = $('#repGenerate');
-    if (gen) gen.addEventListener('click', generateReport);
+    if (gen) gen.addEventListener('click', () => generateReport('report'));
+    const mailPrev = $('#repMailPreview');
+    if (mailPrev) mailPrev.addEventListener('click', () => generateReport('mail'));
     // Al cambiar la empresa (superadmin), recargar sus sedes y programaciones.
     if (compSel)
       compSel.addEventListener('change', () => {
@@ -3311,7 +3313,7 @@ function fillReportLocations() {
 }
 
 // Abre el informe (HTML imprimible) en una pestaña nueva con los filtros elegidos.
-function generateReport() {
+function generateReport(target = 'report') {
   const month = $('#repMonth').value;
   const locationId = $('#repLocation').value;
   const compSel = $('#repCompany');
@@ -3322,7 +3324,8 @@ function generateReport() {
   if (month) p.set('month', month);
   if (locationId) p.set('locationId', locationId);
   if (companyId) p.set('companyId', companyId);
-  window.open(`/api/report?${p.toString()}`, '_blank');
+  const path = target === 'mail' ? '/api/report-mail-preview' : '/api/report';
+  window.open(`${path}?${p.toString()}`, '_blank');
 }
 
 function setupFilters() {
