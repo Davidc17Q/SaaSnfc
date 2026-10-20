@@ -630,7 +630,7 @@ export async function apiRoutes(app: FastifyInstance) {
           level: 'grave',
           kind: 'never',
           locationId: r.id,
-          title: `${r.name} sin escaneos registrados`,
+          title: `${r.name} sin interacciones registradas`,
           detail: `${r.city} · nunca ha tenido actividad. Revisa si el soporte NFC/QR está instalado y leyendo.`,
           metric: null,
         });
@@ -640,14 +640,17 @@ export async function apiRoutes(app: FastifyInstance) {
           level: 'grave',
           kind: 'inactive',
           locationId: r.id,
-          title: `${r.name} lleva ${days} día${days === 1 ? '' : 's'} sin escaneos`,
+          title: `${r.name} lleva ${days} día${days === 1 ? '' : 's'} sin interacciones`,
           detail: `${r.city} · el soporte podría estar retirado, dañado o tapado.`,
           metric: `${days}d`,
         });
       }
     }
 
+    // Una sede ya marcada como grave (sin actividad) no se repite como caída.
+    const flagged = new Set(alerts.map((a) => a.locationId));
     for (const r of trend) {
+      if (flagged.has(r.id)) continue;
       const prev = parseInt(r.prev, 10);
       const curr = parseInt(r.curr, 10);
       // Solo marca caídas relevantes: base mínima para evitar ruido estadístico.
@@ -658,7 +661,7 @@ export async function apiRoutes(app: FastifyInstance) {
           kind: 'drop',
           locationId: r.id,
           title: `${r.name} cayó ${dropPct}% esta semana`,
-          detail: `${r.city} · ${curr} escaneos vs. ${prev} la semana anterior.`,
+          detail: `${r.city} · ${curr} interacciones vs. ${prev} la semana anterior.`,
           metric: `-${dropPct}%`,
         });
       }
