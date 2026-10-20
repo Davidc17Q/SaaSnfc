@@ -19,6 +19,9 @@ async function main() {
     },
     disableRequestLogging: false,
     trustProxy: true,
+    // Los enlaces firmados del informe (/informe/:token) superan el límite
+    // por defecto de 100 caracteres por parámetro.
+    maxParamLength: 512,
   });
 
   await app.register(cors, { origin: true, credentials: true });

@@ -10,9 +10,9 @@
  * (Railway). Si no hay SMTP configurado, el worker no corre (y no falla).
  */
 import { pool } from '../db/pool';
-import { config } from '../config';
 import { isMailEnabled, sendReportMail } from './mailer';
 import { buildReportData, normalizeMonth } from './report-data';
+import { reportLinkUrl } from './report-link';
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // cada hora
 
@@ -56,11 +56,12 @@ async function runDueSchedules(): Promise<void> {
         locationId: s.location_id || undefined,
       });
 
-      const p = new URLSearchParams();
-      p.set('month', month);
-      p.set('companyId', s.company_id);
-      if (s.location_id) p.set('locationId', s.location_id);
-      const reportUrl = `${config.publicBaseUrl}/api/report?${p.toString()}`;
+      // Enlace firmado: el destinatario abre el informe sin iniciar sesión.
+      const reportUrl = reportLinkUrl({
+        companyId: s.company_id,
+        locationId: s.location_id || undefined,
+        month,
+      });
 
       await sendReportMail({ to: s.email, data, reportUrl });
 

@@ -6,7 +6,8 @@ import { getSession, hashPassword } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
 import { reportHtml } from '../lib/report';
 import { reportMailHtml } from '../lib/report-mail';
-import { buildReportData } from '../lib/report-data';
+import { buildReportData, normalizeMonth } from '../lib/report-data';
+import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
 
@@ -2023,7 +2024,10 @@ export async function apiRoutes(app: FastifyInstance) {
     if (month) p.set('month', month);
     if (targetCompany) p.set('companyId', targetCompany);
     if (locationId) p.set('locationId', locationId);
-    const reportUrl = `${config.publicBaseUrl}/api/report?${p.toString()}`;
+    // Con empresa concreta, enlace firmado que abre sin iniciar sesión.
+    const reportUrl = targetCompany
+      ? reportLinkUrl({ companyId: targetCompany, locationId, month: normalizeMonth(month || undefined) })
+      : `${config.publicBaseUrl}/api/report?${p.toString()}`;
 
     try {
       await sendReportMail({ to: email, data, reportUrl });
@@ -2052,6 +2056,40 @@ export async function apiRoutes(app: FastifyInstance) {
     }
   );
 
+  // Informe abierto desde el correo: enlace firmado, sin sesión. Solo lectura y
+  // solo el alcance que lleva el token (empresa, sede y mes).
+  app.get<{ Params: { token: string } }>('/informe/:token', async (req, reply) => {
+    const v = verifyReportLink(req.params.token);
+    if (!v.ok) {
+      const expired = v.reason === 'expired';
+      return reply
+        .code(expired ? 410 : 404)
+        .type('text/html; charset=utf-8')
+        .send(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="robots" content="noindex" />
+<title>Informe no disponible · NFCloud</title></head>
+<body style="margin:0;background:#f5f4f2;font-family:'Segoe UI',Roboto,Arial,sans-serif;color:#1c1917">
+<div style="max-width:440px;margin:12vh auto;padding:32px 28px;background:#fff;border:1px solid #e7e5e4;border-radius:16px">
+<div style="font-weight:800;color:#1e40af;font-size:18px;margin-bottom:16px">NFCloud</div>
+<h1 style="font-size:20px;margin:0 0 8px">${expired ? 'Este enlace ya venció' : 'Enlace no válido'}</h1>
+<p style="color:#78716c;font-size:15px;line-height:1.55;margin:0 0 20px">${
+          expired
+            ? 'Por seguridad, los enlaces de los informes duran 60 días. Inicia sesión para ver este y otros informes.'
+            : 'Revisa que el enlace esté completo o inicia sesión para ver tus informes.'
+        }</p>
+<a href="/login" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600">Iniciar sesión</a>
+</div></body></html>`);
+    }
+    const company = await query<{ id: string }>(`SELECT id FROM companies WHERE id = $1`, [v.companyId]);
+    if (!company[0]) return reply.code(404).send('Informe no disponible.');
+    const data = await buildReportData({ month: v.month, companyId: v.companyId, locationId: v.locationId });
+    reply
+      .header('X-Robots-Tag', 'noindex')
+      .header('Referrer-Policy', 'no-referrer')
+      .type('text/html; charset=utf-8')
+      .send(reportHtml(data));
+  });
+
   // Vista previa del correo del informe (mismo alcance que /api/report).
   app.get<{ Querystring: { month?: string; companyId?: string; locationId?: string } }>(
     '/api/report-mail-preview',
@@ -2064,7 +2102,9 @@ export async function apiRoutes(app: FastifyInstance) {
       if (companyId) p.set('companyId', companyId);
       if (q.locationId) p.set('locationId', q.locationId);
       const html = reportMailHtml(data, {
-        reportUrl: `${config.publicBaseUrl}/api/report?${p.toString()}`,
+        reportUrl: companyId
+          ? reportLinkUrl({ companyId, locationId: q.locationId, month: normalizeMonth(q.month) })
+          : `${config.publicBaseUrl}/api/report?${p.toString()}`,
         assetBaseUrl: config.publicBaseUrl.replace(/\/$/, ''),
       });
       reply.type('text/html; charset=utf-8').send(html);

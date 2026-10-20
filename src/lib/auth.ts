@@ -222,6 +222,8 @@ export function registerAuthGuard(app: FastifyInstance) {
 
     if (
       url.startsWith('/r/') ||
+      // Informe por enlace firmado desde el correo (el token valida el acceso).
+      url.startsWith('/informe/') ||
       url === '/api/login' ||
       url === '/api/logout' ||
       url === '/api/me' ||
