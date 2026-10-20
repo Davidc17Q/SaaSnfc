@@ -24,8 +24,11 @@ vistosos. El dato es la estrella.
   anti-doble-conteo de escaneos).
 - Frontend: **HTML/CSS/JS vanilla sin framework**, **Chart.js local**
   (`public/chart.umd.min.js`). Iconos Lucide propios (`public/icons.js`).
-- Despliegue: **Railway** (`npm start`). Correo: **Resend** (API HTTP) vía
-  `src/lib/mailer.ts`.
+- Despliegue: **Railway** (`npm start`), dominio de producción
+  **https://nfcloudco.com** (`PUBLIC_BASE_URL` en Railway; en local,
+  `http://localhost:3000`). Correo: **Resend** (API HTTP) vía `src/lib/mailer.ts`.
+- Reputación de Google (`reputation_snapshots`): hoy se registra a mano
+  (superadmin, `source='manual'`); no viene de las encuestas internas.
 
 Archivos clave:
 - `src/db/schema.sql` — esquema (aditivo e idempotente: `CREATE TABLE IF NOT
