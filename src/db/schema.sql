@@ -156,11 +156,31 @@ SELECT brand,
            EXISTS (SELECT 1 FROM companies c WHERE c.slug = nfc_slugify(nb.brand)) AS base_taken
       FROM (
         SELECT DISTINCT brand FROM locations
-         WHERE brand IS NOT NULL AND brand <> ''
+         WHERE company_id IS NULL
+           AND brand IS NOT NULL AND brand <> ''
            AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.name = locations.brand)
       ) nb
   ) ranked
 ON CONFLICT (slug) DO NOTHING;
+
+-- Limpieza de empresas "fantasma" que versiones anteriores de este backfill
+-- crearon a partir de la marca de sedes que YA tenían empresa. Solo borra una
+-- empresa si está totalmente vacía (sin sedes, usuarios, plantillas, informes
+-- programados ni campañas) y su nombre coincide con la marca de alguna sede de
+-- OTRA empresa. Idempotente.
+DO $$
+BEGIN
+  IF to_regclass('public.campaigns') IS NOT NULL THEN
+    DELETE FROM companies c
+     WHERE NOT EXISTS (SELECT 1 FROM locations l WHERE l.company_id = c.id)
+       AND NOT EXISTS (SELECT 1 FROM users u WHERE u.company_id = c.id)
+       AND NOT EXISTS (SELECT 1 FROM survey_templates t WHERE t.company_id = c.id)
+       AND NOT EXISTS (SELECT 1 FROM report_schedules r WHERE r.company_id = c.id)
+       AND NOT EXISTS (SELECT 1 FROM campaigns k WHERE k.company_id = c.id)
+       AND EXISTS (SELECT 1 FROM locations l2
+                    WHERE l2.brand = c.name AND l2.company_id IS NOT NULL AND l2.company_id <> c.id);
+  END IF;
+END $$;
 
 -- Asignar cada sede sin empresa a la que corresponde a su marca.
 -- El join por nombre de marca es exacto (una empresa por marca distinta).
@@ -282,3 +302,23 @@ CREATE TABLE IF NOT EXISTS campaigns (
   CHECK (ends_on >= starts_on)
 );
 CREATE INDEX IF NOT EXISTS idx_campaigns_company ON campaigns(company_id, starts_on);
+
+-- ============================================================================
+-- Cambios masivos por empresa: el historial era global y cualquier usuario veía
+-- y podía revertir cambios de otras empresas. company_id NULL = hecho por el
+-- superadmin sobre todas las empresas (solo lo ve el superadmin).
+-- ============================================================================
+ALTER TABLE bulk_updates ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+UPDATE bulk_updates b
+   SET company_id = l.company_id
+  FROM devices d
+  JOIN locations l ON l.id = d.location_id
+ WHERE b.company_id IS NULL
+   AND jsonb_array_length(b.snapshot) > 0
+   AND d.id = (b.snapshot->0->>'device_id')::uuid
+   AND NOT EXISTS (
+     SELECT 1 FROM jsonb_array_elements(b.snapshot) e
+       JOIN devices d2 ON d2.id = (e->>'device_id')::uuid
+       JOIN locations l2 ON l2.id = d2.location_id
+      WHERE l2.company_id IS DISTINCT FROM l.company_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_company ON bulk_updates(company_id, created_at DESC);

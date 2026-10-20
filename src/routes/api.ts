@@ -1239,6 +1239,16 @@ export async function apiRoutes(app: FastifyInstance) {
   }>('/api/devices/:id', async (req, reply) => {
     const { id } = req.params;
     const { target_url, status } = req.body || {};
+    {
+      const scopeCompany = resolveCompanyId(req);
+      const owner = await query<{ company_id: string | null }>(
+        `SELECT l.company_id FROM devices d JOIN locations l ON l.id = d.location_id WHERE d.id = $1`,
+        [id]
+      );
+      if (!owner[0] || (scopeCompany !== undefined && owner[0].company_id !== scopeCompany)) {
+        return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
+      }
+    }
     const mode =
       req.body?.mode === 'survey' || req.body?.mode === 'redirect' ? req.body.mode : undefined;
 
@@ -1371,6 +1381,9 @@ export async function apiRoutes(app: FastifyInstance) {
   }>('/api/locations/:id', async (req, reply) => {
     const { id } = req.params;
     const { name, brand, city, status } = req.body || {};
+    if (!(await locationInScope(req, id))) {
+      return reply.code(404).send({ error: 'Sede no encontrada.' });
+    }
 
     const fields: string[] = [];
     const params: any[] = [];
@@ -1409,6 +1422,9 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Eliminar sede (y sus dispositivos/escaneos en cascada) ----------
   app.delete<{ Params: { id: string } }>('/api/locations/:id', async (req, reply) => {
     const { id } = req.params;
+    if (!(await locationInScope(req, id))) {
+      return reply.code(404).send({ error: 'Sede no encontrada.' });
+    }
 
     // Recuperar dispositivos para limpiar su caché en Redis
     const devs = await pool.query('SELECT id FROM devices WHERE location_id = $1', [id]);
@@ -1598,19 +1614,23 @@ export async function apiRoutes(app: FastifyInstance) {
     // Registrar en el historial con el snapshot para poder revertir
     const snapshot = before.map((b) => ({ device_id: b.device_id, target_url: b.target_url }));
     const hist = await query<{ id: string }>(
-      `INSERT INTO bulk_updates (scope, scope_label, new_url, affected, snapshot)
-       VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING id`,
-      [scope, scopeLabel, target_url, updated.length, JSON.stringify(snapshot)]
+      `INSERT INTO bulk_updates (scope, scope_label, new_url, affected, snapshot, company_id)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6) RETURNING id`,
+      [scope, scopeLabel, target_url, updated.length, JSON.stringify(snapshot), companyId ?? null]
     );
 
     return { ok: true, affected: updated.length, historyId: hist[0]?.id, scopeLabel };
   });
 
   // ---------- Historial de cambios masivos ----------
-  app.get('/api/bulk-updates', async () => {
+  app.get('/api/bulk-updates', async (req) => {
+    const companyId = resolveCompanyId(req);
     const rows = await query(
       `SELECT id, scope, scope_label, new_url, affected, reverted, created_at
-         FROM bulk_updates ORDER BY created_at DESC LIMIT 30`
+         FROM bulk_updates
+        ${companyId !== undefined ? 'WHERE company_id = $1' : ''}
+        ORDER BY created_at DESC LIMIT 30`,
+      companyId !== undefined ? [companyId] : []
     );
     return rows;
   });
@@ -1618,11 +1638,12 @@ export async function apiRoutes(app: FastifyInstance) {
   // ---------- Revertir un cambio masivo ----------
   app.post<{ Params: { id: string } }>('/api/bulk-updates/:id/revert', async (req, reply) => {
     const { id } = req.params;
-    const rows = await query<{ snapshot: any; reverted: boolean }>(
-      `SELECT snapshot, reverted FROM bulk_updates WHERE id = $1`,
+    const companyId = resolveCompanyId(req);
+    const rows = await query<{ snapshot: any; reverted: boolean; company_id: string | null }>(
+      `SELECT snapshot, reverted, company_id FROM bulk_updates WHERE id = $1`,
       [id]
     );
-    if (rows.length === 0) {
+    if (rows.length === 0 || (companyId !== undefined && rows[0].company_id !== companyId)) {
       return reply.code(404).send({ error: 'Registro no encontrado.' });
     }
     if (rows[0].reverted) {
