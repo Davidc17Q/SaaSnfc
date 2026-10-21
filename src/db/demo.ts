@@ -267,13 +267,15 @@ async function insertScans(devices: DemoDevice[], from: Date, to: Date, today: D
 // Encuestas y reputación
 // ----------------------------------------------------------------------------
 const ASPECTS = ['Atención del personal', 'Orden y limpieza', 'Variedad de productos', 'Tiempo en caja'];
-const COMMENTS = [
+const GOOD_COMMENTS = [
   'Muy buena atención, la asesora me ayudó a encontrar la talla.',
   'Encontré todo lo que buscaba para la casa.',
-  'La fila para pagar estaba muy larga.',
   'Buenos precios en Ofertubre.',
-  'Faltaban tallas en jeans.',
   'Tienda ordenada y limpia.',
+];
+const BAD_COMMENTS = [
+  'La fila para pagar estaba muy larga.',
+  'Faltaban tallas en jeans.',
   'Me gustaría más variedad en calzado.',
 ];
 
@@ -302,13 +304,15 @@ async function insertSurvey(companyId: string, devices: DemoDevice[], from: Date
       for (let i = 0; i < n; i++) {
         const at = new Date(day.getTime() + hourPick() * 3600_000 + Math.floor(rnd() * 3600_000));
         if (at > to) continue;
-        const comment = rnd() < 0.12 ? pick(COMMENTS) : null;
         // Notas mayormente altas; "Tiempo en caja" es el punto débil (más en Bello).
         const ratings = aspectIds.map((_, k) => {
           let mean = [4.6, 4.4, 4.2, 3.9][k];
           if (k === 3 && dev.storeName === SLOW_CHECKOUT_STORE) mean = 3.1;
           return Math.min(5, Math.max(1, Math.round(mean + (rnd() - 0.5) * 2)));
         });
+        // El comentario va de acuerdo con la nota de la visita.
+        const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+        const comment = rnd() < 0.12 ? (avg >= 4 ? pick(GOOD_COMMENTS) : avg < 3.5 ? pick(BAD_COMMENTS) : null) : null;
         pending.push({ dev, at, comment, ratings });
       }
     }

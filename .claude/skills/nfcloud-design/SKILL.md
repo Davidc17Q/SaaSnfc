@@ -127,8 +127,11 @@ en este orden: **¿cómo vamos? → ¿qué cambió? → ¿qué hago?**
   `.kpi-delta-up|down|flat` (color solo si |variación| ≥ 5 %).
 - Datos técnicos plegados: `<details class="card tech-details">`.
 - Barras de herramientas de tablas que se acomodan en móvil: `.table-toolbar`.
-- Informe mensual (`src/lib/report.ts`): resumen escrito, variación vs mes
-  anterior y layout de una columna en ≤ 640 px.
+- Informe mensual (`src/lib/report.ts` + `report-story.ts`): historia en
+  capítulos (Resumen, Tiendas, Campañas, Clientes, Qué hacer) que se ocultan o
+  adaptan si no hay datos; titular y recomendaciones generados por reglas
+  (`reportRecommendations`); mes en curso comparado con los mismos días del
+  mes anterior; una sola sede → ranking de puntos NFC.
 
 ## Verificación visual
 

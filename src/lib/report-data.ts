@@ -11,6 +11,7 @@
 import { query } from '../db/pool';
 import type { ReportData } from './report';
 import { campaignUplift } from './campaign-effect';
+import { buildStory } from './report-story';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
@@ -83,7 +84,17 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
   // Mes anterior completo, mismo alcance: da contexto al KPI principal.
   const prevDate = new Date(yy, mm - 2, 1);
   const prevFrom = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
-  const prevParams: any[] = [prevFrom, from];
+  // Mes en curso: se compara contra los MISMOS días del mes anterior (comparar
+  // 20 días contra un mes completo exageraría la caída).
+  const todayLocal = new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+  const inProgressDays = todayLocal >= from && todayLocal <= to ? parseInt(todayLocal.slice(8, 10), 10) : null;
+  let prevEnd = from;
+  if (inProgressDays !== null) {
+    const pe = new Date(Date.UTC(prevDate.getFullYear(), prevDate.getMonth(), 1 + inProgressDays));
+    const peIso = pe.toISOString().slice(0, 10);
+    prevEnd = peIso < from ? peIso : from;
+  }
+  const prevParams: any[] = [prevFrom, prevEnd];
   let prevWhere = `se.scanned_at >= (($1::date)::timestamp AT TIME ZONE '${APP_TZ}')
                    AND se.scanned_at < (($2::date)::timestamp AT TIME ZONE '${APP_TZ}')`;
   if (scope.locationId) {
@@ -220,6 +231,16 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     inactiveParams
   );
 
+  // Datos del informe por capítulos (ranking, calor, campañas, clientes...).
+  const story = await buildStory({
+    companyId: scope.companyId,
+    locationId: scope.locationId,
+    from,
+    to,
+    prevFrom,
+    prevTo: prevEnd,
+  });
+
   const generatedAt = new Date().toLocaleString('es-CO', {
     timeZone: APP_TZ,
     dateStyle: 'long',
@@ -235,6 +256,7 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
       totalScans: parseInt(totalRow[0]?.total || '0', 10),
       prevTotal: parseInt(prevRow[0]?.total || '0', 10),
       prevPeriodLabel: `${MESES[prevDate.getMonth()]} ${prevDate.getFullYear()}`,
+      inProgressDays,
       topLocation: topLoc[0]
         ? { name: topLoc[0].name, city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
         : null,
@@ -250,5 +272,6 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     survey,
     campaigns,
     inactiveLocations: parseInt(inactiveRow[0]?.c || '0', 10),
+    story,
   };
 }
