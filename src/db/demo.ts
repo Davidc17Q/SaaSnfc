@@ -292,7 +292,9 @@ async function insertSurvey(companyId: string, devices: DemoDevice[], from: Date
     aspectIds.push(a.rows[0].id);
   }
 
-  let total = 0;
+  // Se generan en memoria y se insertan por lotes: contra una base remota
+  // (producción) una consulta por respuesta tardaría varios minutos.
+  const pending: { dev: DemoDevice; at: Date; comment: string | null; ratings: number[] }[] = [];
   for (const dev of devices.filter((d) => d.survey)) {
     await pool.query(`UPDATE devices SET mode = 'survey', survey_template_id = $1 WHERE id = $2`, [templateId, dev.id]);
     for (let day = localMidnight(from); day <= to; day = addDays(day, 1)) {
@@ -301,25 +303,43 @@ async function insertSurvey(companyId: string, devices: DemoDevice[], from: Date
         const at = new Date(day.getTime() + hourPick() * 3600_000 + Math.floor(rnd() * 3600_000));
         if (at > to) continue;
         const comment = rnd() < 0.12 ? pick(COMMENTS) : null;
-        const r = await pool.query(
-          `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip, submitted_at)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-          [dev.id, dev.locationId, templateId, comment, ip(), at.toISOString()]
-        );
-        const vals: string[] = [];
-        const params: any[] = [];
-        aspectIds.forEach((aid, k) => {
-          // Notas mayormente altas; "Tiempo en caja" es el punto débil (más en Bello).
+        // Notas mayormente altas; "Tiempo en caja" es el punto débil (más en Bello).
+        const ratings = aspectIds.map((_, k) => {
           let mean = [4.6, 4.4, 4.2, 3.9][k];
           if (k === 3 && dev.storeName === SLOW_CHECKOUT_STORE) mean = 3.1;
-          const rating = Math.min(5, Math.max(1, Math.round(mean + (rnd() - 0.5) * 2)));
-          vals.push(`($${k * 3 + 1},$${k * 3 + 2},$${k * 3 + 3})`);
-          params.push(r.rows[0].id, aid, rating);
+          return Math.min(5, Math.max(1, Math.round(mean + (rnd() - 0.5) * 2)));
         });
-        await pool.query(`INSERT INTO survey_answers (response_id, aspect_id, rating) VALUES ${vals.join(',')}`, params);
-        total++;
+        pending.push({ dev, at, comment, ratings });
       }
     }
+  }
+
+  const total = pending.length;
+  for (let i = 0; i < pending.length; i += 400) {
+    const chunk = pending.slice(i, i + 400);
+    const values: string[] = [];
+    const params: any[] = [];
+    chunk.forEach((r, j) => {
+      const b = j * 6;
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6})`);
+      params.push(r.dev.id, r.dev.locationId, templateId, r.comment, ip(), r.at.toISOString());
+    });
+    // RETURNING conserva el orden de VALUES en un INSERT simple.
+    const ids = await pool.query<{ id: string }>(
+      `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip, submitted_at)
+       VALUES ${values.join(',')} RETURNING id`,
+      params
+    );
+    const aVals: string[] = [];
+    const aParams: any[] = [];
+    chunk.forEach((r, j) => {
+      r.ratings.forEach((rating, k) => {
+        const b = aParams.length;
+        aVals.push(`($${b + 1},$${b + 2},$${b + 3})`);
+        aParams.push(ids.rows[j].id, aspectIds[k], rating);
+      });
+    });
+    await pool.query(`INSERT INTO survey_answers (response_id, aspect_id, rating) VALUES ${aVals.join(',')}`, aParams);
   }
   return total;
 }
