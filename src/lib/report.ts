@@ -170,6 +170,24 @@ function logoWhiteDataUri(): string | null {
   return _logoWhite;
 }
 
+// Colores de marca de cada destino (los mismos del panel, public/app.js): son
+// información — reconocer WhatsApp o Instagram de un vistazo —, no decoración.
+const CHANNEL_COLORS: Record<string, string> = {
+  WhatsApp: '#25d366',
+  Instagram: '#e1306c',
+  'Google Reviews': '#4285f4',
+  Facebook: '#1877f2',
+  TikTok: '#000000',
+  YouTube: '#ff0000',
+  'X (Twitter)': '#1da1f2',
+  Telegram: '#229ed9',
+  Linktree: '#39e09b',
+  Llamada: '#0ea5e9',
+  Email: '#64748b',
+  'Sitio web': '#2563eb',
+};
+const channelColor = (c: string) => CHANNEL_COLORS[c] || '#a8a29e';
+
 const DAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados', 'domingos'];
 const DAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -378,7 +396,7 @@ export function reportHtml(d: ReportData): string {
   chapters.push({
     id: 'resumen',
     title: 'Tu mes en cifras',
-    html: `<div class="kpis">${kpis.join('')}</div>
+    html: `<div class="kpis n${kpis.length}">${kpis.join('')}</div>
       ${k.totalScans ? `<div class="card">
         <div class="chart-head">
           <div><h3>Interacciones por día</h3><p class="desc">${hasPrev ? `${esc(month)} frente a ${esc(prevMonth)}.` : esc(month) + '.'}${(d.campaigns || []).length ? ' Las franjas son campañas.' : ''}</p></div>
@@ -386,7 +404,19 @@ export function reportHtml(d: ReportData): string {
         </div>
         <div class="chart-box"><canvas id="cTrend" aria-label="Interacciones por día"></canvas></div>
         <div class="legend"><span><i></i>${esc(month)}</span>${hasPrev ? `<span id="lgPrev"><i class="prev"></i>${esc(prevMonth.charAt(0).toUpperCase() + prevMonth.slice(1))}</span>` : ''}${(d.campaigns || []).length ? '<span><i class="band"></i>Campaña</span>' : ''}</div>
-      </div>` : ''}`,
+      </div>` : ''}
+      ${d.channels.length >= 2 ? (() => {
+        const total = d.channels.reduce((a, c) => a + c.scans, 0) || 1;
+        const max = Math.max(...d.channels.map((c) => c.scans), 1);
+        return `<div class="card"><h3>A dónde fueron tus clientes</h3>
+          <p class="desc">Destino al que llevó cada interacción.</p>
+          <div class="dest">${d.channels.slice(0, 5).map((c) => `
+            <div class="dest-row">
+              <span class="dest-name"><i style="background:${channelColor(c.channel)}"></i>${esc(c.channel)}</span>
+              <div class="dest-track"><div class="dest-fill" style="width:${Math.max(2, (c.scans / max) * 100)}%;background:${channelColor(c.channel)}"></div></div>
+              <span class="dest-val">${pct((c.scans / total) * 100)} %</span>
+            </div>`).join('')}</div></div>`;
+      })() : ''}`,
   });
 
   if (ranking.length) {
@@ -581,7 +611,9 @@ export function reportHtml(d: ReportData): string {
   .card h3{font-size:15px;font-weight:700}
   .card .desc{font-size:13px;color:var(--muted);margin-top:2px}
   .card.empty{border-style:dashed;box-shadow:none}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:20px}
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+  .kpis.n3{grid-template-columns:repeat(3,minmax(0,1fr))} .kpis.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:780px){.kpis,.kpis.n3{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
   .kpi .lbl{font-size:13px;color:var(--muted);font-weight:500}
   .kpi .val{font-size:28px;font-weight:800;letter-spacing:-.02em;margin-top:4px;line-height:1.1}
@@ -598,6 +630,13 @@ export function reportHtml(d: ReportData): string {
   .legend i.prev{background:#a8a29e}
   .legend i.band{height:10px;width:12px;background:rgba(37,99,235,.10);border-left:1px solid rgba(37,99,235,.35);border-right:1px solid rgba(37,99,235,.35)}
   .chart-box{position:relative;height:260px;margin-top:12px}
+  .dest{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+  .dest-row{display:grid;grid-template-columns:150px 1fr 56px;gap:12px;align-items:center;font-size:14px}
+  .dest-name{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0}
+  .dest-name i{flex:none;width:8px;height:8px;border-radius:50%}
+  .dest-track{height:10px;border-radius:5px;background:var(--line-soft);overflow:hidden}
+  .dest-fill{height:100%;border-radius:5px}
+  .dest-val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
   .rank-wrap{overflow-x:auto;margin-top:12px}
   table.rank{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
   .rank th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -650,6 +689,7 @@ export function reportHtml(d: ReportData): string {
     .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     .kpi .val{font-size:24px}
     .asp-row{grid-template-columns:120px 1fr 40px}
+    .dest-row{grid-template-columns:110px 1fr 48px}
     .heat{gap:2px;font-size:10px}
     .actions .btn:not(.primary){display:none}
     table.rank{min-width:0}
@@ -661,7 +701,7 @@ export function reportHtml(d: ReportData): string {
     body{background:#fff}
     .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .card,.camp,.todo-item,.kpi,.quote{break-inside:avoid}
-    .todo-item,.rank tr.flag td,.delta,.heat .c,.asp-fill,.bda .bar,.callout{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .todo-item,.rank tr.flag td,.delta,.heat .c,.asp-fill,.dest-fill,.dest-name i,.bda .bar,.callout{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>

@@ -1929,3 +1929,5 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 }
 .campaign-view:hover { text-decoration: underline; }
 .campaign-view:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.rep-month-hint { color: var(--accent-contrast); font-weight: 500; }

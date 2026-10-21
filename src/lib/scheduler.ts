@@ -21,6 +21,11 @@ function previousMonth(): string {
   return normalizeMonth(undefined);
 }
 
+/** 'YYYY-MM' del mes actual (hora del negocio, Bogotá). */
+function currentMonth(): string {
+  return new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 7);
+}
+
 /** Calcula el próximo next_run_at desde ahora según la frecuencia. */
 function nextRunFrom(now: Date, frequency: string): Date {
   const d = new Date(now);
@@ -49,7 +54,9 @@ async function runDueSchedules(): Promise<void> {
   for (const s of due.rows) {
     const now = new Date();
     try {
-      const month = previousMonth();
+      // Mensual: el mes que acaba de cerrar. Semanal: lo que va del mes en curso
+      // (si no, cada semana llegaría el mismo informe del mes anterior).
+      const month = s.frequency === 'weekly' ? currentMonth() : previousMonth();
       const data = await buildReportData({
         month,
         companyId: s.company_id,

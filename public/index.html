@@ -498,6 +498,7 @@
             <button id="repGenerate" class="btn-primary text-sm section-title-icon"><span data-icon="file-text"></span> Generar informe</button>
             <button id="repMailPreview" class="btn-ghost text-sm" style="border:1px solid var(--card-border)">Ver correo</button>
           </div>
+          <p id="repMonthHint" class="text-xs mt-3 rep-month-hint hidden"></p>
           <p class="text-xs text-slate-500 mt-3">El informe se abre en una pestaña nueva. Desde ahí usa “Descargar / Imprimir PDF”. “Ver correo” muestra cómo le llega al destinatario.</p>
         </div>
 
@@ -516,8 +517,8 @@
             <div>
               <label class="kpi-label block mb-1">Frecuencia</label>
               <select id="repFrequency" class="input text-sm">
-                <option value="monthly">Mensual</option>
-                <option value="weekly">Semanal</option>
+                <option value="monthly">Mensual · el mes que acaba de cerrar</option>
+                <option value="weekly">Semanal · lo que va del mes en curso</option>
               </select>
             </div>
             <button id="repSendNow" class="btn-ghost text-sm" style="border:1px solid var(--card-border)">Enviar ahora</button>

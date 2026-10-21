@@ -3281,8 +3281,10 @@ function loadReports() {
   }
 
   fillReportLocations();
+  updateMonthHint();
 
   if (!reportsWired) {
+    if (monthEl) monthEl.addEventListener('change', updateMonthHint);
     reportsWired = true;
     const gen = $('#repGenerate');
     if (gen) gen.addEventListener('click', () => generateReport('report'));
@@ -3479,6 +3481,25 @@ function fillReportLocations() {
 }
 
 // Abre el informe (HTML imprimible) en una pestaña nueva con los filtros elegidos.
+// Explica qué informe saldrá según el mes elegido (en curso vs. cerrado).
+function updateMonthHint() {
+  const el = $('#repMonthHint');
+  const v = $('#repMonth') && $('#repMonth').value;
+  if (!el || !v) return;
+  const now = new Date();
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const name = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(new Date(+v.slice(0, 4), +v.slice(5, 7) - 1, 1));
+  if (v === current) {
+    el.textContent = `${name.charAt(0).toUpperCase() + name.slice(1)} está en curso: el informe muestra lo que va del mes y lo compara con los mismos días del mes anterior.`;
+    el.classList.remove('hidden');
+  } else if (v > current) {
+    el.textContent = 'Ese mes todavía no empieza: elige el mes actual o uno anterior.';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
 function generateReport(target = 'report') {
   const month = $('#repMonth').value;
   const locationId = $('#repLocation').value;
