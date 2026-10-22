@@ -2542,12 +2542,27 @@ async function loadAdmin() {
           <td class="td font-medium">${escapeHtml(c.name)}</td>
           <td class="td">${badge}</td>
           <td class="td text-right">${fmt(c.locations ?? 0)}</td>
+          <td class="td">
+            <div class="plan-cell">${planBadge(c)}
+              <select class="input text-xs plan-select" data-id="${c.id}" aria-label="Cambiar plan de ${escapeHtml(c.name)}">
+                <option value="">Cambiar…</option>
+                <option value="trial">Prueba 30 días</option>
+                <option value="pro">Pro</option>
+                <option value="basic">Básico</option>
+              </select>
+            </div>
+          </td>
           <td class="td text-right">${btn}</td>
         </tr>`;
           })
           .join('')
-      : '<tr><td class="td text-slate-500" colspan="4">Sin empresas.</td></tr>';
+      : '<tr><td class="td text-slate-500" colspan="5">Sin empresas.</td></tr>';
 
+    cbody.querySelectorAll('.plan-select').forEach((sel) =>
+      sel.addEventListener('change', () => {
+        if (sel.value) changePlan(sel.dataset.id, sel.value);
+      })
+    );
     cbody.querySelectorAll('.sub-toggle').forEach((b) =>
       b.addEventListener('click', () => toggleSubscription(b.dataset.id, b.dataset.next))
     );
@@ -2568,6 +2583,96 @@ async function loadAdmin() {
   } catch {
     /* ignore */
   }
+}
+
+// ---------------------------------------------------------------------------
+// Planes (prueba gratis / Pro / Básico)
+// ---------------------------------------------------------------------------
+async function showPlanWall() {
+  let st = {};
+  try {
+    st = await api('/api/plan-status');
+  } catch {
+    /* sin datos: se muestra igual el mensaje */
+  }
+  const since = st.basicSince
+    ? new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long' }).format(new Date(st.basicSince))
+    : null;
+  const shell = document.querySelector('.app-shell');
+  const wall = document.createElement('div');
+  wall.className = 'plan-wall';
+  const hasStat = st.scansSinceBasic !== null && st.scansSinceBasic !== undefined;
+  wall.innerHTML = `
+    <div class="plan-card">
+      <p class="plan-eyebrow">${escapeHtml(st.companyName || 'Tu empresa')}</p>
+      <h1>Tu prueba gratis de NFCloud terminó</h1>
+      <p class="plan-lead"><b>Tus tarjetas siguen funcionando.</b> Tus clientes siguen llegando a tu web, WhatsApp, Instagram o reseñas como siempre.</p>
+      ${hasStat ? `
+      <div class="plan-stat">
+        <span class="plan-stat-num">${fmt(st.scansSinceBasic)}</span>
+        <span class="plan-stat-label">interacciones registradas${since ? ` desde el ${since}` : ''} que no estás viendo</span>
+      </div>` : ''}
+      <p class="plan-text">Reactiva NFCloud para volver a ver tus métricas, cambiar destinos sin reimprimir y recibir tus informes. Todo tu historial te está esperando.</p>
+      <div class="plan-actions">
+        <a class="btn-primary plan-cta" href="${st.whatsapp || '#'}" target="_blank" rel="noopener">Reactivar por WhatsApp</a>
+        <button type="button" id="planLogout" class="btn-ghost">Cerrar sesión</button>
+      </div>
+    </div>`;
+  (shell || document.body).replaceWith(wall);
+  wall.querySelector('#planLogout').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    window.location.href = '/login';
+  });
+}
+
+async function showTrialBanner() {
+  try {
+    const st = await api('/api/plan-status');
+    if (st.plan !== 'trial' || st.daysLeft === null) return;
+    const el = $('#trialBanner');
+    const d = st.daysLeft;
+    const left = d === 0 ? 'termina hoy' : d === 1 ? 'te queda 1 día' : `te quedan ${d} días`;
+    el.innerHTML = `<span><b>Prueba gratis:</b> ${left}.</span><a href="${st.whatsapp}" target="_blank" rel="noopener">Continuar con NFCloud</a>`;
+    el.classList.toggle('trial-urgent', d <= 7);
+    el.classList.remove('hidden');
+  } catch {
+    /* sin aviso */
+  }
+}
+
+const PLAN_LABEL = { trial: 'Prueba', pro: 'Pro', basic: 'Básico' };
+
+function planBadge(c) {
+  const plan = c.plan || 'pro';
+  let extra = '';
+  if (plan === 'trial' && c.trial_ends_at) {
+    const d = Math.ceil((new Date(c.trial_ends_at) - Date.now()) / 86400000);
+    extra = d > 0 ? ` · ${d} d` : ' · vencida';
+  }
+  return `<span class="plan-badge plan-${plan}">${PLAN_LABEL[plan] || plan}${extra}</span>`;
+}
+
+async function changePlan(id, plan) {
+  const c = (state.companies || []).find((x) => x.id === id);
+  const nombre = c ? c.name : 'esta empresa';
+  const msgs = {
+    trial: `Se iniciará una prueba gratis de 30 días para "${nombre}" con todo incluido.`,
+    pro: `"${nombre}" pasará a Pro: acceso completo al panel e informes.`,
+    basic: `"${nombre}" pasará a Básico: sus tarjetas seguirán funcionando, pero no podrán entrar al panel ni recibir informes.`,
+  };
+  const ok = await confirmDialog({ title: `Cambiar a ${PLAN_LABEL[plan]}`, message: msgs[plan], confirmText: 'Cambiar plan' });
+  if (!ok) {
+    loadAdmin();
+    return;
+  }
+  const res = await fetch(`/api/companies/${id}/plan`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan }),
+  });
+  if (!res.ok) toast('No se pudo cambiar el plan', false);
+  else toast(`Plan actualizado a ${PLAN_LABEL[plan]}`);
+  loadAdmin();
 }
 
 async function toggleSubscription(id, next) {
@@ -3959,6 +4064,13 @@ async function init() {
 
   await initSession();
 
+  // Plan Básico (prueba vencida): solo se muestra la pantalla de reactivación.
+  if (state.role === 'company_admin' && state.plan === 'basic') {
+    await showPlanWall();
+    return;
+  }
+  if (state.role === 'company_admin' && state.plan === 'trial') showTrialBanner();
+
   await loadLocations();
   await loadDevices();
   await loadDashboard();
@@ -3980,6 +4092,7 @@ async function initSession() {
   try {
     const me = await api('/api/me');
     state.role = me.role || null;
+    state.plan = me.plan || 'pro';
     const nameEl = $('#userName');
     if (nameEl) nameEl.textContent = me.companyName ? `${me.user} · ${me.companyName}` : me.user;
 

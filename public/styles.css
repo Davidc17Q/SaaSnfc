@@ -1931,3 +1931,48 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .campaign-view:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 .rep-month-hint { color: var(--accent-contrast); font-weight: 500; }
+
+/* =========================================================================
+   PLANES: aviso de prueba, pantalla de plan vencido y etiquetas en Empresas
+   ========================================================================= */
+.trial-banner {
+  display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.55rem 1rem; font-size: 0.85rem;
+  background: var(--accent-soft); color: var(--input-text);
+  border-bottom: 1px solid var(--card-border);
+}
+.trial-banner a { font-weight: 700; color: var(--accent-contrast); text-decoration: none; }
+.trial-banner a:hover { text-decoration: underline; }
+.trial-banner.trial-urgent { background: var(--warn-soft); }
+
+.plan-wall {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 2rem 1rem; background: var(--app-bg);
+}
+.plan-card {
+  width: 100%; max-width: 34rem; background: var(--card-bg);
+  border: 1px solid var(--card-border); border-radius: 1.25rem; padding: 2rem;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04), 0 10px 30px rgba(28, 25, 23, 0.06);
+}
+.plan-eyebrow { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.plan-card h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 0.25rem; color: var(--input-text); }
+.plan-lead { margin-top: 0.75rem; font-size: 0.95rem; color: var(--input-text); line-height: 1.55; }
+.plan-stat {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  margin-top: 1.25rem; padding: 1rem 1.1rem; border-radius: 0.9rem; background: var(--accent-soft);
+}
+.plan-stat-num { font-size: 2rem; font-weight: 800; color: var(--input-text); }
+.plan-stat-label { font-size: 0.9rem; color: var(--muted); }
+.plan-text { margin-top: 1rem; font-size: 0.92rem; color: var(--muted); line-height: 1.55; }
+.plan-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+.plan-cta { text-decoration: none; display: inline-flex; align-items: center; }
+
+.plan-cell { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.plan-select { padding: 0.25rem 0.4rem; max-width: 9rem; }
+.plan-badge {
+  display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 700;
+  padding: 0.15rem 0.55rem; border-radius: 9999px; white-space: nowrap;
+}
+.plan-trial { background: var(--accent-soft); color: var(--accent-contrast); }
+.plan-pro { background: var(--ok-soft); color: var(--ok); }
+.plan-basic { background: var(--neutral-state-soft); color: var(--neutral-state); }

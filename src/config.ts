@@ -28,6 +28,11 @@ export const config = {
   // Railway). Tiene prioridad sobre SMTP.
   resendApiKey: process.env.RESEND_API_KEY || '',
 
+  // WhatsApp de contacto comercial (sin "+"), para reactivar planes y soporte.
+  contactWhatsapp: process.env.CONTACT_WHATSAPP || '573007240273',
+  // Días de prueba gratis por defecto al crear una empresa.
+  trialDays: parseInt(process.env.TRIAL_DAYS || '30', 10),
+
   // Correo SMTP (Función 2, Fase B: envío programado de informes).
   // Si no hay SMTP_HOST ni RESEND_API_KEY, el envío queda deshabilitado (la UI avisa).
   smtp: {

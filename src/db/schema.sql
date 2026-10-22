@@ -322,3 +322,15 @@ UPDATE bulk_updates b
        JOIN locations l2 ON l2.id = d2.location_id
       WHERE l2.company_id IS DISTINCT FROM l.company_id);
 CREATE INDEX IF NOT EXISTS idx_bulk_company ON bulk_updates(company_id, created_at DESC);
+
+-- ============================================================================
+-- PLANES: prueba gratis -> Pro (pago) o Básico (gratis para siempre).
+-- En Básico las tarjetas SIGUEN redirigiendo y se siguen registrando las
+-- interacciones; solo se bloquea el panel. Si el cliente vuelve, se reactiva
+-- sin regrabar nada. Las empresas existentes quedan en 'pro' (sin cambios).
+-- ============================================================================
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'pro'; -- trial | pro | basic
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS basic_since TIMESTAMPTZ;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_notice_7 BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_notice_1 BOOLEAN NOT NULL DEFAULT false;

@@ -29,6 +29,13 @@ vistosos. El dato es la estrella.
   `http://localhost:3000`). Correo: **Resend** (API HTTP) vía `src/lib/mailer.ts`.
 - Reputación de Google (`reputation_snapshots`): hoy se registra a mano
   (superadmin, `source='manual'`); no viene de las encuestas internas.
+- Planes por empresa (`src/lib/plans.ts`): `trial` (prueba, `TRIAL_DAYS`, 30
+  por defecto) → `pro` (paga) o `basic` (prueba vencida). En `basic` las
+  tarjetas SIGUEN redirigiendo y registrando; solo se bloquea la API del panel
+  (402 `plan_basico`). Nunca romper eso: es la promesa comercial.
+- El esquema se aplica también al arrancar el servidor (`applySchema`), así que
+  los cambios aditivos de `schema.sql` llegan a producción con el despliegue.
+- Contingencia sin servidor (Cloudflare): `documentos/CONTINGENCIA-SERVIDOR.md`.
 
 Archivos clave:
 - `src/db/schema.sql` — esquema (aditivo e idempotente: `CREATE TABLE IF NOT

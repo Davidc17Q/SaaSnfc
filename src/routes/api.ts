@@ -9,6 +9,7 @@ import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
+import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
 
@@ -1727,15 +1728,52 @@ export async function apiRoutes(app: FastifyInstance) {
       return rows;
     }
     const rows = await query(
-      `SELECT c.id, c.name, c.slug, c.status,
+      `SELECT c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since,
               COUNT(DISTINCT l.id) AS locations
          FROM companies c
          LEFT JOIN locations l ON l.company_id = c.id
-         GROUP BY c.id, c.name, c.slug, c.status
+         GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since
          ORDER BY c.name ASC`
     );
     return rows.map((r: any) => ({ ...r, locations: parseInt(r.locations, 10) }));
   });
+
+  // ---------- Plan de la empresa del usuario (permitido también en Básico) ----------
+  app.get('/api/plan-status', async (req, reply) => {
+    const s = getSession(req);
+    const companyId = s?.role === 'company_admin' ? s.companyId : ((req.query as any).companyId as string);
+    if (!companyId) return { plan: 'pro' };
+    const st = await planStatus(companyId);
+    if (!st) return reply.code(404).send({ error: 'Empresa no encontrada.' });
+    return st;
+  });
+
+  // ---------- Cambiar el plan de una empresa (solo superadmin) ----------
+  app.patch<{ Params: { id: string }; Body: { plan?: string; trialDays?: number } }>(
+    '/api/companies/:id/plan',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (s?.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede cambiar el plan.' });
+      }
+      const plan = req.body?.plan;
+      if (plan !== 'trial' && plan !== 'pro' && plan !== 'basic') {
+        return reply.code(400).send({ error: 'Plan no válido.' });
+      }
+      const days = Math.min(365, Math.max(1, Number(req.body?.trialDays) || config.trialDays));
+      const sql =
+        plan === 'trial'
+          ? `UPDATE companies SET plan = 'trial', trial_ends_at = now() + ($2 || ' days')::interval,
+                    basic_since = NULL, trial_notice_7 = false, trial_notice_1 = false WHERE id = $1`
+          : plan === 'pro'
+            ? `UPDATE companies SET plan = 'pro', basic_since = NULL WHERE id = $1`
+            : `UPDATE companies SET plan = 'basic', basic_since = COALESCE(basic_since, now()) WHERE id = $1`;
+      const r = await pool.query(sql, plan === 'trial' ? [req.params.id, String(days)] : [req.params.id]);
+      if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
+      invalidatePlan(req.params.id);
+      return { ok: true };
+    }
+  );
 
   // ---------- Empresas: crear (solo superadmin) ----------
   app.post<{ Body: { name?: string } }>('/api/companies', async (req, reply) => {
@@ -1748,8 +1786,11 @@ export async function apiRoutes(app: FastifyInstance) {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     try {
       const r = await pool.query(
-        `INSERT INTO companies (name, slug) VALUES ($1, $2) RETURNING id, name, slug, status`,
-        [name, slug]
+        // Las empresas nuevas empiezan con la prueba gratis (TRIAL_DAYS).
+        `INSERT INTO companies (name, slug, plan, trial_ends_at)
+         VALUES ($1, $2, 'trial', now() + ($3 || ' days')::interval)
+         RETURNING id, name, slug, status`,
+        [name, slug, String(config.trialDays)]
       );
       return reply.code(201).send({ ok: true, company: r.rows[0] });
     } catch (e: any) {

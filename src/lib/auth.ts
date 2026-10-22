@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual, randomBytes, scryptSync } from 'crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config';
 import { pool } from '../db/pool';
+import { BASIC_ALLOWED, companyPlan } from './plans';
 
 const COOKIE_NAME = 'nfc_session';
 
@@ -177,12 +178,14 @@ export async function authRoutes(app: FastifyInstance) {
         /* ignore */
       }
     }
+    const plan = s.companyId ? await companyPlan(s.companyId) : 'pro';
     return {
       authenticated: true,
       user: s.user,
       role: s.role,
       companyId: s.companyId,
       companyName,
+      plan,
     };
   });
 
@@ -240,7 +243,21 @@ export function registerAuthGuard(app: FastifyInstance) {
       return;
     }
 
-    if (getSession(req)) return;
+    const session = getSession(req);
+    if (session) {
+      // Plan Básico (prueba vencida): solo se bloquea la API del panel; las
+      // tarjetas (/r/) siguen funcionando y registrando interacciones.
+      if (
+        session.role === 'company_admin' &&
+        session.companyId &&
+        url.startsWith('/api/') &&
+        !BASIC_ALLOWED.has(url) &&
+        (await companyPlan(session.companyId)) === 'basic'
+      ) {
+        return reply.code(402).send({ error: 'plan_basico' });
+      }
+      return;
+    }
 
     if (url.startsWith('/api/')) {
       return reply.code(401).send({ error: 'No autenticado.' });

@@ -44,9 +44,11 @@ async function runDueSchedules(): Promise<void> {
     email: string;
     frequency: string;
   }>(
+    // Las empresas en plan Básico no reciben informes (vuelven al reactivar).
     `SELECT id, company_id, location_id, email, frequency
        FROM report_schedules
       WHERE active = true AND next_run_at <= now()
+        AND company_id NOT IN (SELECT id FROM companies WHERE plan = 'basic')
       ORDER BY next_run_at ASC
       LIMIT 50`
   );

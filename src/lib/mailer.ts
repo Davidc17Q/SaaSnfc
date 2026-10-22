@@ -49,8 +49,7 @@ function mailHtml(d: ReportMailInput): string {
 }
 
 /** Envío por la API HTTP de Resend (sortea bloqueos de puerto SMTP). */
-async function sendViaResend(d: ReportMailInput): Promise<void> {
-  const subject = mailSubject(d.data);
+async function sendViaResend(to: string, subject: string, html: string): Promise<void> {
   // Timeout defensivo para que el endpoint no quede colgado.
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 15000);
@@ -62,12 +61,7 @@ async function sendViaResend(d: ReportMailInput): Promise<void> {
         Authorization: `Bearer ${config.resendApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: config.smtp.from,
-        to: [d.to],
-        subject,
-        html: mailHtml(d),
-      }),
+      body: JSON.stringify({ from: config.smtp.from, to: [to], subject, html }),
       signal: ctrl.signal,
     });
   } catch (e: any) {
@@ -87,17 +81,16 @@ async function sendViaResend(d: ReportMailInput): Promise<void> {
   }
 }
 
-export async function sendReportMail(d: ReportMailInput): Promise<void> {
+/** Envía un correo HTML por Resend (prioridad) o SMTP. */
+export async function sendHtmlMail(to: string, subject: string, html: string): Promise<void> {
   if (!isMailEnabled()) throw new Error('Correo no configurado (define RESEND_API_KEY o SMTP_HOST).');
-  // Resend por HTTP tiene prioridad (más fiable en hosts con SMTP bloqueado).
   if (config.resendApiKey) {
-    await sendViaResend(d);
+    await sendViaResend(to, subject, html);
     return;
   }
-  await transport().sendMail({
-    from: config.smtp.from,
-    to: d.to,
-    subject: mailSubject(d.data),
-    html: mailHtml(d),
-  });
+  await transport().sendMail({ from: config.smtp.from, to, subject, html });
+}
+
+export async function sendReportMail(d: ReportMailInput): Promise<void> {
+  await sendHtmlMail(d.to, mailSubject(d.data), mailHtml(d));
 }
