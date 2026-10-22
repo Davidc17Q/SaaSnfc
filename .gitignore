@@ -6,3 +6,6 @@ build.log
 install.log
 npm-debug.log*
 .DS_Store
+
+# Cotizaciones de clientes (precios y datos personales): no van al repositorio
+cotizaciones/*/
