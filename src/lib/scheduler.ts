@@ -13,6 +13,7 @@ import { pool } from '../db/pool';
 import { isMailEnabled, sendReportMail } from './mailer';
 import { buildReportData, normalizeMonth } from './report-data';
 import { reportLinkUrl } from './report-link';
+import { runInactivityAlerts } from './inactivity-alerts';
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // cada hora
 
@@ -100,10 +101,13 @@ export function startReportScheduler(): void {
     return;
   }
   // Primera pasada al minuto de arrancar, luego cada hora.
-  setTimeout(() => {
+  // En la misma pasada van los avisos de sede inactiva.
+  const tick = () => {
     runDueSchedules().catch((e) => console.error('[scheduler]', e.message));
-    setInterval(() => {
-      runDueSchedules().catch((e) => console.error('[scheduler]', e.message));
-    }, CHECK_INTERVAL_MS);
+    runInactivityAlerts().catch((e) => console.error('[alertas]', e.message));
+  };
+  setTimeout(() => {
+    tick();
+    setInterval(tick, CHECK_INTERVAL_MS);
   }, 60 * 1000);
 }

@@ -334,3 +334,33 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS basic_since TIMESTAMPTZ;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_notice_7 BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_notice_1 BOOLEAN NOT NULL DEFAULT false;
+
+-- ============================================================================
+-- AVISOS DE SEDE INACTIVA: si una sede pasa threshold_hours sin interacciones,
+-- se envía un correo al responsable (gerente de la cadena o de la tienda).
+-- Un aviso por episodio: inactivity_alert_notices guarda el último escaneo que
+-- tenía la sede cuando se avisó; si vuelve a tener actividad y se apaga de
+-- nuevo, se avisa otra vez. location_id NULL = todas las sedes de la empresa.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS inactivity_alerts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id      UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  location_id     UUID        REFERENCES locations(id) ON DELETE CASCADE,
+  email           TEXT        NOT NULL,
+  threshold_hours INTEGER     NOT NULL DEFAULT 48,
+  active          BOOLEAN     NOT NULL DEFAULT true,
+  last_sent_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_inactivity_alerts_company ON inactivity_alerts(company_id);
+
+CREATE TABLE IF NOT EXISTS inactivity_alert_notices (
+  alert_id     UUID        NOT NULL REFERENCES inactivity_alerts(id) ON DELETE CASCADE,
+  location_id  UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  last_scan_at TIMESTAMPTZ,                       -- NULL = la sede nunca tuvo actividad
+  notified_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (alert_id, location_id)
+);
+
+-- Último escaneo por sede sin recorrer toda la tabla.
+CREATE INDEX IF NOT EXISTS idx_scan_location_time ON scan_events(location_id, scanned_at DESC);

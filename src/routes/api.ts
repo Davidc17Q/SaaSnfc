@@ -12,6 +12,7 @@ import { campaignUplift } from '../lib/campaign-effect';
 import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
+import { THRESHOLD_OPTIONS as INACTIVITY_THRESHOLDS, sendInactivityTest } from '../lib/inactivity-alerts';
 
 // Zona horaria del negocio. Los escaneos se guardan en UTC (timestamptz),
 // pero los filtros de fecha del dashboard se interpretan en hora local.
@@ -2058,6 +2059,119 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     await pool.query(`DELETE FROM report_schedules WHERE id = $1`, [req.params.id]);
     return { ok: true };
+  });
+
+  // ==========================================================================
+  // AVISOS DE SEDE INACTIVA POR CORREO
+  // Mismo patrón multi-tenant que report_schedules. El worker horario hace el
+  // envío (src/lib/inactivity-alerts.ts); aquí solo el CRUD y el envío de prueba.
+  // ==========================================================================
+
+  /** true si el aviso es visible para la sesión; si no, ya respondió 404/403. */
+  async function ownedInactivityAlert(req: any, reply: any): Promise<boolean> {
+    const companyId = resolveCompanyId(req);
+    const owned = await query<{ company_id: string }>(
+      `SELECT company_id FROM inactivity_alerts WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!owned[0]) {
+      reply.code(404).send({ error: 'Aviso no encontrado.' });
+      return false;
+    }
+    if (companyId !== undefined && owned[0].company_id !== companyId) {
+      reply.code(403).send({ error: 'No autorizado.' });
+      return false;
+    }
+    return true;
+  }
+
+  app.get('/api/inactivity-alerts', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const cParams: any[] = [];
+    let cWhere = '';
+    if (companyId !== undefined) {
+      cParams.push(companyId);
+      cWhere = 'WHERE a.company_id = $1';
+    }
+    return query(
+      `SELECT a.id, a.company_id, a.location_id, a.email, a.threshold_hours, a.active,
+              a.last_sent_at, l.name AS location_name
+         FROM inactivity_alerts a
+         LEFT JOIN locations l ON l.id = a.location_id
+         ${cWhere}
+         ORDER BY a.created_at DESC`,
+      cParams
+    );
+  });
+
+  app.post<{
+    Body: { company_id?: string; location_id?: string; email?: string; threshold_hours?: number };
+  }>('/api/inactivity-alerts', async (req, reply) => {
+    const s = getSession(req);
+    const email = (req.body?.email || '').trim();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return reply.code(400).send({ error: 'Correo del destinatario inválido.' });
+    }
+    const threshold = Number(req.body?.threshold_hours);
+    if (!INACTIVITY_THRESHOLDS.includes(threshold)) {
+      return reply.code(400).send({ error: 'Tiempo sin actividad no válido.' });
+    }
+    let companyId: string | null = null;
+    if (s?.role === 'company_admin') companyId = s.companyId;
+    else companyId = req.body?.company_id || (req.query as any).companyId || null;
+    if (!companyId) return reply.code(400).send({ error: 'Debes indicar la empresa.' });
+    const locationId = req.body?.location_id || null;
+    if (locationId) {
+      const l = await query<{ company_id: string | null }>(
+        `SELECT company_id FROM locations WHERE id = $1`,
+        [locationId]
+      );
+      if (!l[0] || l[0].company_id !== companyId) {
+        return reply.code(400).send({ error: 'La sede no pertenece a la empresa.' });
+      }
+    }
+    const r = await pool.query(
+      `INSERT INTO inactivity_alerts (company_id, location_id, email, threshold_hours)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, company_id, location_id, email, threshold_hours, active`,
+      [companyId, locationId, email, threshold]
+    );
+    return reply.code(201).send({ ok: true, alert: r.rows[0] });
+  });
+
+  app.patch<{ Params: { id: string }; Body: { active?: boolean } }>(
+    '/api/inactivity-alerts/:id',
+    async (req, reply) => {
+      if (!(await ownedInactivityAlert(req, reply))) return reply;
+      if (typeof req.body?.active !== 'boolean') {
+        return reply.code(400).send({ error: 'Nada que actualizar.' });
+      }
+      const r = await pool.query(
+        `UPDATE inactivity_alerts SET active = $1 WHERE id = $2 RETURNING id, active`,
+        [req.body.active, req.params.id]
+      );
+      return { ok: true, alert: r.rows[0] };
+    }
+  );
+
+  app.delete<{ Params: { id: string } }>('/api/inactivity-alerts/:id', async (req, reply) => {
+    if (!(await ownedInactivityAlert(req, reply))) return reply;
+    await pool.query(`DELETE FROM inactivity_alerts WHERE id = $1`, [req.params.id]);
+    return { ok: true };
+  });
+
+  // Envía ya el estado actual al destinatario, para probar el aviso.
+  app.post<{ Params: { id: string } }>('/api/inactivity-alerts/:id/test', async (req, reply) => {
+    if (!(await ownedInactivityAlert(req, reply))) return reply;
+    if (!isMailEnabled()) {
+      return reply.code(503).send({ error: 'El correo no está configurado en el servidor.' });
+    }
+    try {
+      const sent = await sendInactivityTest(req.params.id);
+      return { ok: true, sent };
+    } catch (err: any) {
+      return reply.code(502).send({ error: `No se pudo enviar: ${err.message}` });
+    }
   });
 
   // Enviar un informe AHORA por correo (prueba / envío manual).

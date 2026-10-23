@@ -528,6 +528,35 @@
           </div>
           <div id="repScheduleList" class="mt-5 space-y-2"></div>
         </div>
+
+        <!-- Avisos de sede inactiva -->
+        <div class="card">
+          <h3 class="font-semibold mb-1">Avisos de sede sin actividad</h3>
+          <p class="text-sm text-slate-500 mb-4">Si una sede pasa el tiempo elegido sin interacciones, avisamos por correo al responsable con las sedes afectadas y qué revisar.</p>
+          <div class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[220px]">
+              <label class="kpi-label block mb-1" for="alertEmail">Correo del responsable</label>
+              <input id="alertEmail" type="email" class="input text-sm w-full" placeholder="gerente@empresa.com" autocomplete="off" />
+            </div>
+            <div>
+              <label class="kpi-label block mb-1" for="alertLocation">Sedes a vigilar</label>
+              <select id="alertLocation" class="input text-sm">
+                <option value="">Todas las sedes</option>
+              </select>
+            </div>
+            <div>
+              <label class="kpi-label block mb-1" for="alertThreshold">Avisar después de</label>
+              <select id="alertThreshold" class="input text-sm">
+                <option value="24">24 horas sin actividad</option>
+                <option value="48" selected>2 días sin actividad</option>
+                <option value="72">3 días sin actividad</option>
+                <option value="168">1 semana sin actividad</option>
+              </select>
+            </div>
+            <button id="alertCreate" class="btn-primary text-sm">Activar aviso</button>
+          </div>
+          <div id="alertList" class="mt-5 space-y-2"></div>
+        </div>
       </section>
 
       <!-- Admin: empresas y usuarios (solo superadmin) -->

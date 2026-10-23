@@ -3400,11 +3400,14 @@ function loadReports() {
       compSel.addEventListener('change', () => {
         fillReportLocations();
         renderSchedules();
+        renderInactivityAlerts();
       });
     const sendBtn = $('#repSendNow');
     if (sendBtn) sendBtn.addEventListener('click', sendReportNow);
     const schBtn = $('#repSchedule');
     if (schBtn) schBtn.addEventListener('click', createSchedule);
+    const alertBtn = $('#alertCreate');
+    if (alertBtn) alertBtn.addEventListener('click', createInactivityAlert);
   }
 
   // Estado del correo: si SMTP no está configurado, avisar y desactivar envío.
@@ -3414,12 +3417,134 @@ function loadReports() {
       const sendBtn = $('#repSendNow');
       const schBtn = $('#repSchedule');
       if (warn) warn.classList.toggle('hidden', !!st.enabled);
+      const alertBtn = $('#alertCreate');
       if (sendBtn) sendBtn.disabled = !st.enabled;
       if (schBtn) schBtn.disabled = !st.enabled;
+      if (alertBtn) alertBtn.disabled = !st.enabled;
     })
     .catch(() => {});
 
   renderSchedules();
+  renderInactivityAlerts();
+}
+
+// Crea un aviso de sede sin actividad.
+async function createInactivityAlert() {
+  const email = $('#alertEmail').value.trim();
+  if (!email) {
+    toast('Escribe el correo del responsable.', false);
+    return;
+  }
+  const body = {
+    email,
+    threshold_hours: Number($('#alertThreshold').value),
+    location_id: $('#alertLocation').value || undefined,
+    company_id: reportCompanyId() || undefined,
+  };
+  const res = await fetch('/api/inactivity-alerts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'No se pudo activar el aviso.', false);
+    return;
+  }
+  $('#alertEmail').value = '';
+  toast('Aviso activado');
+  renderInactivityAlerts();
+}
+
+// Lista los avisos con acciones (probar, pausar/reanudar, eliminar).
+async function renderInactivityAlerts() {
+  const cont = $('#alertList');
+  if (!cont) return;
+  let rows;
+  try {
+    const cid = reportCompanyId();
+    const cq = state.role === 'superadmin' && cid ? `?companyId=${encodeURIComponent(cid)}` : '';
+    rows = await api(`/api/inactivity-alerts${cq}`);
+  } catch {
+    cont.innerHTML = '';
+    return;
+  }
+  if (!rows.length) {
+    cont.innerHTML =
+      '<p class="text-xs text-slate-500">Ningún aviso activo. Agrega el correo del gerente para enterarte cuando una tienda deje de usar sus puntos NFC.</p>';
+    return;
+  }
+  const umbral = (h) => (h === 24 ? '24 horas' : h === 168 ? '1 semana' : `${h / 24} días`);
+  cont.innerHTML = rows
+    .map((r) => {
+      const alcance = r.location_name ? escapeHtml(r.location_name) : 'Todas las sedes';
+      const ultimo = r.last_sent_at
+        ? `último aviso: ${new Date(r.last_sent_at).toLocaleDateString('es-CO')}`
+        : 'sin avisos enviados';
+      const estado = r.active
+        ? '<span class="state-badge state-active"><span class="dot"></span> Activo</span>'
+        : '<span class="badge-inactive">pausado</span>';
+      return `<div class="flex items-center justify-between gap-3 flex-wrap p-3" style="border:1px solid var(--card-border);border-radius:10px">
+          <div class="min-w-0">
+            <div class="font-medium text-sm" style="overflow-wrap:anywhere">${escapeHtml(r.email)}</div>
+            <div class="text-xs text-slate-500">Tras ${umbral(r.threshold_hours)} sin actividad · ${alcance} · ${ultimo}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${estado}
+            <button class="btn-ghost text-xs alert-test" data-id="${r.id}" style="border:1px solid var(--card-border)">Probar</button>
+            <button class="btn-ghost text-xs alert-toggle" data-id="${r.id}" data-active="${r.active ? '1' : '0'}" style="border:1px solid var(--card-border)">${r.active ? 'Pausar' : 'Reanudar'}</button>
+            <button class="icon-btn alert-del" data-id="${r.id}" aria-label="Eliminar aviso">${icon('trash', { size: 15 })}</button>
+          </div>
+        </div>`;
+    })
+    .join('');
+
+  cont.querySelectorAll('.alert-test').forEach((b) =>
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        const res = await fetch(`/api/inactivity-alerts/${b.dataset.id}/test`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) toast(data.error || 'No se pudo enviar la prueba.', false);
+        else if (!data.sent) toast('Todas las sedes tienen actividad: no hay nada que avisar.');
+        else toast(`Aviso de prueba enviado con ${data.sent} sede${data.sent === 1 ? '' : 's'}`);
+      } finally {
+        b.disabled = false;
+      }
+    })
+  );
+  cont.querySelectorAll('.alert-toggle').forEach((b) =>
+    b.addEventListener('click', async () => {
+      await fetch(`/api/inactivity-alerts/${b.dataset.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ active: b.dataset.active !== '1' }),
+      });
+      renderInactivityAlerts();
+    })
+  );
+  cont.querySelectorAll('.alert-del').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const ok = await confirmDialog({
+        title: 'Eliminar aviso',
+        message: '¿Dejar de avisar a este correo cuando una sede se quede sin actividad?',
+        confirmText: 'Eliminar',
+        danger: true,
+      });
+      if (!ok) return;
+      await fetch(`/api/inactivity-alerts/${b.dataset.id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      toast('Aviso eliminado');
+      renderInactivityAlerts();
+    })
+  );
 }
 
 // Empresa activa en la vista de informes (según rol).
@@ -3578,11 +3703,15 @@ function fillReportLocations() {
   const locs = (state.locations || []).filter(
     (l) => !companyId || l.companyId === companyId
   );
-  locSel.innerHTML =
+  const options =
     '<option value="">Todas las sedes</option>' +
     locs
       .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
       .join('');
+  locSel.innerHTML = options;
+  // Los avisos de sede inactiva tienen su propio selector (misma empresa).
+  const alertSel = $('#alertLocation');
+  if (alertSel) alertSel.innerHTML = options;
 }
 
 // Abre el informe (HTML imprimible) en una pestaña nueva con los filtros elegidos.
