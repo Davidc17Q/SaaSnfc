@@ -264,12 +264,23 @@ const VIEW_TITLES = {
   devices: 'Puntos NFC',
   reports: 'Informes',
   admin: 'Empresas y usuarios',
+  location: 'Ficha de sede',
 };
 
+// setupNav la reemplaza por su activate(): permite navegar desde cualquier módulo.
+let activateView = () => {};
+// Ficha de sede: sede abierta, periodo en días y vista desde la que se llegó.
+const locView = { id: null, days: 30, prev: 'dashboard' };
+
 function setupNav() {
-  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'reports', 'admin'];
+  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'reports', 'admin', 'location'];
 
   function activate(target) {
+    // La ficha de sede recuerda desde dónde se abrió, para el botón "Volver".
+    if (target !== 'location') {
+      locView.prev = target;
+      if (location.hash.startsWith('#sede/')) history.replaceState(null, '', location.pathname + location.search);
+    }
     views.forEach((v) => {
       $(`#view-${v}`).classList.toggle('hidden', v !== target);
     });
@@ -306,6 +317,7 @@ function setupNav() {
       activate(link.getAttribute('href').slice(1));
     });
   });
+  activateView = activate;
 
   // Toggle del sidebar (móvil)
   const toggle = $('#sidebarToggle');
@@ -323,6 +335,313 @@ function setupNav() {
       filtersBtn.setAttribute('aria-expanded', String(open));
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ficha de sede: cómo va una tienda, qué cambió y qué hacer, en una sola vista.
+// Dirección propia (#sede/<id>) para que funcione "atrás" y se pueda compartir.
+// ---------------------------------------------------------------------------
+function openLocation(id, { push = true } = {}) {
+  if (!id) return;
+  locView.id = id;
+  activateView('location');
+  if (push && location.hash !== `#sede/${id}`) history.pushState({ sede: id }, '', `#sede/${id}`);
+  // Al abrir, la ficha empieza arriba (después de pintar, cuando ya tiene su alto).
+  loadLocationView().then(() => {
+    const main = document.querySelector('.app-main');
+    if (main) main.scrollTo({ top: 0 });
+  });
+}
+
+function setupLocationView() {
+  $('#locBack').addEventListener('click', () => {
+    if (history.state && history.state.sede) history.back();
+    else activateView(locView.prev);
+  });
+  document.querySelectorAll('.loc-day').forEach((b) =>
+    b.addEventListener('click', () => {
+      locView.days = Number(b.dataset.days);
+      document.querySelectorAll('.loc-day').forEach((x) => x.classList.toggle('active', x === b));
+      loadLocationView();
+    })
+  );
+  $('#locReportBtn').addEventListener('click', () => {
+    const d = new Date();
+    const p = new URLSearchParams({
+      month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      locationId: locView.id,
+    });
+    if (state.companyId) p.set('companyId', state.companyId);
+    window.open(`/api/report?${p.toString()}`, '_blank');
+  });
+  $('#locCompareBtn').addEventListener('click', () => {
+    activateView('executive');
+    populateCompareSelectors();
+    const a = $('#compareA');
+    if (a) a.value = locView.id;
+  });
+  window.addEventListener('popstate', () => {
+    const m = location.hash.match(/^#sede\/([\w-]+)$/);
+    if (m) openLocation(m[1], { push: false });
+    else if (!$('#view-location').classList.contains('hidden')) activateView(locView.prev);
+  });
+}
+
+/** "+12,5 %" con su tono; null si no hay base de comparación. */
+function setDelta(el, v) {
+  if (v === null || v === undefined) {
+    el.classList.add('hidden');
+    return;
+  }
+  const tone = Math.abs(v) < 5 ? 'flat' : v > 0 ? 'up' : 'down';
+  const ic = v > 0 ? 'trending-up' : v < 0 ? 'trending-down' : 'minus';
+  el.className = `kpi-delta kpi-delta-${tone}`;
+  el.innerHTML = `${icon(ic, { size: 14 })} ${v > 0 ? '+' : ''}${pctFmt(v)} %`;
+}
+
+/** '2026-10-19' -> '19 oct 2026'. */
+function fmtDay(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '');
+}
+
+function sinceText(iso) {
+  if (!iso) return 'Sin uso todavía';
+  const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+  if (h < 1) return 'Usado hace menos de 1 h';
+  if (h < 24) return `Usado hace ${Math.round(h)} h`;
+  const d = Math.round(h / 24);
+  return `Usado hace ${d} día${d === 1 ? '' : 's'}`;
+}
+
+/** Frases de la ficha, de la más grave a la más tranquila. */
+function locationInsights(s) {
+  const out = [];
+  const { kpis: k, rank: r, health: h } = s;
+  const daysTxt = `los ${s.days} días anteriores`;
+  if (h.hoursSince === null) {
+    out.push({ level: 'critical', text: 'La sede no ha registrado interacciones desde que se instaló. Revisa que los puntos estén a la vista y leyendo.' });
+  } else if (h.hoursSince >= 48) {
+    const d = Math.floor(h.hoursSince / 24);
+    out.push({ level: 'critical', text: `Lleva ${d} días sin interacciones: el soporte podría estar retirado, tapado o dañado.` });
+  } else if (h.dropPct !== null) {
+    out.push({ level: 'warning', text: `Cayó ${h.dropPct} % esta semana (${fmt(h.week)} interacciones frente a ${fmt(h.weekPrev)}).` });
+  }
+  const idle = s.devices.filter((d) => d.scans === 0 && d.status === 'active');
+  if (idle.length && idle.length < s.devices.length) {
+    out.push({
+      level: 'warning',
+      text: idle.length === 1
+        ? `El punto “${idle[0].label}” no tuvo interacciones en el periodo; los demás sí.`
+        : `${idle.length} puntos no tuvieron interacciones en el periodo; los demás sí.`,
+    });
+  }
+  if (r.position && r.total > 1) {
+    if (r.position <= 3) out.push({ level: 'good', text: `Es la ${r.position}.ª sede con más movimiento de ${r.total}.` });
+    else if (r.total > 5 && r.position > r.total - 3)
+      out.push({ level: 'warning', text: `Está entre las de menor movimiento: ${r.position}.ª de ${r.total}.` });
+  }
+  if (k.scansPct !== null && Math.abs(k.scansPct) >= 5) {
+    out.push({
+      level: k.scansPct > 0 ? 'good' : 'warning',
+      text: `${k.scansPct > 0 ? 'Creció' : 'Bajó'} ${pctFmt(Math.abs(k.scansPct))} % frente a ${daysTxt}.`,
+    });
+  }
+  if (k.chainAvg > 0 && k.scans > 0) {
+    const vs = Math.round(((k.scans - k.chainAvg) / k.chainAvg) * 100);
+    if (vs >= 20) out.push({ level: 'good', text: `Está ${vs} % por encima del promedio por sede de la cadena.` });
+    else if (vs <= -20) out.push({ level: 'neutral', text: `Está ${Math.abs(vs)} % por debajo del promedio por sede de la cadena.` });
+  }
+  if (!out.length) out.push({ level: 'neutral', text: 'La sede opera dentro de lo normal en el periodo.' });
+  return out
+    .map((it, i) => ({ ...it, i }))
+    .sort((a, b) => INSIGHT_ORDER[a.level] - INSIGHT_ORDER[b.level] || a.i - b.i)
+    .slice(0, 4);
+}
+
+async function loadLocationView() {
+  const id = locView.id;
+  const p = new URLSearchParams({ days: String(locView.days) });
+  if (state.companyId) p.set('companyId', state.companyId);
+  let s;
+  try {
+    s = await api(`/api/locations/${encodeURIComponent(id)}/summary?${p.toString()}`);
+  } catch {
+    $('#locName').textContent = 'Sede no encontrada';
+    $('#locMeta').textContent = 'Puede que la sede ya no exista o no pertenezca a tu empresa.';
+    return;
+  }
+  if (id !== locView.id) return; // el usuario ya abrió otra sede
+
+  const L = s.location;
+  $('#locName').textContent = L.name;
+  const lastTxt = s.health.lastScan ? sinceText(s.health.lastScan).replace('Usado', 'Última interacción') : 'Sin interacciones todavía';
+  $('#locMeta').innerHTML = `${escapeHtml(L.city)} · ${L.status === 'active' ? 'Activa' : 'Inactiva'} · ${escapeHtml(lastTxt)}`;
+
+  const rk = $('#locRank');
+  if (s.rank.position && s.rank.total > 1) {
+    rk.classList.remove('hidden');
+    $('#locRankPos').textContent = `${s.rank.position}.ª`;
+    $('#locRankOf').textContent = ` de ${s.rank.total}`;
+    const move = s.rank.prevPosition ? s.rank.prevPosition - s.rank.position : 0;
+    const mv = $('#locRankMove');
+    mv.className = `loc-rank-move ${move > 0 ? 'up' : move < 0 ? 'down' : ''}`;
+    mv.textContent = move > 0
+      ? `Subió ${move} puesto${move === 1 ? '' : 's'}`
+      : move < 0
+        ? `Bajó ${-move} puesto${move === -1 ? '' : 's'}`
+        : 'Mismo puesto que el periodo anterior';
+  } else {
+    rk.classList.add('hidden');
+  }
+
+  const ins = locationInsights(s);
+  $('#locInsight').innerHTML = ins
+    .map(
+      (it) => `<div class="insight-row lvl-${it.level}"><span class="insight-dot" aria-hidden="true"></span><p class="insight-row-text">${escapeHtml(it.text)}</p></div>`
+    )
+    .join('');
+
+  const k = s.kpis;
+  const vsTxt = `vs. ${s.days} días anteriores`;
+  $('#locKpiScans').textContent = fmt(k.scans);
+  setDelta($('#locKpiScansDelta'), k.scansPct);
+  $('#locKpiScansSub').textContent = k.scansPct === null ? `últimos ${s.days} días` : vsTxt;
+  $('#locKpiReviews').textContent = fmt(k.reviews);
+  setDelta($('#locKpiReviewsDelta'), k.reviews || k.reviewsPct ? k.reviewsPct : null);
+  $('#locKpiWa').textContent = fmt(k.whatsapp);
+  setDelta($('#locKpiWaDelta'), k.whatsapp || k.whatsappPct ? k.whatsappPct : null);
+  $('#locKpiShare').textContent = `${pctFmt(k.sharePct)} %`;
+  $('#locKpiShareSub').textContent = `de las interacciones de la cadena · promedio por sede ${fmt(k.chainAvg)}`;
+
+  renderLocationTrend(s);
+  renderLocationDevices(s);
+  renderLocationReputation(s);
+  renderLocationSurvey(s);
+}
+
+function renderLocationTrend(s) {
+  const data = s.series;
+  const empty = data.every((d) => !d.scans);
+  toggleChartEmpty('#locTrendChart', empty, {
+    icon: 'activity',
+    title: 'Sin interacciones en este periodo',
+    hint: 'Prueba con un periodo más largo.',
+  });
+  if (empty) {
+    destroyChart('locTrend');
+    return;
+  }
+  upsertChart('locTrend', $('#locTrendChart'), {
+    type: 'line',
+    data: {
+      labels: data.map((d) => d.day),
+      datasets: [
+        {
+          label: 'Esta sede',
+          data: data.map((d) => d.scans),
+          borderColor: accent(),
+          backgroundColor: accentA(0.12),
+          fill: true,
+          tension: 0.35,
+          pointRadius: 0,
+          borderWidth: 2.5,
+        },
+        {
+          label: 'Promedio por sede',
+          data: data.map((d) => d.avg),
+          borderColor: token('--neutral-state', '#94a3b8'),
+          borderDash: [5, 4],
+          fill: false,
+          tension: 0.35,
+          pointRadius: 0,
+          borderWidth: 1.5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: cleanTooltip((items) => items[0].label) },
+      scales: {
+        x: { grid: { color: gridColor() }, ticks: { color: tickColor(), maxTicksLimit: 8, callback: (v, i) => data[i]?.day.slice(5) } },
+        y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+function renderLocationDevices(s) {
+  const box = $('#locDevices');
+  const devs = s.devices;
+  $('#locDevCount').textContent = devs.length ? `${devs.length} punto${devs.length === 1 ? '' : 's'} · últimos ${s.days} días` : '';
+  if (!devs.length) {
+    box.innerHTML = '<p class="text-sm text-slate-500">Esta sede aún no tiene puntos NFC. Créalos desde la sección Puntos NFC.</p>';
+    return;
+  }
+  const max = Math.max(...devs.map((d) => d.scans), 1);
+  box.innerHTML = devs
+    .map((d) => {
+      const idle = d.status === 'active' && d.scans === 0;
+      return `
+      <div class="loc-dev${idle ? ' is-idle' : ''}">
+        <span class="loc-dev-dot" style="background:${channelColor(d.channel)}" aria-hidden="true"></span>
+        <div class="loc-dev-main">
+          <div class="loc-dev-title">${escapeHtml(d.label)}</div>
+          <div class="loc-dev-sub">${escapeHtml(d.channel)} · ${escapeHtml(sinceText(d.lastScan))}${d.status !== 'active' ? ' · inactivo' : ''}</div>
+        </div>
+        <div class="loc-dev-bar" aria-hidden="true"><i style="width:${Math.max(2, (d.scans / max) * 100)}%"></i></div>
+        <div class="loc-dev-num">${fmt(d.scans)}</div>
+        <button type="button" class="btn-ghost text-xs loc-dev-edit" data-id="${d.id}" style="border:1px solid var(--card-border)">Cambiar destino</button>
+      </div>`;
+    })
+    .join('');
+  box.querySelectorAll('.loc-dev-edit').forEach((b) => b.addEventListener('click', () => openEdit(b.dataset.id)));
+}
+
+function renderLocationReputation(s) {
+  const box = $('#locReputation');
+  const snaps = s.reputation;
+  if (!snaps.length) {
+    box.innerHTML = '<p class="text-sm text-slate-500">Aún no hay mediciones de Google para esta sede. Cuando se registren, aquí verás la calificación y las reseñas en el tiempo.</p>';
+    return;
+  }
+  const first = snaps[0];
+  const last = snaps[snaps.length - 1];
+  const gained = last.reviewCount - first.reviewCount;
+  const dRating = Math.round((last.rating - first.rating) * 10) / 10;
+  const since = snaps.length > 1 ? `desde el ${fmtDay(first.measuredOn)}` : `medido el ${fmtDay(last.measuredOn)}`;
+  box.innerHTML = `
+    <div class="loc-rep">
+      <div class="loc-rep-big">${pctFmt(last.rating)} <span class="loc-rep-stars">${starRating(last.rating)}</span></div>
+      <div class="loc-rep-sub">${fmt(last.reviewCount)} reseñas en Google</div>
+      ${snaps.length > 1
+        ? `<div class="loc-rep-delta">${gained >= 0 ? '+' : ''}${fmt(gained)} reseñas y ${dRating > 0 ? '+' : ''}${pctFmt(dRating)} en la calificación ${escapeHtml(since)}</div>`
+        : `<div class="loc-rep-delta">${escapeHtml(since)}</div>`}
+    </div>`;
+}
+
+function renderLocationSurvey(s) {
+  const box = $('#locSurvey');
+  const sv = s.survey;
+  if (!sv.total) {
+    box.innerHTML = `<p class="text-sm text-slate-500">Sin respuestas de encuesta en los últimos ${s.days} días. Si quieres medir la atención, configura un punto en modo encuesta.</p>`;
+    return;
+  }
+  const aspects = sv.aspects
+    .map(
+      (a) => `<div class="loc-asp"><span>${escapeHtml(a.label)}</span><span class="loc-asp-bar" aria-hidden="true"><i style="width:${(a.avg / 5) * 100}%"></i></span><b>${pctFmt(a.avg)}</b></div>`
+    )
+    .join('');
+  const comments = sv.comments.length
+    ? `<div class="loc-comments">${sv.comments.map((c) => `<p>“${escapeHtml(c.text)}”<span>${escapeHtml(fmtDay(c.date))}</span></p>`).join('')}</div>`
+    : '';
+  box.innerHTML = `
+    <div class="loc-rep-big">${sv.avg !== null ? pctFmt(sv.avg) : '—'} <span class="loc-rep-of">de 5</span></div>
+    <div class="loc-rep-sub">${fmt(sv.total)} respuesta${sv.total === 1 ? '' : 's'} en los últimos ${s.days} días</div>
+    <div class="loc-asps">${aspects}</div>
+    ${comments}`;
 }
 
 function openSidebar() {
@@ -462,7 +781,7 @@ function buildInsights(k, alerts) {
     const grave = alerts.filter((a) => a.level === 'grave');
     const leves = alerts.length - grave.length;
     if (grave.length === 1) {
-      items.push({ level: 'critical', text: `${grave[0].title}.`, action: { label: 'Ver sede', go: 'alerts' } });
+      items.push({ level: 'critical', text: `${grave[0].title}.`, action: { label: 'Ver sede', go: `sede:${grave[0].locationId}` } });
     } else if (grave.length > 1) {
       items.push({
         level: 'critical',
@@ -526,7 +845,9 @@ function buildInsights(k, alerts) {
 }
 
 function runInsightAction(go) {
-  if (go === 'operations') {
+  if (go.startsWith('sede:')) {
+    openLocation(go.slice(5));
+  } else if (go === 'operations') {
     const link = document.querySelector('.nav-link[href="#operations"]');
     if (link) link.click();
   } else if (go === 'campaigns') {
@@ -753,6 +1074,12 @@ async function renderTop() {
         legend: { display: false },
         // Tooltip con el nombre COMPLETO de la sede (el eje va truncado, el tooltip no).
         tooltip: cleanTooltip((items) => data[items[0].dataIndex].name),
+      },
+      onClick: (e, els) => {
+        if (els.length) openLocation(data[els[0].index].id);
+      },
+      onHover: (e, els) => {
+        e.native.target.style.cursor = els.length ? 'pointer' : 'default';
       },
       scales: {
         x: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
@@ -1105,7 +1432,7 @@ function renderLocationsTable(filter = '') {
     .map(
       (l) => `
       <tr class="data-card">
-        <td class="td td-title font-medium" data-label="Sede">${escapeHtml(l.name)}${
+        <td class="td td-title font-medium" data-label="Sede"><button type="button" class="link-btn loc-open-btn" data-id="${l.id}">${escapeHtml(l.name)}</button>${
           showCompany && l.companyName
             ? `<br><span class="text-xs text-slate-500">${escapeHtml(l.companyName)}</span>`
             : ''
@@ -1126,6 +1453,9 @@ function renderLocationsTable(filter = '') {
     )
     .join('');
 
+  body.querySelectorAll('.loc-open-btn').forEach((b) =>
+    b.addEventListener('click', () => openLocation(b.dataset.id))
+  );
   body.querySelectorAll('.loc-rep-btn').forEach((b) =>
     b.addEventListener('click', () => openReputation(b.dataset.id))
   );
@@ -2409,7 +2739,7 @@ function renderRankList(sel, items, kind) {
         kind === 'leader' && i === 0 ? icon('trophy', { size: 15 }) : `${i + 1}`;
       const badgeCls = kind === 'leader' && i === 0 ? 'rank-badge rank-badge-gold' : 'rank-badge';
       return `
-      <div class="rank-row">
+      <button type="button" class="rank-row rank-link" data-id="${it.id}" aria-label="Ver ficha de ${escapeHtml(it.name)}">
         <div class="rank-left">
           <span class="${badgeCls}">${badgeInner}</span>
           <div class="rank-name">
@@ -2418,9 +2748,10 @@ function renderRankList(sel, items, kind) {
           </div>
         </div>
         <div class="rank-scans">${fmt(it.scans)}</div>
-      </div>`;
+      </button>`;
     })
     .join('');
+  box.querySelectorAll('.rank-link').forEach((b) => b.addEventListener('click', () => openLocation(b.dataset.id)));
 }
 
 function populateCompareSelectors(force = false) {
@@ -2921,13 +3252,14 @@ function renderOpTable() {
     .map(
       (it) => `
       <tr>
-        <td class="td font-medium" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</td>
+        <td class="td font-medium" title="${escapeHtml(it.name)}"><button type="button" class="link-btn op-open-btn" data-id="${it.id}">${escapeHtml(it.name)}</button></td>
         <td class="td">${escapeHtml(it.city)}</td>
         <td class="td">${opStateBadge(it.state)}</td>
         <td class="td text-slate-500">${lastScanText(it)}</td>
       </tr>`
     )
     .join('');
+  body.querySelectorAll('.op-open-btn').forEach((b) => b.addEventListener('click', () => openLocation(b.dataset.id)));
 }
 
 function opStateBadge(s) {
@@ -3054,22 +3386,9 @@ async function renderAlerts() {
     });
   }
 
-  // "Ver sede": abre Salud operativa y escribe el nombre en su buscador.
+  // "Ver sede": abre la ficha de la sede.
   list.querySelectorAll('.alert-link').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const row = btn.closest('.alert-row');
-      const name = row?.querySelector('.alert-row-title')?.textContent || '';
-      const opLink = document.querySelector('.nav-link[href="#operations"]');
-      if (opLink) opLink.click();
-      // El título de la alerta empieza con el nombre de la sede; tomamos la
-      // primera parte como término de búsqueda razonable.
-      const term = name.split(/\s+(sin|lleva|cayó)\s/)[0].trim();
-      const search = $('#opSearch');
-      if (search) {
-        search.value = term;
-        renderOpTable();
-      }
-    });
+    btn.addEventListener('click', () => openLocation(btn.dataset.loc));
   });
   return alerts;
 }
@@ -3316,6 +3635,8 @@ async function autoRefresh() {
     } else if (!$('#view-locations').classList.contains('hidden')) {
       await loadLocations();
       renderLocationsTable($('#locSearch').value);
+    } else if (!$('#view-location').classList.contains('hidden')) {
+      await loadLocationView();
     }
   } catch {
     /* silencioso: un fallo puntual no debe romper la UI */
@@ -4156,6 +4477,7 @@ function setupCreateModals() {
 
 async function init() {
   setupNav();
+  setupLocationView();
   setupTheme();
   setupFilters();
   setupCombo();
@@ -4203,6 +4525,9 @@ async function init() {
   await loadLocations();
   await loadDevices();
   await loadDashboard();
+  // Enlace directo a una ficha (#sede/<id>): se abre al cargar.
+  const deep = location.hash.match(/^#sede\/([\w-]+)$/);
+  if (deep) openLocation(deep[1], { push: false });
   loadHealth();
   setInterval(loadHealth, 15000);
   // Auto-refresco de datos cada 8 segundos (tiempo casi real, sin recargar la página).

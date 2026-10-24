@@ -477,6 +477,91 @@
         </div>
       </section>
 
+      <!-- Ficha de sede: se abre desde el ranking, las alertas o las tablas -->
+      <section id="view-location" class="p-6 space-y-6 hidden">
+        <div class="loc-head">
+          <button id="locBack" type="button" class="btn-ghost text-sm section-title-icon loc-back"><span data-icon="arrow-left" data-icon-size="15"></span> Volver</button>
+          <div class="loc-head-row">
+            <div class="loc-head-main">
+              <h2 id="locName" class="loc-name">—</h2>
+              <p id="locMeta" class="loc-meta">—</p>
+            </div>
+            <div class="loc-head-side">
+              <div id="locRank" class="loc-rank hidden">
+                <span class="loc-rank-label">Posición en la cadena</span>
+                <span class="loc-rank-value"><b id="locRankPos">—</b><span id="locRankOf"></span></span>
+                <span id="locRankMove" class="loc-rank-move"></span>
+              </div>
+              <div class="loc-days" role="group" aria-label="Periodo de la ficha">
+                <button type="button" class="loc-day" data-days="7">7 días</button>
+                <button type="button" class="loc-day active" data-days="30">30 días</button>
+                <button type="button" class="loc-day" data-days="90">90 días</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="insight-card"><div id="locInsight" class="insight-rows"></div></div>
+
+        <div class="kpi-grid">
+          <div class="card kpi-card kpi-hero">
+            <p class="kpi-label">Interacciones</p>
+            <p id="locKpiScans" class="kpi-value">—</p>
+            <p class="kpi-sub"><span id="locKpiScansDelta" class="kpi-delta hidden"></span><span id="locKpiScansSub">—</span></p>
+          </div>
+          <div class="card kpi-card">
+            <p class="kpi-label">Reseñas en Google</p>
+            <p id="locKpiReviews" class="kpi-value">—</p>
+            <p class="kpi-sub"><span id="locKpiReviewsDelta" class="kpi-delta hidden"></span><span id="locKpiReviewsSub">clientes que abrieron la reseña</span></p>
+          </div>
+          <div class="card kpi-card">
+            <p class="kpi-label">Contactos por WhatsApp</p>
+            <p id="locKpiWa" class="kpi-value">—</p>
+            <p class="kpi-sub"><span id="locKpiWaDelta" class="kpi-delta hidden"></span><span id="locKpiWaSub">chats iniciados</span></p>
+          </div>
+          <div class="card kpi-card">
+            <p class="kpi-label">Peso en la cadena</p>
+            <p id="locKpiShare" class="kpi-value">—</p>
+            <p id="locKpiShareSub" class="kpi-sub">—</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h3 class="font-semibold">Tendencia de interacciones</h3>
+            <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
+              <span class="legend-dot legend-accent"></span> Esta sede
+              <span class="legend-dot legend-neutral"></span> Promedio por sede de la cadena
+            </div>
+          </div>
+          <div class="trend-chart-wrap"><canvas id="locTrendChart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <h3 class="font-semibold">Puntos NFC de la sede</h3>
+            <span id="locDevCount" class="text-xs text-slate-500"></span>
+          </div>
+          <div id="locDevices" class="loc-devices"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="card">
+            <h3 class="font-semibold mb-3">Reputación en Google</h3>
+            <div id="locReputation"></div>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold mb-3">Calificación de los clientes</h3>
+            <div id="locSurvey"></div>
+          </div>
+        </div>
+
+        <div class="loc-actions">
+          <button id="locReportBtn" type="button" class="btn-primary text-sm section-title-icon"><span data-icon="file-text" data-icon-size="15"></span> Informe del mes de esta sede</button>
+          <button id="locCompareBtn" type="button" class="btn-ghost text-sm" style="border:1px solid var(--card-border)">Comparar con otra sede</button>
+        </div>
+      </section>
+
       <!-- Informes (Función 2) -->
       <section id="view-reports" class="p-6 space-y-6 hidden">
         <div class="card">

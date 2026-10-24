@@ -9,6 +9,7 @@ import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
+import { detectChannel } from '../lib/channel';
 import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
@@ -745,6 +746,210 @@ export async function apiRoutes(app: FastifyInstance) {
     return { location: { id: loc.id, name: loc.name, city: loc.city }, summary, snapshots };
   });
 
+  // ---------- Ficha de sede: todo lo de una tienda en una sola consulta ----------
+  // Ventana = últimos `days` días (hora del negocio) contra los `days` anteriores.
+  // El ranking y el promedio se calculan dentro de la empresa de la sede.
+  app.get<{ Params: { id: string }; Querystring: { days?: string } }>(
+    '/api/locations/:id/summary',
+    async (req, reply) => {
+      const loc = await locationInScope(req, req.params.id);
+      if (!loc) return reply.code(404).send({ error: 'Sede no encontrada.' });
+      const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
+      // `days` ya está validado: se puede interpolar sin riesgo.
+      const today = `(now() AT TIME ZONE '${APP_TZ}')::date`;
+      const curStart = `((${today} - ${days - 1})::timestamp AT TIME ZONE '${APP_TZ}')`;
+      const prevStart = `((${today} - ${2 * days - 1})::timestamp AT TIME ZONE '${APP_TZ}')`;
+      const id = loc.id;
+
+      const info = await query<{ brand: string; status: string }>(
+        `SELECT brand, status FROM locations WHERE id = $1`,
+        [id]
+      );
+
+      const k = await query<Record<string, string | null>>(
+        `SELECT
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart}) AS cur,
+           COUNT(*) FILTER (WHERE scanned_at <  ${curStart}) AS prev,
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND channel = 'Google Reviews') AS reviews,
+           COUNT(*) FILTER (WHERE scanned_at <  ${curStart} AND channel = 'Google Reviews') AS reviews_prev,
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND channel = 'WhatsApp') AS wa,
+           COUNT(*) FILTER (WHERE scanned_at <  ${curStart} AND channel = 'WhatsApp') AS wa_prev,
+           COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '7 days') AS week,
+           COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '14 days'
+                              AND scanned_at <  now() - INTERVAL '7 days') AS week_prev
+         FROM scan_events
+         WHERE location_id = $1 AND scanned_at >= LEAST(${prevStart}, now() - INTERVAL '14 days')`,
+        [id]
+      );
+      const lastRow = await query<{ last_scan: string | null; hours: string | null }>(
+        `SELECT MAX(scanned_at) AS last_scan,
+                EXTRACT(EPOCH FROM (now() - MAX(scanned_at))) / 3600 AS hours
+           FROM scan_events WHERE location_id = $1`,
+        [id]
+      );
+      const n = (v: string | null | undefined) => parseInt(v || '0', 10);
+      const pct = (cur: number, prev: number) =>
+        prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : cur > 0 ? null : 0;
+      const row = k[0] || {};
+      const cur = n(row.cur);
+      const prev = n(row.prev);
+
+      // Ranking entre las sedes activas de la misma empresa (actual y anterior).
+      const ranked = await query<{ id: string; cur: string; prev: string }>(
+        `SELECT l.id,
+                COUNT(se.id) FILTER (WHERE se.scanned_at >= ${curStart}) AS cur,
+                COUNT(se.id) FILTER (WHERE se.scanned_at <  ${curStart}) AS prev
+           FROM locations l
+           LEFT JOIN scan_events se ON se.location_id = l.id AND se.scanned_at >= ${prevStart}
+          WHERE l.status = 'active' AND l.company_id IS NOT DISTINCT FROM $1
+          GROUP BY l.id`,
+        [loc.company_id]
+      );
+      const position = (key: 'cur' | 'prev') => {
+        const sorted = [...ranked].sort((a, b) => n(b[key]) - n(a[key]));
+        const i = sorted.findIndex((r) => r.id === id);
+        return i >= 0 ? i + 1 : null;
+      };
+      const chainTotal = ranked.reduce((a, r) => a + n(r.cur), 0);
+
+      // Serie diaria de la sede + promedio por sede de la empresa.
+      const daysList = await query<{ day: string }>(
+        `SELECT to_char(d, 'YYYY-MM-DD') AS day
+           FROM generate_series(${today} - ${days - 1}, ${today}, INTERVAL '1 day') AS d`
+      );
+      const daily = await query<{ day: string; loc: string; chain: string }>(
+        `SELECT to_char((se.scanned_at AT TIME ZONE '${APP_TZ}')::date, 'YYYY-MM-DD') AS day,
+                COUNT(*) FILTER (WHERE se.location_id = $1) AS loc,
+                COUNT(*) AS chain
+           FROM scan_events se
+           JOIN locations l ON l.id = se.location_id
+          WHERE se.scanned_at >= ${curStart} AND l.company_id IS NOT DISTINCT FROM $2
+          GROUP BY 1`,
+        [id, loc.company_id]
+      );
+      const dayMap = new Map(daily.map((d) => [d.day, d]));
+      const activeCount = ranked.length || 1;
+      const series = daysList.map(({ day }) => ({
+        day,
+        scans: n(dayMap.get(day)?.loc),
+        avg: Math.round(n(dayMap.get(day)?.chain) / activeCount),
+      }));
+
+      // Puntos NFC de la sede con su uso. Los puntos en modo encuesta no
+      // registran escaneos: su uso son las respuestas recibidas.
+      const devs = await query<{
+        id: string; code: string; label: string; target_url: string; status: string;
+        mode: string; last_scan: string | null; scans: string;
+      }>(
+        `SELECT d.id, d.code, d.label, d.target_url, d.status, d.mode,
+                CASE WHEN d.mode = 'survey' THEN sv.last ELSE sc.last END AS last_scan,
+                CASE WHEN d.mode = 'survey' THEN COALESCE(sv.cur, 0) ELSE COALESCE(sc.cur, 0) END AS scans
+           FROM devices d
+           LEFT JOIN (
+             SELECT device_id, MAX(scanned_at) AS last,
+                    COUNT(*) FILTER (WHERE scanned_at >= ${curStart}) AS cur
+               FROM scan_events WHERE location_id = $1 GROUP BY device_id
+           ) sc ON sc.device_id = d.id
+           LEFT JOIN (
+             SELECT device_id, MAX(submitted_at) AS last,
+                    COUNT(*) FILTER (WHERE submitted_at >= ${curStart}) AS cur
+               FROM survey_responses WHERE location_id = $1 GROUP BY device_id
+           ) sv ON sv.device_id = d.id
+          WHERE d.location_id = $1
+          ORDER BY scans DESC, d.label ASC`,
+        [id]
+      );
+
+      // Encuesta interna en la ventana.
+      const surveyTotal = await query<{ total: string }>(
+        `SELECT COUNT(*) AS total FROM survey_responses
+          WHERE location_id = $1 AND submitted_at >= ${curStart}`,
+        [id]
+      );
+      const aspects = await query<{ label: string; avg: string }>(
+        `SELECT asp.label, AVG(sa.rating) AS avg
+           FROM survey_answers sa
+           JOIN survey_responses sr ON sr.id = sa.response_id
+           JOIN survey_aspects asp ON asp.id = sa.aspect_id
+          WHERE sr.location_id = $1 AND sr.submitted_at >= ${curStart}
+          GROUP BY asp.label, asp.position
+          ORDER BY asp.position`,
+        [id]
+      );
+      const comments = await query<{ comment: string; submitted_at: string }>(
+        `SELECT comment, to_char(submitted_at AT TIME ZONE '${APP_TZ}', 'YYYY-MM-DD') AS submitted_at
+           FROM survey_responses
+          WHERE location_id = $1 AND submitted_at >= ${curStart}
+            AND comment IS NOT NULL AND btrim(comment) <> ''
+          ORDER BY survey_responses.submitted_at DESC
+          LIMIT 3`,
+        [id]
+      );
+      const avgAll = aspects.length
+        ? Math.round((aspects.reduce((a, r) => a + parseFloat(r.avg), 0) / aspects.length) * 10) / 10
+        : null;
+
+      // Reputación de Google registrada.
+      const snaps = await query<{ rating: string; review_count: number; measured_on: string }>(
+        `SELECT rating, review_count, to_char(measured_on, 'YYYY-MM-DD') AS measured_on
+           FROM reputation_snapshots WHERE location_id = $1 ORDER BY measured_on ASC`,
+        [id]
+      );
+
+      const hours = lastRow[0]?.hours !== null && lastRow[0]?.hours !== undefined
+        ? parseFloat(lastRow[0].hours)
+        : null;
+      const week = n(row.week);
+      const weekPrev = n(row.week_prev);
+
+      return {
+        location: { id, name: loc.name, city: loc.city, brand: info[0]?.brand || '', status: info[0]?.status || 'active' },
+        days,
+        kpis: {
+          scans: cur,
+          scansPrev: prev,
+          scansPct: pct(cur, prev),
+          reviews: n(row.reviews),
+          reviewsPct: pct(n(row.reviews), n(row.reviews_prev)),
+          whatsapp: n(row.wa),
+          whatsappPct: pct(n(row.wa), n(row.wa_prev)),
+          sharePct: chainTotal ? Math.round((cur / chainTotal) * 1000) / 10 : 0,
+          chainAvg: Math.round(chainTotal / activeCount),
+        },
+        rank: { position: position('cur'), prevPosition: position('prev'), total: ranked.length },
+        health: {
+          lastScan: lastRow[0]?.last_scan || null,
+          hoursSince: hours === null ? null : Math.round(hours * 10) / 10,
+          week,
+          weekPrev,
+          dropPct: weekPrev >= 10 && week < weekPrev * 0.6 ? Math.round((1 - week / weekPrev) * 100) : null,
+        },
+        series,
+        devices: devs.map((d) => ({
+          id: d.id,
+          code: d.code,
+          label: d.label,
+          targetUrl: d.target_url,
+          channel: d.mode === 'survey' ? 'Encuesta' : detectChannel(d.target_url),
+          status: d.status,
+          lastScan: d.last_scan,
+          scans: n(d.scans),
+        })),
+        survey: {
+          total: n(surveyTotal[0]?.total),
+          avg: avgAll,
+          aspects: aspects.map((a) => ({ label: a.label, avg: Math.round(parseFloat(a.avg) * 10) / 10 })),
+          comments: comments.map((c) => ({ text: c.comment, date: c.submitted_at })),
+        },
+        reputation: snaps.map((s) => ({
+          rating: parseFloat(s.rating),
+          reviewCount: s.review_count,
+          measuredOn: s.measured_on,
+        })),
+      };
+    }
+  );
+
   // ---------- Registrar una medición de reputación (SOLO superadmin) ----------
   app.post<{
     Params: { id: string };
@@ -1164,8 +1369,10 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ---------- Dispositivos de una sede ----------
-  app.get<{ Params: { id: string } }>('/api/locations/:id/devices', async (req) => {
+  app.get<{ Params: { id: string } }>('/api/locations/:id/devices', async (req, reply) => {
     const { id } = req.params;
+    // Solo sedes de la empresa del usuario (antes no se comprobaba).
+    if (!(await locationInScope(req, id))) return reply.code(404).send({ error: 'Sede no encontrada.' });
     const rows = await query(
       `SELECT id, code, label, target_url, status, updated_at
          FROM devices WHERE location_id = $1 ORDER BY label ASC`,
