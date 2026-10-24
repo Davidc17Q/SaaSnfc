@@ -472,14 +472,14 @@ async function loadLocationView() {
   try {
     s = await api(`/api/locations/${encodeURIComponent(id)}/summary?${p.toString()}`);
   } catch {
-    $('#locName').textContent = 'Sede no encontrada';
+    $('#locViewName').textContent = 'Sede no encontrada';
     $('#locMeta').textContent = 'Puede que la sede ya no exista o no pertenezca a tu empresa.';
     return;
   }
   if (id !== locView.id) return; // el usuario ya abrió otra sede
 
   const L = s.location;
-  $('#locName').textContent = L.name;
+  $('#locViewName').textContent = L.name;
   const lastTxt = s.health.lastScan ? sinceText(s.health.lastScan).replace('Usado', 'Última interacción') : 'Sin interacciones todavía';
   $('#locMeta').innerHTML = `${escapeHtml(L.city)} · ${L.status === 'active' ? 'Activa' : 'Inactiva'} · ${escapeHtml(lastTxt)}`;
 
