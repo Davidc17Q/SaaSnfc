@@ -2062,3 +2062,18 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .loc-comments span { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
 
 .loc-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+/* Origen de las interacciones: toque NFC frente a QR */
+.src-bar { display: flex; gap: 2px; height: 0.75rem; border-radius: 9999px; overflow: hidden; background: var(--input-bg); }
+.src-bar i { display: block; height: 100%; }
+.src-nfc { background: var(--accent); }
+.src-qr { background: var(--accent); opacity: 0.4; }
+.src-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 0.85rem; font-size: 0.875rem; }
+.src-legend b { font-weight: 700; }
+.src-dot { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 9999px; margin-right: 0.4rem; vertical-align: 0.05rem; }
+.src-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); }
+
+.qr-links { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; text-align: left; }
+.qr-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.5rem; align-items: center; }
+.qr-link-label { grid-column: 1 / 3; font-size: 0.72rem; color: var(--muted); }
+.qr-link code { font-size: 0.72rem; word-break: break-all; color: var(--input-text); }

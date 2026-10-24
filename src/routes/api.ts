@@ -326,6 +326,19 @@ export async function apiRoutes(app: FastifyInstance) {
     return rows.map((r) => ({ channel: r.channel, scans: parseInt(r.scans, 10) }));
   });
 
+  // ---------- Origen de las interacciones: toque NFC o escaneo del QR ----------
+  app.get('/api/sources', async (req) => {
+    const q = req.query as any;
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
+    const rows = await query<{ source: string; scans: string }>(
+      `SELECT se.source, COUNT(*) AS scans FROM scan_events se ${where} GROUP BY se.source`,
+      params
+    );
+    const out = { nfc: 0, qr: 0, unknown: 0 } as Record<string, number>;
+    for (const r of rows) out[r.source in out ? r.source : 'unknown'] += parseInt(r.scans, 10);
+    return out;
+  });
+
   // ---------- Tendencia avanzada (variación % + promedio de la cadena) ----------
   app.get('/api/trend-advanced', async (req) => {
     const q = req.query as any;
@@ -774,6 +787,9 @@ export async function apiRoutes(app: FastifyInstance) {
            COUNT(*) FILTER (WHERE scanned_at <  ${curStart} AND channel = 'Google Reviews') AS reviews_prev,
            COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND channel = 'WhatsApp') AS wa,
            COUNT(*) FILTER (WHERE scanned_at <  ${curStart} AND channel = 'WhatsApp') AS wa_prev,
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND source = 'nfc') AS src_nfc,
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND source = 'qr') AS src_qr,
+           COUNT(*) FILTER (WHERE scanned_at >= ${curStart} AND source = 'unknown') AS src_unknown,
            COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '7 days') AS week,
            COUNT(*) FILTER (WHERE scanned_at >= now() - INTERVAL '14 days'
                               AND scanned_at <  now() - INTERVAL '7 days') AS week_prev
@@ -917,6 +933,7 @@ export async function apiRoutes(app: FastifyInstance) {
           chainAvg: Math.round(chainTotal / activeCount),
         },
         rank: { position: position('cur'), prevPosition: position('prev'), total: ranked.length },
+        sources: { nfc: n(row.src_nfc), qr: n(row.src_qr), unknown: n(row.src_unknown) },
         health: {
           lastScan: lastRow[0]?.last_scan || null,
           hoursSince: hours === null ? null : Math.round(hours * 10) / 10,

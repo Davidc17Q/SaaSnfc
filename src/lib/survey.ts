@@ -214,7 +214,8 @@ export function surveyHtml(opts: {
       if (Object.keys(ratings).length < totalAspectos) return;
       btn.disabled = true;
       msg.textContent = 'Enviando…';
-      fetch('/r/' + encodeURIComponent(deviceCode) + '/survey', {
+      // La marca ?s=q / ?s=n de la URL viaja con la respuesta (origen NFC o QR).
+      fetch('/r/' + encodeURIComponent(deviceCode) + '/survey' + location.search, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ratings: ratings, comment: coment.value })

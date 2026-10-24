@@ -364,3 +364,11 @@ CREATE TABLE IF NOT EXISTS inactivity_alert_notices (
 
 -- Último escaneo por sede sin recorrer toda la tabla.
 CREATE INDEX IF NOT EXISTS idx_scan_location_time ON scan_events(location_id, scanned_at DESC);
+
+-- ============================================================================
+-- ORIGEN DE LA INTERACCIÓN: toque NFC o escaneo del QR. El QR lleva ?s=q y el
+-- chip ?s=n en la URL /r/<código>; sin marca = 'unknown' (puntos grabados o
+-- impresos antes de esta función). El destino y el código son los mismos.
+-- ============================================================================
+ALTER TABLE scan_events      ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'unknown'; -- nfc | qr | unknown
+ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'unknown';

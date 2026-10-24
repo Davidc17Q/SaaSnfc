@@ -230,6 +230,14 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 class="font-semibold">Cómo llegan los clientes</h3>
+            <span class="text-xs text-muted">Tocando el chip NFC o escaneando el QR</span>
+          </div>
+          <div id="sourceSplit"></div>
+        </div>
+
         <!-- Dato técnico: menor jerarquía, plegado por defecto -->
         <details id="techDetails" class="card tech-details">
           <summary class="tech-summary">
@@ -545,6 +553,14 @@
           <div id="locDevices" class="loc-devices"></div>
         </div>
 
+        <div class="card">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 class="font-semibold">Cómo llegan los clientes</h3>
+            <span class="text-xs text-muted">Tocando el chip NFC o escaneando el QR</span>
+          </div>
+          <div id="locSourceSplit"></div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div class="card">
             <h3 class="font-semibold mb-3">Reputación en Google</h3>
@@ -770,12 +786,23 @@
       </div>
       <p id="qrLabel" class="text-sm text-slate-500 mb-3"></p>
       <div id="qrCanvas" class="qr-box"></div>
-      <p id="qrUrl" class="text-xs font-mono break-all text-slate-400" style="margin-top:0.75rem"></p>
       <div class="flex justify-center gap-2 mt-4">
-        <button id="downloadQr" class="btn-primary text-sm section-title-icon"><span data-icon="copy"></span> Descargar PNG</button>
+        <button id="downloadQr" class="btn-primary text-sm section-title-icon"><span data-icon="download"></span> Descargar QR</button>
+      </div>
+      <div class="qr-links">
+        <div class="qr-link">
+          <span class="qr-link-label">Enlace del QR</span>
+          <code id="qrUrl"></code>
+          <button type="button" class="btn-ghost text-xs qr-copy" data-copy="qrUrl" style="border:1px solid var(--card-border)">Copiar</button>
+        </div>
+        <div class="qr-link">
+          <span class="qr-link-label">Enlace para grabar en el chip NFC</span>
+          <code id="nfcUrl"></code>
+          <button type="button" class="btn-ghost text-xs qr-copy" data-copy="nfcUrl" style="border:1px solid var(--card-border)">Copiar</button>
+        </div>
       </div>
       <p class="text-xs text-slate-500" style="margin-top:0.85rem">
-        Imprime este QR o grábalo en la tarjeta NFC. El destino se cambia desde el panel sin reimprimir.
+        Los dos llevan al mismo destino; la marca final (?s=q o ?s=n) solo dice si el cliente escaneó o tocó. El destino se cambia desde el panel sin reimprimir.
       </p>
     </div>
   </div>

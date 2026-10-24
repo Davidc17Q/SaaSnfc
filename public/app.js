@@ -516,8 +516,36 @@ async function loadLocationView() {
 
   renderLocationTrend(s);
   renderLocationDevices(s);
+  renderSourceSplit($('#locSourceSplit'), s.sources);
   renderLocationReputation(s);
   renderLocationSurvey(s);
+}
+
+/**
+ * Barra partida "toque NFC / QR". El porcentaje se calcula solo sobre lo que
+ * sí se puede distinguir; lo de puntos antiguos (sin marca) va aparte.
+ */
+function renderSourceSplit(box, src) {
+  if (!box || !src) return;
+  const known = src.nfc + src.qr;
+  const legacy = src.unknown
+    ? `<p class="src-note">${fmt(src.unknown)} interacciones de puntos grabados o impresos antes de esta medición no se pueden distinguir.</p>`
+    : '';
+  if (!known) {
+    box.innerHTML = `<p class="text-sm text-slate-500">Aún no hay datos para distinguir. Los QR descargados del panel y los chips grabados con el enlace de NFC empiezan a medirlo desde su primer uso.</p>${legacy}`;
+    return;
+  }
+  const pN = Math.round((src.nfc / known) * 100);
+  const pQ = 100 - pN;
+  box.innerHTML = `
+    <div class="src-bar" role="img" aria-label="Toque NFC ${pN} %, QR ${pQ} %">
+      ${src.nfc ? `<i class="src-nfc" style="width:${pN}%"></i>` : ''}${src.qr ? `<i class="src-qr" style="width:${pQ}%"></i>` : ''}
+    </div>
+    <div class="src-legend">
+      <div><span class="src-dot src-nfc"></span><b>${pN} %</b> tocaron el chip NFC <span class="text-muted">· ${fmt(src.nfc)}</span></div>
+      <div><span class="src-dot src-qr"></span><b>${pQ} %</b> escanearon el QR <span class="text-muted">· ${fmt(src.qr)}</span></div>
+    </div>
+    ${legacy}`;
 }
 
 function renderLocationTrend(s) {
@@ -2055,9 +2083,12 @@ async function renderBulkHistory() {
 function openQr(id) {
   const d = state.devices.find((x) => x.id === id);
   if (!d) return;
-  const url = `${location.origin}/r/${d.code || d.id}`;
+  // El QR impreso lleva ?s=q y el chip ?s=n: así se mide por dónde llegó el cliente.
+  const base = `${location.origin}/r/${d.code || d.id}`;
+  const url = `${base}?s=q`;
   $('#qrLabel').textContent = `${d.location_name} · ${d.label}`;
   $('#qrUrl').textContent = url;
+  $('#nfcUrl').textContent = `${base}?s=n`;
 
   // Generar QR (nivel de corrección 'M', tamaño de celda para nitidez)
   const qr = qrcode(0, 'M');
@@ -2080,7 +2111,7 @@ function downloadQr() {
   if (!img) return;
   const a = document.createElement('a');
   a.href = img.src;
-  a.download = 'qr-nfcloud.png';
+  a.download = `qr-${norm($('#qrLabel').textContent).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'nfcloud'}.png`;
   a.click();
 }
 
@@ -3410,6 +3441,7 @@ async function loadDashboard({ silent = false } = {}) {
     fillDerivedKpis(k, channels || [], alerts || []);
     renderInsight(k, alerts || []);
     renderOs(k);
+    renderSourceSplit($('#sourceSplit'), await api(`/api/sources${qs()}`));
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));
   }
@@ -4425,6 +4457,16 @@ function setupCreateModals() {
   // Modal QR
   $('#closeQrModal').addEventListener('click', closeQr);
   $('#downloadQr').addEventListener('click', downloadQr);
+  document.querySelectorAll('.qr-copy').forEach((b) =>
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText($(`#${b.dataset.copy}`).textContent);
+        toast('Enlace copiado');
+      } catch {
+        toast('No se pudo copiar el enlace.', false);
+      }
+    })
+  );
   $('#qrModal').addEventListener('click', (e) => {
     if (e.target.id === 'qrModal') closeQr();
   });

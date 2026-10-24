@@ -84,6 +84,12 @@ const SURVEY_UNAVAILABLE_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+/** Origen según la marca de la URL: ?s=q (QR impreso) o ?s=n (chip NFC). */
+function scanSource(query: unknown): 'nfc' | 'qr' | 'unknown' {
+  const s = (query as { s?: string } | undefined)?.s;
+  return s === 'q' ? 'qr' : s === 'n' ? 'nfc' : 'unknown';
+}
+
 // Acepta tanto el código corto (nuevos) como el UUID (compatibilidad).
 async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   // 1) Intentar caché Redis (ruta rápida <50ms). La clave usa el valor tal cual.
@@ -236,6 +242,7 @@ export async function redirectRoutes(app: FastifyInstance) {
     const channel = detectChannel(device.target_url);
     const ua = req.headers['user-agent'] || null;
     const ip = req.ip;
+    const source = scanSource(req.query);
     setImmediate(async () => {
       try {
         // Anti-doble-conteo: si el mismo dispositivo+IP escaneó hace poco,
@@ -251,9 +258,9 @@ export async function redirectRoutes(app: FastifyInstance) {
           }
         }
         await pool.query(
-          `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [device.device_id, device.location_id, os, channel, ua, ip]
+          `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [device.device_id, device.location_id, os, channel, ua, ip, source]
         );
       } catch (err: any) {
         console.error('[scan_event] insert error:', err.message);
@@ -350,9 +357,9 @@ export async function redirectRoutes(app: FastifyInstance) {
     try {
       await client.query('BEGIN');
       const resp = await client.query(
-        `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [device.device_id, device.location_id, templateId, comment, ip]
+        `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip, source)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [device.device_id, device.location_id, templateId, comment, ip, scanSource(req.query)]
       );
       const responseId = resp.rows[0].id;
       for (const aid of aspectIds) {
