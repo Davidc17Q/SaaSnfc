@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { join } from 'path';
+import { readFileSync } from 'fs';
 import { config } from './config';
 import { redirectRoutes } from './routes/redirect';
 import { apiRoutes } from './routes/api';
@@ -9,6 +10,21 @@ import { authRoutes, registerAuthGuard } from './lib/auth';
 import { startReportScheduler } from './lib/scheduler';
 import { startPlanScheduler } from './lib/plans';
 import { applySchema } from './db/migrate';
+
+const PUBLIC_DIR = join(__dirname, '..', 'public');
+
+// Versión de los archivos del panel: cambia en cada despliegue (commit de
+// Railway o, en local, la hora de arranque). Se añade como ?v= a los JS/CSS
+// para que el navegador no use una copia vieja después de publicar cambios.
+const ASSET_VERSION = (process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now())).slice(0, 12);
+
+/** Lee una página HTML y versiona sus JS/CSS locales (/archivo.js -> /archivo.js?v=...). */
+function versionedPage(file: string): string {
+  return readFileSync(join(PUBLIC_DIR, file), 'utf8').replace(
+    /(src|href)="\/([\w.-]+\.(?:js|css))"/g,
+    `$1="/$2?v=${ASSET_VERSION}"`
+  );
+}
 
 async function main() {
   // Esquema al arrancar (aditivo e idempotente): evita depender de correr
@@ -37,14 +53,26 @@ async function main() {
   registerAuthGuard(app);
 
   // Frontend estático (dashboard). Se registra antes para poder usar sendFile.
+  // HTML, JS y CSS se revalidan siempre (no-cache + ETag): tras un despliegue
+  // el navegador recibe lo nuevo; si nada cambió, la respuesta es un 304 ligero.
   await app.register(fastifyStatic, {
-    root: join(__dirname, '..', 'public'),
+    root: PUBLIC_DIR,
     prefix: '/',
+    index: false,
+    setHeaders: (res, path) => {
+      if (/\.(html|js|css)$/.test(path)) res.setHeader('Cache-Control', 'no-cache');
+    },
   });
+
+  // Páginas con sus archivos versionados (se arman una vez por arranque).
+  const pages = { index: versionedPage('index.html'), login: versionedPage('login.html') };
+  app.get('/', async (_req, reply) =>
+    reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(pages.index)
+  );
 
   // Página de login (pública)
   app.get('/login', async (_req, reply) => {
-    return reply.type('text/html').sendFile('login.html');
+    return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(pages.login);
   });
 
   // API + motor de redirección
