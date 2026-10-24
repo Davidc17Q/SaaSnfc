@@ -32,6 +32,15 @@ export interface ReportMailOptions {
   assetBaseUrl: string; // ej. https://app.nfcloud.co (sin barra final)
 }
 
+/** Tarjeta "Mejor día" para quien no tiene personal que reforzar (profesional). */
+function bestDayStat(trend: { day: string; scans: number }[], fmt: (n: number) => string) {
+  const best = trend.reduce<{ day: string; scans: number } | null>((a, t) => (t.scans > (a?.scans || 0) ? t : a), null);
+  if (!best) return { label: 'Mejor día', value: '—', sub: 'Aún sin interacciones' };
+  const [y, m, dd] = best.day.split('-').map(Number);
+  const label = new Date(y, m - 1, dd).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+  return { label: 'Mejor día', value: esc(label), sub: `${fmt(best.scans)} interacciones` };
+}
+
 export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
   const { variation, tone, topChannel, topChannelShare, insight, highlights, fmt, pct } = reportSummary(d);
   const k = d.kpis;
@@ -62,11 +71,13 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
     },
     camp
       ? { label: 'Campaña del mes', value: esc(camp.name), sub: 'Marcada en tu tendencia' }
-      : {
-          label: 'Hora de más movimiento',
-          value: k.peakHour !== null ? `${String(k.peakHour).padStart(2, '0')}:00` : '—',
-          sub: 'Refuerza personal en esta franja',
-        },
+      : d.segment === 'professional'
+        ? bestDayStat(d.trend, fmt)
+        : {
+            label: 'Hora de más movimiento',
+            value: k.peakHour !== null ? `${String(k.peakHour).padStart(2, '0')}:00` : '—',
+            sub: d.segment === 'institution' ? 'Refuerza la atención en esta franja' : 'Refuerza personal en esta franja',
+          },
   ];
   const statCells = stats
     .map(

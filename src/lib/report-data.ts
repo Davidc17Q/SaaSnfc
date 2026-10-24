@@ -12,6 +12,7 @@ import { query } from '../db/pool';
 import type { ReportData } from './report';
 import { campaignUplift } from './campaign-effect';
 import { buildStory } from './report-story';
+import { companySegment } from './segments';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
@@ -241,6 +242,25 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     prevTo: prevEnd,
   });
 
+  // Segmento de la empresa (qué avisos tienen sentido) y días sin actividad.
+  const segment = await companySegment(scope.companyId);
+  const lastParams: any[] = [];
+  let lastWhere = '';
+  if (scope.locationId) {
+    lastParams.push(scope.locationId);
+    lastWhere = `WHERE location_id = $1`;
+  } else if (scope.companyId !== undefined) {
+    lastParams.push(scope.companyId);
+    lastWhere = `WHERE location_id IN (SELECT id FROM locations WHERE company_id = $1)`;
+  }
+  const lastRow = await query<{ days: string | null }>(
+    `SELECT EXTRACT(EPOCH FROM (now() - MAX(scanned_at))) / 86400 AS days FROM scan_events ${lastWhere}`,
+    lastParams
+  );
+  const daysSinceLast = lastRow[0]?.days !== null && lastRow[0]?.days !== undefined
+    ? Math.floor(parseFloat(lastRow[0].days))
+    : null;
+
   const generatedAt = new Date().toLocaleString('es-CO', {
     timeZone: APP_TZ,
     dateStyle: 'long',
@@ -273,5 +293,7 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     campaigns,
     inactiveLocations: parseInt(inactiveRow[0]?.c || '0', 10),
     story,
+    segment,
+    daysSinceLast,
   };
 }

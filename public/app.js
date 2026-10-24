@@ -419,7 +419,12 @@ function locationInsights(s) {
   const out = [];
   const { kpis: k, rank: r, health: h } = s;
   const daysTxt = `los ${s.days} días anteriores`;
-  if (h.hoursSince === null) {
+  const professional = s.segment === 'professional';
+  if (professional) {
+    if (h.hoursSince !== null && h.hoursSince >= 14 * 24) {
+      out.push({ level: 'warning', text: `Nadie ha usado la tarjeta en ${Math.floor(h.hoursSince / 24)} días: ofrécela en tus próximas reuniones.` });
+    }
+  } else if (h.hoursSince === null) {
     out.push({ level: 'critical', text: 'La sede no ha registrado interacciones desde que se instaló. Revisa que los puntos estén a la vista y leyendo.' });
   } else if (h.hoursSince >= 48) {
     const d = Math.floor(h.hoursSince / 24);
@@ -436,7 +441,7 @@ function locationInsights(s) {
         : `${idle.length} puntos no tuvieron interacciones en el periodo; los demás sí.`,
     });
   }
-  if (r.position && r.total > 1) {
+  if (r.position && r.total > 1 && !professional) {
     if (r.position <= 3) out.push({ level: 'good', text: `Es la ${r.position}.ª sede con más movimiento de ${r.total}.` });
     else if (r.total > 5 && r.position > r.total - 3)
       out.push({ level: 'warning', text: `Está entre las de menor movimiento: ${r.position}.ª de ${r.total}.` });
@@ -2907,6 +2912,14 @@ async function loadAdmin() {
           <td class="td">${badge}</td>
           <td class="td text-right">${fmt(c.locations ?? 0)}</td>
           <td class="td">
+            <select class="input text-xs seg-select" data-id="${c.id}" aria-label="Segmento de ${escapeHtml(c.name)}" title="Decide qué avisos y recomendaciones recibe">
+              <option value="">Automático · ${SEGMENT_LABEL[c.segmentEffective] || '—'}</option>
+              ${Object.entries(SEGMENT_LABEL)
+                .map(([v, l]) => `<option value="${v}" ${c.segment === v ? 'selected' : ''}>${l}</option>`)
+                .join('')}
+            </select>
+          </td>
+          <td class="td">
             <div class="plan-cell">${planBadge(c)}
               <select class="input text-xs plan-select" data-id="${c.id}" aria-label="Cambiar plan de ${escapeHtml(c.name)}">
                 <option value="">Cambiar…</option>
@@ -2920,8 +2933,19 @@ async function loadAdmin() {
         </tr>`;
           })
           .join('')
-      : '<tr><td class="td text-slate-500" colspan="5">Sin empresas.</td></tr>';
+      : '<tr><td class="td text-slate-500" colspan="6">Sin empresas.</td></tr>';
 
+    cbody.querySelectorAll('.seg-select').forEach((sel) =>
+      sel.addEventListener('change', async () => {
+        const res = await fetch(`/api/companies/${sel.dataset.id}/segment`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segment: sel.value || null }),
+        });
+        toast(res.ok ? 'Segmento actualizado' : 'No se pudo cambiar el segmento', res.ok);
+        loadAdmin();
+      })
+    );
     cbody.querySelectorAll('.plan-select').forEach((sel) =>
       sel.addEventListener('change', () => {
         if (sel.value) changePlan(sel.dataset.id, sel.value);
@@ -3005,6 +3029,8 @@ async function showTrialBanner() {
 }
 
 const PLAN_LABEL = { trial: 'Prueba', pro: 'Pro', basic: 'Básico' };
+// Segmento de negocio: decide qué avisos y recomendaciones recibe cada empresa.
+const SEGMENT_LABEL = { chain: 'Cadena', local: 'Negocio local', professional: 'Profesional', institution: 'Institución' };
 
 function planBadge(c) {
   const plan = c.plan || 'pro';

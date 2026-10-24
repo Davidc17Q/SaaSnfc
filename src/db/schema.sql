@@ -372,3 +372,10 @@ CREATE INDEX IF NOT EXISTS idx_scan_location_time ON scan_events(location_id, sc
 -- ============================================================================
 ALTER TABLE scan_events      ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'unknown'; -- nfc | qr | unknown
 ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'unknown';
+
+-- ============================================================================
+-- SEGMENTO DE NEGOCIO por empresa (decide qué avisos tienen sentido):
+-- chain | local | professional | institution. NULL = automático según sus
+-- datos (ver src/lib/segments.ts).
+-- ============================================================================
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS segment TEXT;

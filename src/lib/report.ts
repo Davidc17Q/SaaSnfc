@@ -11,6 +11,7 @@
  */
 
 import type { StoryData } from './report-story';
+import { SEGMENTS, type Segment } from './segments';
 
 export interface ReportData {
   companyName: string;
@@ -40,6 +41,25 @@ export interface ReportData {
   inactiveLocations?: number;
   // Datos del informe por capítulos (ver report-story.ts).
   story?: StoryData;
+  // Segmento de la empresa: decide qué avisos tienen sentido (ver segments.ts).
+  segment?: Segment;
+  // Días desde la última interacción del alcance (null = nunca).
+  daysSinceLast?: number | null;
+}
+
+/** Día con más interacciones del periodo y el promedio diario. */
+function bestDay(trend: { day: string; scans: number }[]) {
+  const active = trend.filter((t) => t.scans > 0);
+  if (!active.length) return null;
+  const best = active.reduce((a, b) => (b.scans > a.scans ? b : a));
+  const avg = trend.reduce((a, t) => a + t.scans, 0) / trend.length;
+  return { day: best.day, scans: best.scans, avg };
+}
+
+/** '2026-10-14' -> '14 de octubre'. */
+function dayLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 }
 
 /** Una línea de "Lo más destacado". 'muted' = dato que ya se ve en otra parte. */
@@ -125,11 +145,20 @@ export function reportSummary(d: ReportData) {
         });
       }
     }
-    if (k.peakHour !== null) {
+    const seg = d.segment || 'chain';
+    if (k.peakHour !== null && SEGMENTS[seg].staffAdvice) {
       highlights.push({
-        text: `Más movimiento a las ${String(k.peakHour).padStart(2, '0')}:00: buen momento para reforzar personal.`,
+        text: `Más movimiento a las ${String(k.peakHour).padStart(2, '0')}:00: buen momento para ${
+          seg === 'institution' ? 'reforzar la atención' : 'reforzar personal'
+        }.`,
         tone: 'neutral',
       });
+    }
+    if (seg === 'professional') {
+      const b = bestDay(d.trend);
+      if (b && b.scans >= 3) {
+        highlights.push({ text: `Tu mejor día fue el ${dayLabel(b.day)}, con ${fmt(b.scans)} interacciones.`, tone: 'neutral' });
+      }
     }
     // Datos que ya se ven en el número grande y en las tarjetas.
     highlights.push({ text: `${fmt(k.totalScans)} interacciones en total.`, tone: 'muted' });
@@ -220,23 +249,97 @@ export interface Recommendation {
   why: string;
 }
 
-/** Recomendaciones concretas, de la más urgente a la menos (máximo 5). */
+/** Canales que son un contacto directo (para el segmento profesional). */
+const CONTACT_CHANNELS = new Set(['WhatsApp', 'Llamada', 'Email']);
+
+/**
+ * Recomendaciones concretas, de la más urgente a la menos (máximo 5). Cada
+ * segmento recibe solo las que tienen sentido para su negocio: una tarjeta
+ * personal no tiene "personal que reforzar" ni "promociones" que registrar.
+ */
 export function reportRecommendations(d: ReportData): Recommendation[] {
   const { variation, fmt, pct } = reportSummary(d);
   const st = d.story;
+  const seg = d.segment || 'chain';
+  const profile = SEGMENTS[seg];
   const out: Recommendation[] = [];
   const prev = d.kpis.prevPeriodLabel ? d.kpis.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
   const unit = st?.units === 'points' ? 'punto NFC' : 'tienda';
 
   if (!d.kpis.totalScans) {
-    out.push({
-      level: 'crit',
-      title: 'Revisa que tus puntos NFC estén instalados y visibles.',
-      why: 'No se registró ninguna interacción en el periodo. Si los puntos ya están en tienda, puede que estén tapados o que el personal no invite a usarlos.',
-    });
+    out.push(
+      seg === 'professional'
+        ? {
+            level: 'crit',
+            title: 'Lleva tu tarjeta y entrégala en tus reuniones.',
+            why: 'Nadie la usó en el periodo. Una tarjeta rinde cuando la ofreces al presentarte: acércala al celular de la otra persona o muéstrale el QR.',
+          }
+        : seg === 'institution'
+          ? {
+              level: 'crit',
+              title: 'Revisa que los puntos de calificación estén visibles.',
+              why: 'No se registró ninguna interacción en el periodo. Verifica que cada punto de atención tenga su soporte a la vista y que el personal invite a calificar.',
+            }
+          : {
+              level: 'crit',
+              title: 'Revisa que tus puntos NFC estén instalados y visibles.',
+              why: 'No se registró ninguna interacción en el periodo. Si los puntos ya están en tienda, puede que estén tapados o que el personal no invite a usarlos.',
+            }
+    );
     return out;
   }
-  if (st) {
+
+  // ---------- Profesional / marca personal ----------
+  if (seg === 'professional') {
+    const idle = d.daysSinceLast;
+    if (idle !== null && idle !== undefined && idle >= 14) {
+      out.push({
+        level: 'warn',
+        title: 'Vuelve a entregar tu tarjeta.',
+        why: `Llevas ${idle} días sin que nadie la use. Ofrécela en tus próximas reuniones o eventos: es donde más rinde.`,
+      });
+    }
+    const b = bestDay(d.trend);
+    if (b && b.scans >= 5 && b.scans >= b.avg * 2) {
+      out.push({
+        level: 'info',
+        title: `Repite lo que hiciste el ${dayLabel(b.day)}.`,
+        why: `Fue tu mejor día: ${fmt(b.scans)} interacciones, ${Math.round(b.scans / Math.max(b.avg, 0.1))} veces tu promedio diario. Los eventos o reuniones de ese tipo son donde más contactos te genera.`,
+      });
+    }
+    const chTotal = d.channels.reduce((a, c) => a + c.scans, 0);
+    const contact = d.channels.filter((c) => CONTACT_CHANNELS.has(c.channel)).reduce((a, c) => a + c.scans, 0);
+    if (chTotal >= 10 && contact > 0 && contact < chTotal) {
+      const share = (contact / chTotal) * 100;
+      out.push(
+        share >= 15
+          ? {
+              level: 'info',
+              title: `${pct(share)} % de quienes abrieron tu tarjeta te contactaron directamente.`,
+              why: 'Por WhatsApp, llamada o correo. Mantén ese botón de contacto visible en tu portafolio o página.',
+            }
+          : {
+              level: 'warn',
+              title: 'Casi nadie pasa de ver tu información a contactarte.',
+              why: `Solo ${pct(share)} % de las interacciones terminaron en WhatsApp, llamada o correo. Pon un botón de contacto claro al inicio de tu portafolio o página.`,
+            }
+      );
+    }
+    if (st && st.units === 'points' && st.ranking.length >= 2) {
+      const avg = st.ranking.reduce((a, r) => a + r.scans, 0) / st.ranking.length;
+      const top = st.ranking[0];
+      if (avg > 0 && top.scans >= avg * 2 && top.scans >= 5) {
+        out.push({
+          level: 'info',
+          title: `La tarjeta «${top.name}» genera el doble que el promedio del equipo.`,
+          why: `${fmt(top.scans)} interacciones frente a ${fmt(Math.round(avg))} de promedio. Vale la pena compartir con el equipo cuándo y cómo la entrega.`,
+        });
+      }
+    }
+  }
+
+  // ---------- Cadena, negocio local e institución: puntos caídos o en baja ----------
+  if (st && seg !== 'professional') {
     const silent = st.ranking.filter((r) => r.silent);
     if (silent.length === 1) {
       const r = silent[0];
@@ -275,14 +378,61 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
         why: `Es su aspecto peor calificado: ${pct(w.avg)} de 5, frente a ${pct(w.chainAvg)} en el promedio.`,
       });
     }
+  }
+
+  // ---------- Institución: que la medición sea representativa ----------
+  if (seg === 'institution' && d.survey && d.survey.total > 0 && d.survey.total < 30) {
+    out.push({
+      level: 'warn',
+      title: 'Invita a más ciudadanos a calificar la atención.',
+      why: `Con ${fmt(d.survey.total)} respuestas la medición todavía no es representativa; con 30 o más los promedios son confiables.`,
+    });
+  }
+
+  // ---------- Negocio local: días fuertes y flojos de la semana ----------
+  if (st && seg === 'local') {
+    const byDay = st.heat.map((row) => row.reduce((a, b) => a + b, 0));
+    const week = byDay.reduce((a, b) => a + b, 0);
+    if (week >= 100) {
+      const avg = week / 7;
+      const bestI = byDay.indexOf(Math.max(...byDay));
+      const worstI = byDay.indexOf(Math.min(...byDay));
+      if (d.channels.some((c) => c.channel === 'Google Reviews')) {
+        out.push({
+          level: 'info',
+          title: `Pide la reseña sobre todo los ${DAY_NAMES[bestI]}.`,
+          why: `Es tu día con más movimiento: concentra ${pct((byDay[bestI] / week) * 100)} % de las interacciones de la semana.`,
+        });
+      }
+      if (byDay[worstI] < avg * 0.6) {
+        out.push({
+          level: 'info',
+          title: `Los ${DAY_NAMES[worstI]} son tu día más flojo.`,
+          why: `Tienen ${Math.round((1 - byDay[worstI] / avg) * 100)} % menos interacciones que un día promedio: buen día para una promoción.`,
+        });
+      }
+    }
+  }
+
+  // ---------- Horario: solo donde hay personal o atención que reforzar ----------
+  if (st && profile.staffAdvice && seg !== 'local') {
     const win = bestWindow(st.heat);
     if (win) {
+      const desde = String(win.hour).padStart(2, '0');
+      const hasta = String(win.hour + 2).padStart(2, '0');
       out.push({
         level: 'info',
-        title: `Asegura personal los ${DAY_NAMES[win.day]} de ${String(win.hour).padStart(2, '0')}:00 a ${String(win.hour + 2).padStart(2, '0')}:00.`,
+        title:
+          seg === 'institution'
+            ? `Refuerza la atención los ${DAY_NAMES[win.day]} de ${desde}:00 a ${hasta}:00.`
+            : `Asegura personal los ${DAY_NAMES[win.day]} de ${desde}:00 a ${hasta}:00.`,
         why: `Es la franja con más interacciones de la semana: concentra 1 de cada ${Math.max(2, Math.round(1 / win.share))}.`,
       });
     }
+  }
+
+  // ---------- Campañas: solo para quien hace promociones ----------
+  if (st && profile.promotions) {
     const measured = st.campaigns.filter((c) => c.upliftPct !== null && (c.upliftPct as number) >= 10);
     if (measured.length) {
       const best = measured.reduce((a, b) => ((b.upliftPct as number) > (a.upliftPct as number) ? b : a));
@@ -299,12 +449,37 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
       });
     }
   }
-  if (variation !== null && variation <= -15 && !out.some((r) => r.level !== 'info')) {
-    out.unshift({
-      level: 'warn',
-      title: 'Reactiva el uso de los puntos NFC en tus tiendas.',
-      why: `Las interacciones bajaron ${pct(Math.abs(variation))} % frente a ${prev}. Recuerda al equipo invitar a los clientes a acercar su celular.`,
-    });
+
+  if (seg !== 'professional' && variation !== null && variation <= -15 && !out.some((r) => r.level !== 'info')) {
+    out.unshift(
+      seg === 'institution'
+        ? {
+            level: 'warn',
+            title: 'Recuerda invitar a calificar la atención.',
+            why: `Las interacciones bajaron ${pct(Math.abs(variation))} % frente a ${prev}. Pide al personal de cada punto que invite a los ciudadanos a calificar.`,
+          }
+        : {
+            level: 'warn',
+            title: 'Reactiva el uso de los puntos NFC en tus tiendas.',
+            why: `Las interacciones bajaron ${pct(Math.abs(variation))} % frente a ${prev}. Recuerda al equipo invitar a los clientes a acercar su celular.`,
+          }
+    );
+  }
+  // Sin nada que corregir: una recomendación para seguir, nunca un capítulo vacío.
+  if (!out.length) {
+    out.push(
+      seg === 'professional'
+        ? {
+            level: 'info',
+            title: 'Sigue entregando tu tarjeta en cada reunión.',
+            why: `${fmt(d.kpis.totalScans)} interacciones este mes. Cada vez que la ofreces, la persona se queda con tu contacto a un toque.`,
+          }
+        : {
+            level: 'info',
+            title: 'Mantén los puntos NFC visibles e invita a usarlos.',
+            why: `Todo opera con normalidad: ${fmt(d.kpis.totalScans)} interacciones en el periodo.`,
+          }
+    );
   }
   const order = { crit: 0, warn: 1, info: 2 };
   return out.sort((a, b) => order[a.level] - order[b.level]).slice(0, 5);
@@ -381,6 +556,12 @@ export function reportHtml(d: ReportData): string {
   if (d.survey && d.survey.total > 0) {
     kpis.push(`<div class="kpi"><p class="lbl">Calificación de clientes</p><p class="val">${pct(d.survey.avg || 0)} <small>/ 5</small></p>
       <p class="meta">${fmt(d.survey.total)} respuestas</p></div>`);
+  } else if (d.segment === 'professional') {
+    const b = bestDay(d.trend);
+    if (b) {
+      kpis.push(`<div class="kpi"><p class="lbl">Mejor día</p><p class="val txt">${esc(dayLabel(b.day))}</p>
+      <p class="meta">${fmt(b.scans)} interacciones</p></div>`);
+    }
   } else if (k.peakHour !== null) {
     kpis.push(`<div class="kpi"><p class="lbl">Hora de más movimiento</p><p class="val">${String(k.peakHour).padStart(2, '0')}:00</p>
       <p class="meta">Franja con más interacciones</p></div>`);
@@ -450,7 +631,7 @@ export function reportHtml(d: ReportData): string {
       g += '</div>';
       const win = bestWindow((st as any).heat);
       return `<div class="card">
-        <h3>¿Cuándo interactúan tus clientes?</h3>
+        <h3>¿Cuándo interactúan tus ${SEGMENTS[d.segment || 'chain'].audience}?</h3>
         <p class="desc">Interacciones por día de la semana y hora${units === 'stores' ? ', todas las tiendas' : ''}.</p>
         ${g}
         <div class="heat-scale">Menos <span class="bar"></span> Más</div>

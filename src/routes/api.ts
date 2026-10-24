@@ -10,6 +10,7 @@ import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
 import { detectChannel } from '../lib/channel';
+import { companySegment, inferSegment, isSegment } from '../lib/segments';
 import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
@@ -589,6 +590,8 @@ export async function apiRoutes(app: FastifyInstance) {
   // Respeta el scope de empresa (company_admin solo ve lo suyo).
   app.get('/api/alerts', async (req) => {
     const companyId = resolveCompanyId(req);
+    const professional = companyId !== undefined && (await companySegment(companyId)) === 'professional';
+    const idleHours = professional ? 14 * 24 : 48;
     const cParams: any[] = [];
     let cWhere = '';
     if (companyId !== undefined) {
@@ -650,14 +653,16 @@ export async function apiRoutes(app: FastifyInstance) {
           detail: `${r.city} · nunca ha tenido actividad. Revisa si el soporte NFC/QR está instalado y leyendo.`,
           metric: null,
         });
-      } else if (hrs >= 48) {
+      } else if (hrs >= idleHours) {
         const days = Math.floor(hrs / 24);
         alerts.push({
-          level: 'grave',
+          level: professional ? 'alerta' : 'grave',
           kind: 'inactive',
           locationId: r.id,
           title: `${r.name} lleva ${days} día${days === 1 ? '' : 's'} sin interacciones`,
-          detail: `${r.city} · el soporte podría estar retirado, dañado o tapado.`,
+          detail: professional
+            ? 'Nadie ha usado la tarjeta en ese tiempo: ofrécela en tus próximas reuniones.'
+            : `${r.city} · el soporte podría estar retirado, dañado o tapado.`,
           metric: `${days}d`,
         });
       }
@@ -934,6 +939,7 @@ export async function apiRoutes(app: FastifyInstance) {
         },
         rank: { position: position('cur'), prevPosition: position('prev'), total: ranked.length },
         sources: { nfc: n(row.src_nfc), qr: n(row.src_qr), unknown: n(row.src_unknown) },
+        segment: await companySegment(loc.company_id),
         health: {
           lastScan: lastRow[0]?.last_scan || null,
           hoursSince: hours === null ? null : Math.round(hours * 10) / 10,
@@ -1953,14 +1959,26 @@ export async function apiRoutes(app: FastifyInstance) {
       return rows;
     }
     const rows = await query(
-      `SELECT c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since,
-              COUNT(DISTINCT l.id) AS locations
+      `SELECT c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment,
+              COUNT(DISTINCT l.id) AS locations,
+              COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') AS active_locations,
+              COUNT(DISTINCT d.id) FILTER (WHERE d.mode = 'survey') AS survey_points,
+              COUNT(DISTINCT d.id) AS points
          FROM companies c
          LEFT JOIN locations l ON l.company_id = c.id
-         GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since
+         LEFT JOIN devices d ON d.location_id = l.id
+         GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment
          ORDER BY c.name ASC`
     );
-    return rows.map((r: any) => ({ ...r, locations: parseInt(r.locations, 10) }));
+    return rows.map((r: any) => ({
+      id: r.id, name: r.name, slug: r.slug, status: r.status, plan: r.plan,
+      trial_ends_at: r.trial_ends_at, basic_since: r.basic_since,
+      locations: parseInt(r.locations, 10),
+      segment: r.segment, // null = automático
+      segmentEffective: isSegment(r.segment)
+        ? r.segment
+        : inferSegment(Number(r.active_locations), Number(r.survey_points), Number(r.points)),
+    }));
   });
 
   // ---------- Plan de la empresa del usuario (permitido también en Básico) ----------
@@ -1996,6 +2014,24 @@ export async function apiRoutes(app: FastifyInstance) {
       const r = await pool.query(sql, plan === 'trial' ? [req.params.id, String(days)] : [req.params.id]);
       if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
       invalidatePlan(req.params.id);
+      return { ok: true };
+    }
+  );
+
+  // ---------- Segmento de negocio de una empresa (solo superadmin) ----------
+  app.patch<{ Params: { id: string }; Body: { segment?: string | null } }>(
+    '/api/companies/:id/segment',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (s?.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede cambiar el segmento.' });
+      }
+      const seg = req.body?.segment;
+      if (seg !== null && seg !== '' && !isSegment(seg)) {
+        return reply.code(400).send({ error: 'Segmento no válido.' });
+      }
+      const r = await pool.query(`UPDATE companies SET segment = $1 WHERE id = $2`, [seg || null, req.params.id]);
+      if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
       return { ok: true };
     }
   );
