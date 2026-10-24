@@ -64,15 +64,18 @@ async function main() {
     },
   });
 
-  // Páginas con sus archivos versionados (se arman una vez por arranque).
-  const pages = { index: versionedPage('index.html'), login: versionedPage('login.html') };
+  // Páginas con sus archivos versionados. En producción se arman una vez por
+  // arranque; en desarrollo se releen en cada petición para ver los cambios.
+  const cached = { index: versionedPage('index.html'), login: versionedPage('login.html') };
+  const page = (name: 'index' | 'login') =>
+    process.env.NODE_ENV === 'production' ? cached[name] : versionedPage(`${name}.html`);
   app.get('/', async (_req, reply) =>
-    reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(pages.index)
+    reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('index'))
   );
 
   // Página de login (pública)
   app.get('/login', async (_req, reply) => {
-    return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(pages.login);
+    return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('login'));
   });
 
   // API + motor de redirección

@@ -793,17 +793,15 @@
         <div class="qr-link">
           <span class="qr-link-label">Enlace del QR</span>
           <code id="qrUrl"></code>
-          <button type="button" class="btn-ghost text-xs qr-copy" data-copy="qrUrl" style="border:1px solid var(--card-border)">Copiar</button>
+          <button type="button" class="icon-btn qr-copy" data-copy="qrUrl" title="Copiar enlace del QR" aria-label="Copiar enlace del QR"><span data-icon="copy" data-icon-size="15"></span></button>
         </div>
         <div class="qr-link">
-          <span class="qr-link-label">Enlace para grabar en el chip NFC</span>
+          <span class="qr-link-label">Para grabar en el chip NFC</span>
           <code id="nfcUrl"></code>
-          <button type="button" class="btn-ghost text-xs qr-copy" data-copy="nfcUrl" style="border:1px solid var(--card-border)">Copiar</button>
+          <button type="button" class="icon-btn qr-copy" data-copy="nfcUrl" title="Copiar enlace del chip NFC" aria-label="Copiar enlace del chip NFC"><span data-icon="copy" data-icon-size="15"></span></button>
         </div>
       </div>
-      <p class="text-xs text-slate-500" style="margin-top:0.85rem">
-        Los dos llevan al mismo destino; la marca final (?s=q o ?s=n) solo dice si el cliente escaneó o tocó. El destino se cambia desde el panel sin reimprimir.
-      </p>
+      <p class="qr-note" style="text-align:left">Los dos llevan al mismo destino: la marca final solo dice si el cliente escaneó o tocó. El destino se cambia desde el panel sin reimprimir.</p>
     </div>
   </div>
 

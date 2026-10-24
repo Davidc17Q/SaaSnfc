@@ -2088,7 +2088,9 @@ function openQr(id) {
   const url = `${base}?s=q`;
   $('#qrLabel').textContent = `${d.location_name} · ${d.label}`;
   $('#qrUrl').textContent = url;
+  $('#qrUrl').title = url;
   $('#nfcUrl').textContent = `${base}?s=n`;
+  $('#nfcUrl').title = `${base}?s=n`;
 
   // Generar QR (nivel de corrección 'M', tamaño de celda para nitidez)
   const qr = qrcode(0, 'M');
