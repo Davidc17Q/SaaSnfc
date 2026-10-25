@@ -4,6 +4,9 @@ Este archivo orienta a Claude Code al trabajar en este repositorio y es la
 **fuente de verdad**. `AGENTS.md` y `.kiro/steering/` son legado de Kiro; si algo
 entra en conflicto, prevalece este archivo.
 
+**Al empezar un chat nuevo, lee `documentos/CONTEXTO-SESION.md`**: tiene el
+estado actual, lo último publicado y lo pendiente.
+
 ---
 
 ## Qué es el proyecto

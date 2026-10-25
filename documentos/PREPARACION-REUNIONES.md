@@ -59,14 +59,19 @@ Practica contar cada caso en formato dato → insight → recomendación.
 - **Recomendación:** "Atacar Junín primero. Con reseñas reales de clientes contentos,
   esa nota sube y deja de espantar compradores. Es la sede con más que ganar."
 
-### El panorama competitivo (tu estudio)
-- **Dato:** Hogar y Moda 3,86 vs. Jamar 4,38; pero Jamar tiene ~765 reseñas por sede
-  y Hogar y Moda ~26.
-- **Insight:** la brecha de calidad es mínima (medio punto); la de volumen es enorme
-  (hasta 30 veces).
+### El panorama competitivo (Google Maps, área metropolitana, 23-oct-2026)
+- **Dato:** Hogar y Moda 3,75 de calificación y 16 reseñas por sede (32 fichas, 524
+  reseñas). Flamingo, su competidor más directo (crédito propio, centro e Itagüí):
+  4,30 y 1.132 reseñas por sede (8 fichas, 9.056 reseñas). Alkomprar: 4,35 y 1.130.
+  Electrobello: 4,30 y 84. Jamar (muebles, solo referencia): 4,16 y 680.
+- **Insight:** la brecha de calidad es de medio punto; la de volumen es enorme:
+  Flamingo tiene 17 veces más reseñas con la cuarta parte de las sedes. 19 de las 32
+  fichas de Hogar y Moda están por debajo de 4,0; en Flamingo, ninguna. Además hay
+  fichas desordenadas (nombres genéricos "HOGAR Y MODA", la Dirección General
+  apareciendo como tienda con 3,1).
 - **Recomendación:** "El frente a atacar no es la calidad del servicio, es el volumen
-  de reseñas. Es el más fácil, rápido y barato de mover, y nivela el terreno frente a
-  Jamar."
+  de reseñas. Es el más fácil, rápido y barato de mover, y los pone a competir de
+  igual a igual con Flamingo."
 
 ---
 
