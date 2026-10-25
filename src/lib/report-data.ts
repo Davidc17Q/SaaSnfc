@@ -13,6 +13,7 @@ import type { ReportData } from './report';
 import { campaignUplift } from './campaign-effect';
 import { buildStory } from './report-story';
 import { companySegment, companyUnits } from './segments';
+import { sinceStart } from './since-start';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
@@ -245,6 +246,7 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
   // Segmento de la empresa (qué avisos tienen sentido) y días sin actividad.
   const segment = await companySegment(scope.companyId);
   const units = await companyUnits(scope.companyId, segment);
+  const since = await sinceStart({ companyId: scope.companyId, locationId: scope.locationId }, segment);
   const lastParams: any[] = [];
   let lastWhere = '';
   if (scope.locationId) {
@@ -297,5 +299,6 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
     segment,
     units,
     daysSinceLast,
+    sinceStart: since,
   };
 }

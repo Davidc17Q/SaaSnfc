@@ -11,6 +11,7 @@ import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
 import { detectChannel } from '../lib/channel';
 import { companySegment, inferSegment, isSegment, unitsFor } from '../lib/segments';
+import { sinceStart } from '../lib/since-start';
 import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
@@ -325,6 +326,14 @@ export async function apiRoutes(app: FastifyInstance) {
       params
     );
     return rows.map((r) => ({ channel: r.channel, scans: parseInt(r.scans, 10) }));
+  });
+
+  // ---------- Desde que empezaste: lo acumulado desde la primera interacción ----------
+  app.get('/api/since-start', async (req) => {
+    const companyId = resolveCompanyId(req);
+    const q = req.query as any;
+    const segment = await companySegment(companyId);
+    return (await sinceStart({ companyId, locationId: q.locationId || undefined }, segment)) || { total: 0 };
   });
 
   // ---------- Origen de las interacciones: toque NFC o escaneo del QR ----------

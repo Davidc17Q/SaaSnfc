@@ -2091,3 +2091,13 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 
 /* Empresas: nombre personalizado de las sedes bajo el segmento */
 .unit-input { display: block; margin-top: 0.35rem; width: 100%; min-width: 11rem; }
+
+/* Desde que empezaste: valor acumulado (verde si crece, rojo si baja) */
+.since-strip { border-radius: 0.9rem; padding: 0.9rem 1.1rem; background: var(--neutral-state-soft); }
+.since-strip.tone-up { background: var(--ok-soft); }
+.since-strip.tone-down { background: var(--danger-soft); }
+.since-strip .since-k { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.since-strip.tone-up .since-k { color: var(--ok); }
+.since-strip.tone-down .since-k { color: var(--danger); }
+.since-strip .since-main { font-size: 1rem; font-weight: 700; margin-top: 0.2rem; line-height: 1.4; color: var(--input-text); }
+.since-strip .since-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }

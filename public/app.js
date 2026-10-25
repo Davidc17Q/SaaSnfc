@@ -526,6 +526,29 @@ async function loadLocationView() {
   renderLocationSurvey(s);
 }
 
+/** Franja "Desde que empezaste": verde si crece, roja si baja, neutra si estable. */
+async function renderSinceStart() {
+  const box = $('#sinceStrip');
+  if (!box) return;
+  let s;
+  try {
+    const p = new URLSearchParams();
+    if (state.companyId) p.set('companyId', state.companyId);
+    if (state.locationId) p.set('locationId', state.locationId);
+    s = await api(`/api/since-start?${p.toString()}`);
+  } catch {
+    s = null;
+  }
+  if (!s || !s.total) {
+    box.classList.add('hidden');
+    return;
+  }
+  box.className = `since-strip tone-${s.tone}`;
+  $('#sinceTitle').textContent = `${s.title} · desde que empezaste`;
+  $('#sinceMain').textContent = s.benefit;
+  $('#sinceDetail').textContent = s.detail;
+}
+
 /**
  * Barra partida "toque NFC / QR". El porcentaje se calcula solo sobre lo que
  * sí se puede distinguir; lo de puntos antiguos (sin marca) va aparte.
@@ -3485,6 +3508,7 @@ async function loadDashboard({ silent = false } = {}) {
     renderInsight(k, alerts || []);
     renderOs(k);
     renderSourceSplit($('#sourceSplit'), await api(`/api/sources${qs()}`));
+    renderSinceStart();
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));
   }

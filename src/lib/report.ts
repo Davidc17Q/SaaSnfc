@@ -12,6 +12,7 @@
 
 import type { StoryData } from './report-story';
 import { SEGMENTS, DEFAULT_UNITS, pointUnits, cap, type Segment, type Units } from './segments';
+import type { SinceStart } from './since-start';
 
 export interface ReportData {
   companyName: string;
@@ -45,6 +46,8 @@ export interface ReportData {
   segment?: Segment;
   // Cómo llama la empresa a cada sede ("tiendas", "tarjetas"...).
   units?: Units;
+  // Lo acumulado desde la primera interacción (ver since-start.ts).
+  sinceStart?: SinceStart | null;
   // Días desde la última interacción del alcance (null = nunca).
   daysSinceLast?: number | null;
 }
@@ -121,6 +124,12 @@ export function reportSummary(d: ReportData) {
   // ya aparecen en otra parte (por si al lector se le pasaron).
   const prev = k.prevPeriodLabel ? k.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
   const highlights: Highlight[] = [];
+  if (d.sinceStart) {
+    highlights.push({
+      text: `${d.sinceStart.title}: ${d.sinceStart.benefit.charAt(0).toLowerCase()}${d.sinceStart.benefit.slice(1)}`,
+      tone: d.sinceStart.tone === 'down' ? 'alert' : 'good',
+    });
+  }
   if (!k.totalScans) {
     highlights.push({
       text: 'No se registraron interacciones en este periodo. Revisa que los puntos NFC sigan instalados y visibles.',
@@ -589,7 +598,12 @@ export function reportHtml(d: ReportData): string {
   chapters.push({
     id: 'resumen',
     title: 'Tu mes en cifras',
-    html: `<div class="kpis n${kpis.length}">${kpis.join('')}</div>
+    html: `${d.sinceStart ? `<div class="since ${d.sinceStart.tone}">
+        <p class="since-k">${esc(d.sinceStart.title)} · desde que empezaste</p>
+        <p class="since-main">${esc(d.sinceStart.benefit)}</p>
+        <p class="since-sub">${esc(d.sinceStart.detail)}</p>
+      </div>` : ''}
+      <div class="kpis n${kpis.length}">${kpis.join('')}</div>
       ${k.totalScans ? `<div class="card">
         <div class="chart-head">
           <div><h3>Interacciones por día</h3><p class="desc">${hasPrev ? `${esc(month)} frente a ${esc(prevMonth)}.` : esc(month) + '.'}${(d.campaigns || []).length ? ' Las franjas son campañas.' : ''}</p></div>
@@ -805,6 +819,12 @@ export function reportHtml(d: ReportData): string {
   .card .desc{font-size:13px;color:var(--muted);margin-top:2px}
   .card.empty{border-style:dashed;box-shadow:none}
   .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+  .since{margin-top:20px;border-radius:16px;padding:16px 20px;background:var(--line-soft)}
+  .since.up{background:var(--ok-soft)} .since.down{background:var(--danger-soft)}
+  .since-k{font-size:12px;font-weight:700}
+  .since.up .since-k{color:var(--ok)} .since.down .since-k{color:var(--danger)} .since.flat .since-k{color:var(--muted)}
+  .since-main{font-size:17px;font-weight:700;line-height:1.35;margin-top:4px;text-wrap:pretty}
+  .since-sub{font-size:13px;color:var(--muted);margin-top:4px}
   .kpis.n3{grid-template-columns:repeat(3,minmax(0,1fr))} .kpis.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
   @media (max-width:780px){.kpis,.kpis.n3{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
