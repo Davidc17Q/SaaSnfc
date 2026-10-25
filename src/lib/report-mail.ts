@@ -12,6 +12,7 @@
  * - Colores sólidos de respaldo (bgcolor) para cuando las imágenes no cargan.
  */
 import type { ReportData } from './report';
+import { DEFAULT_UNITS, cap } from './segments';
 import { reportSummary } from './report';
 
 function esc(s: unknown): string {
@@ -44,7 +45,10 @@ function bestDayStat(trend: { day: string; scans: number }[], fmt: (n: number) =
 export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
   const { variation, tone, topChannel, topChannelShare, insight, highlights, fmt, pct } = reportSummary(d);
   const k = d.kpis;
-  const alcance = d.locationName ? esc(d.locationName) : 'Todas las sedes';
+  // Cómo llama la empresa a sus sedes (tiendas, tarjetas, puntos de atención...).
+  const U = d.units || DEFAULT_UNITS[d.segment || 'chain'];
+  const todas = U.fem ? 'todas' : 'todos';
+  const alcance = d.locationName ? esc(d.locationName) : `${cap(todas)} ${U.fem ? 'las' : 'los'} ${esc(U.many)}`;
   const prev = k.prevPeriodLabel ? k.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
 
   const deltaColors = { up: ['#dcfce7', '#166534'], down: ['#fee2e2', '#991b1b'], flat: ['#e0e7ff', '#3730a3'] }[tone];
@@ -60,7 +64,7 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
   const camp = (d.campaigns || [])[0];
   const stats = [
     {
-      label: 'Sede líder',
+      label: `${esc(cap(U.one))} líder`,
       value: k.topLocation ? esc(k.topLocation.name) : 'Sin datos',
       sub: k.topLocation ? `${fmt(k.topLocation.scans)} interacciones` : '',
     },
@@ -98,7 +102,7 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
   const max = top[0]?.scans || 1;
   const podium = top.length
     ? `<tr><td style="padding:28px 32px 0">
-        <div style="font:700 15px ${FONT};color:${INK};margin-bottom:14px">Tus sedes más visitadas</div>
+        <div style="font:700 15px ${FONT};color:${INK};margin-bottom:14px">Tus ${esc(U.many)} más ${U.fem ? 'visitadas' : 'visitados'}</div>
         ${top
           .map((l, i) => {
             const w = Math.max(4, Math.round((l.scans / max) * 100));
@@ -191,7 +195,7 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
           <a href="${esc(o.reportUrl)}" style="display:inline-block;padding:15px 30px;font:700 15px ${FONT};color:#ffffff;text-decoration:none">Ver informe completo</a>
         </td>
       </tr></table>
-      <div style="font:400 12px ${FONT};color:${MUTED};margin-top:12px">Gráficos, todas tus sedes y descarga en PDF.</div>
+      <div style="font:400 12px ${FONT};color:${MUTED};margin-top:12px">Gráficos, ${todas} tus ${esc(U.many)} y descarga en PDF.</div>
     </td></tr>
 
     <!-- Pie -->

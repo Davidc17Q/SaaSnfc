@@ -2918,6 +2918,9 @@ async function loadAdmin() {
                 .map(([v, l]) => `<option value="${v}" ${c.segment === v ? 'selected' : ''}>${l}</option>`)
                 .join('')}
             </select>
+            <input type="text" class="input text-xs unit-input" data-id="${c.id}" value="${c.unitsCustom ? escapeHtml(c.units) : ''}"
+              placeholder="${escapeHtml(c.units)}" aria-label="Cómo llama ${escapeHtml(c.name)} a sus sedes (singular / plural)"
+              title="Cómo se llaman sus sedes en informes y correos. Formato: singular / plural. Vacío = la del segmento." />
           </td>
           <td class="td">
             <div class="plan-cell">${planBadge(c)}
@@ -2943,6 +2946,18 @@ async function loadAdmin() {
           body: JSON.stringify({ segment: sel.value || null }),
         });
         toast(res.ok ? 'Segmento actualizado' : 'No se pudo cambiar el segmento', res.ok);
+        loadAdmin();
+      })
+    );
+    cbody.querySelectorAll('.unit-input').forEach((inp) =>
+      inp.addEventListener('change', async () => {
+        const res = await fetch(`/api/companies/${inp.dataset.id}/units`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ units: inp.value.trim() || null }),
+        });
+        const data = await res.json().catch(() => ({}));
+        toast(res.ok ? 'Nombre de las sedes actualizado' : data.error || 'No se pudo guardar', res.ok);
         loadAdmin();
       })
     );

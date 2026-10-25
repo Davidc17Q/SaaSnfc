@@ -11,7 +11,7 @@
  */
 
 import type { StoryData } from './report-story';
-import { SEGMENTS, type Segment } from './segments';
+import { SEGMENTS, DEFAULT_UNITS, pointUnits, cap, type Segment, type Units } from './segments';
 
 export interface ReportData {
   companyName: string;
@@ -43,8 +43,20 @@ export interface ReportData {
   story?: StoryData;
   // Segmento de la empresa: decide qué avisos tienen sentido (ver segments.ts).
   segment?: Segment;
+  // Cómo llama la empresa a cada sede ("tiendas", "tarjetas"...).
+  units?: Units;
   // Días desde la última interacción del alcance (null = nunca).
   daysSinceLast?: number | null;
+}
+
+/** Vocabulario de las sedes de la empresa (tiendas, tarjetas, puntos de atención...). */
+function storeUnits(d: ReportData): Units {
+  return d.units || DEFAULT_UNITS[d.segment || 'chain'];
+}
+
+/** Vocabulario de lo que se compara en el ranking: sedes, o puntos si es una sola sede. */
+function rankUnits(d: ReportData): Units {
+  return d.story?.units === 'points' ? pointUnits(d.segment || 'chain', storeUnits(d)) : storeUnits(d);
 }
 
 /** Día con más interacciones del periodo y el promedio diario. */
@@ -118,7 +130,7 @@ export function reportSummary(d: ReportData) {
     const inactive = d.inactiveLocations || 0;
     if (inactive > 0) {
       highlights.push({
-        text: `${inactive} ${inactive === 1 ? 'sede no registró' : 'sedes no registraron'} interacciones en el mes: revisa que el punto NFC siga instalado.`,
+        text: `${inactive} ${inactive === 1 ? `${storeUnits(d).one} no registró` : `${storeUnits(d).many} no registraron`} interacciones en el mes: revisa que el punto NFC siga instalado.`,
         tone: 'alert',
       });
     }
@@ -164,7 +176,7 @@ export function reportSummary(d: ReportData) {
     highlights.push({ text: `${fmt(k.totalScans)} interacciones en total.`, tone: 'muted' });
     if (k.topLocation) {
       highlights.push({
-        text: `${k.topLocation.name} fue la sede con más interacciones (${fmt(k.topLocation.scans)}).`,
+        text: `${k.topLocation.name} fue ${storeUnits(d).fem ? 'la' : 'el'} ${storeUnits(d).one} con más interacciones (${fmt(k.topLocation.scans)}).`,
         tone: 'muted',
       });
     }
@@ -264,7 +276,7 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
   const profile = SEGMENTS[seg];
   const out: Recommendation[] = [];
   const prev = d.kpis.prevPeriodLabel ? d.kpis.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
-  const unit = st?.units === 'points' ? 'punto NFC' : 'tienda';
+  const U = rankUnits(d);
 
   if (!d.kpis.totalScans) {
     out.push(
@@ -354,7 +366,7 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
       const names = silent.slice(0, 3).map((r) => r.name).join(', ');
       out.push({
         level: 'crit',
-        title: `Revisa los puntos NFC de ${silent.length} ${unit === 'tienda' ? 'tiendas' : 'puntos'}.`,
+        title: `Revisa los puntos NFC de ${silent.length} ${U.many}.`,
         why: `${names}${silent.length > 3 ? ' y otras' : ''} llevan al menos 3 días sin interacciones.`,
       });
     }
@@ -460,7 +472,7 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
           }
         : {
             level: 'warn',
-            title: 'Reactiva el uso de los puntos NFC en tus tiendas.',
+            title: `Reactiva el uso de los puntos NFC en tus ${storeUnits(d).many}.`,
             why: `Las interacciones bajaron ${pct(Math.abs(variation))} % frente a ${prev}. Recuerda al equipo invitar a los clientes a acercar su celular.`,
           }
     );
@@ -494,7 +506,9 @@ export function reportHtml(d: ReportData): string {
   const month = d.periodLabel.split(' ')[0];
   const prevMonth = k.prevPeriodLabel ? k.prevPeriodLabel.split(' ')[0].toLowerCase() : 'el mes anterior';
   const units = st?.units || 'stores';
-  const unitPlural = units === 'stores' ? 'tiendas' : 'puntos NFC';
+  const U = rankUnits(d);
+  const todos = U.fem ? 'Todas' : 'Todos';
+  const activos = U.fem ? 'activas' : 'activos';
   const ranking = st?.ranking || [];
   const silent = ranking.filter((r) => r.silent);
   const activeCount = ranking.filter((r) => r.scans > 0 && !r.silent).length;
@@ -522,14 +536,12 @@ export function reportHtml(d: ReportData): string {
     else headline = `${lead} ${n}, un ${pct(Math.abs(variation))} % menos que ${cmpTo}.`;
   }
   const subParts: string[] = [];
-  if (silent.length) subParts.push(`${silent.length === 1 ? `Una ${units === 'stores' ? 'tienda necesita' : 'punto necesita'}` : `${silent.length} ${unitPlural} necesitan`} atención`);
-  if (st?.worstAspect) subParts.push(`«${esc(st.worstAspect.aspect)}» es lo peor calificado por tus clientes`);
+  if (silent.length) subParts.push(`${silent.length === 1 ? `${U.fem ? 'Una' : 'Un'} ${U.one} necesita` : `${silent.length} ${U.many} necesitan`} atención`);
+  if (st?.worstAspect) subParts.push(`«${esc(st.worstAspect.aspect)}» es lo peor calificado por tus ${SEGMENTS[d.segment || 'chain'].audience}`);
   const subline = subParts.length
     ? subParts.join(' y ') + '.'
     : k.totalScans && ranking.length
-      ? units === 'stores'
-        ? 'Todas tus tiendas estuvieron activas durante el mes.'
-        : 'Todos tus puntos NFC estuvieron activos durante el mes.'
+      ? `${todos} tus ${U.many} estuvieron ${activos} durante el mes.`
       : '';
 
   // ---------- KPIs dinámicos ----------
@@ -541,9 +553,9 @@ export function reportHtml(d: ReportData): string {
   kpis.push(`<div class="kpi"><p class="lbl">Interacciones</p><p class="val">${fmt(k.totalScans)}</p>
     <p class="meta">${variation !== null ? `${deltaHtml(variation)} vs. ${partial ? 'mismos días de ' : ''}${esc(prevMonth)}` : 'Primer mes con datos'}</p></div>`);
   if (ranking.length) {
-    kpis.push(`<div class="kpi"><p class="lbl">${units === 'stores' ? 'Tiendas' : 'Puntos NFC'} con actividad</p>
+    kpis.push(`<div class="kpi"><p class="lbl">${esc(cap(U.many))} con actividad</p>
       <p class="val">${activeCount} <small>de ${ranking.length}</small></p>
-      <p class="meta">${silent.length ? `${silent.length} sin actividad reciente` : 'Todas activas'}</p></div>`);
+      <p class="meta">${silent.length ? `${silent.length} sin actividad reciente` : `${todos} ${activos}`}</p></div>`);
   }
   if (st?.reputation) {
     const r = st.reputation;
@@ -589,7 +601,7 @@ export function reportHtml(d: ReportData): string {
       ${d.channels.length >= 2 ? (() => {
         const total = d.channels.reduce((a, c) => a + c.scans, 0) || 1;
         const max = Math.max(...d.channels.map((c) => c.scans), 1);
-        return `<div class="card"><h3>A dónde fueron tus clientes</h3>
+        return `<div class="card"><h3>A dónde fueron tus ${SEGMENTS[d.segment || 'chain'].audience}</h3>
           <p class="desc">Destino al que llevó cada interacción.</p>
           <div class="dest">${d.channels.slice(0, 5).map((c) => `
             <div class="dest-row">
@@ -632,7 +644,7 @@ export function reportHtml(d: ReportData): string {
       const win = bestWindow((st as any).heat);
       return `<div class="card">
         <h3>¿Cuándo interactúan tus ${SEGMENTS[d.segment || 'chain'].audience}?</h3>
-        <p class="desc">Interacciones por día de la semana y hora${units === 'stores' ? ', todas las tiendas' : ''}.</p>
+        <p class="desc">Interacciones por día de la semana y hora${units === 'stores' ? `, ${todos.toLowerCase()} ${U.fem ? 'las' : 'los'} ${esc(U.many)}` : ''}.</p>
         ${g}
         <div class="heat-scale">Menos <span class="bar"></span> Más</div>
         ${win ? `<div class="callout"><b>Tu franja más fuerte: ${DAY_NAMES[win.day]} de ${String(win.hour).padStart(2, '0')}:00 a ${String(win.hour + 2).padStart(2, '0')}:00.</b> Concentra 1 de cada ${Math.max(2, Math.round(1 / win.share))} interacciones de la semana.</div>` : ''}
@@ -640,16 +652,16 @@ export function reportHtml(d: ReportData): string {
     })() : '';
     chapters.push({
       id: 'tiendas',
-      title: units === 'stores' ? 'Tus tiendas' : 'Tus puntos NFC',
+      title: `Tus ${esc(U.many)}`,
       lead: '',
-      html: `<p class="ch-lead">${units === 'stores' ? `Tus ${ranking.length} tiendas comparadas.` : `Tus ${ranking.length} puntos NFC comparados.`} Haz clic en una columna para ordenar.</p>
+      html: `<p class="ch-lead">Tus ${ranking.length} ${esc(U.many)} ${U.fem ? 'comparadas' : 'comparados'}. Haz clic en una columna para ordenar.</p>
         <div class="card">
           <h3>Ranking del mes</h3>
           <div class="rank-wrap">
             <table class="rank" id="rank">
               <thead><tr>
                 <th class="pos">#</th>
-                <th class="sortable" data-k="short">${units === 'stores' ? 'Tienda' : 'Punto NFC'}<span class="arrow"></span></th>
+                <th class="sortable" data-k="short">${esc(cap(U.one))}<span class="arrow"></span></th>
                 <th class="sortable num" data-k="scans">Interacciones<span class="arrow">▼</span></th>
                 ${hasPrev ? `<th class="sortable num" data-k="delta">vs. ${esc(prevMonth)}<span class="arrow"></span></th>` : ''}
                 <th class="sparkcol">Por día</th>
@@ -670,7 +682,7 @@ export function reportHtml(d: ReportData): string {
     const f = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
     return `${f.format(new Date(a + 'T00:00:00Z'))} – ${f.format(new Date(b + 'T00:00:00Z'))}`;
   };
-  chapters.push({
+  if (camps.length || SEGMENTS[d.segment || 'chain'].promotions) chapters.push({
     id: 'campanas',
     title: 'Tus campañas',
     html: camps.length
@@ -700,8 +712,8 @@ export function reportHtml(d: ReportData): string {
     const ratedStores = ranking.filter((r) => r.rating !== null).length;
     chapters.push({
       id: 'clientes',
-      title: 'Lo que opinan tus clientes',
-      html: `<p class="ch-lead">${fmt(s.total)} respuestas a la encuesta${ratedStores > 1 ? ` en ${ratedStores} tiendas` : ''}.</p>
+      title: `Lo que opinan tus ${SEGMENTS[d.segment || 'chain'].audience}`,
+      html: `<p class="ch-lead">${fmt(s.total)} respuestas a la encuesta${ratedStores > 1 ? ` en ${ratedStores} ${esc(U.many)}` : ''}.</p>
         <div class="card"><h3>Calificación por aspecto</h3>
           <div class="aspects">${s.aspects
             .map(
@@ -731,13 +743,13 @@ export function reportHtml(d: ReportData): string {
     )
     .join('');
   const nav = chapters
-    .map((c, i) => `<a href="#${c.id}"${i === 0 ? ' class="active"' : ''}><span>${i + 1}</span>${c.title.replace('Tu mes en cifras', 'Resumen').replace('Lo que opinan tus clientes', 'Tus clientes').replace('Qué hacer el próximo mes', 'Qué hacer')}</a>`)
+    .map((c, i) => `<a href="#${c.id}"${i === 0 ? ' class="active"' : ''}><span>${i + 1}</span>${c.title.replace('Tu mes en cifras', 'Resumen').replace(/^Lo que opinan tus /, 'Tus ').replace('Qué hacer el próximo mes', 'Qué hacer')}</a>`)
     .join('');
 
   const alcance = d.locationName
     ? esc(d.locationName)
     : units === 'stores'
-      ? `${ranking.length} tiendas`
+      ? `${ranking.length} ${esc(U.many)}`
       : ranking[0]
         ? esc(ranking[0].city)
         : 'Todas las sedes';

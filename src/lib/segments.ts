@@ -58,3 +58,60 @@ export function inferSegment(activeLocations: number, surveyPoints: number, poin
   if (points > 0 && surveyPoints / points > 0.5) return 'institution';
   return 'local';
 }
+
+// ---------------------------------------------------------------------------
+// Vocabulario: cómo se llama cada "sede" en los textos que ve el cliente.
+// Cada segmento trae su palabra; la empresa puede cambiarla (unit_one/many).
+// ---------------------------------------------------------------------------
+export interface Units {
+  one: string; // singular en minúscula: "tienda"
+  many: string; // plural: "tiendas"
+  fem: boolean; // concordancia: "todas activas" / "todos activos"
+}
+
+export const DEFAULT_UNITS: Record<Segment, Units> = {
+  chain: { one: 'tienda', many: 'tiendas', fem: true },
+  local: { one: 'sede', many: 'sedes', fem: true },
+  professional: { one: 'tarjeta', many: 'tarjetas', fem: true },
+  institution: { one: 'punto de atención', many: 'puntos de atención', fem: false },
+};
+
+/** Género por la terminación de la primera palabra (para nombres personalizados). */
+function guessFem(word: string): boolean {
+  const w = word.trim().split(/\s+/)[0].toLowerCase();
+  return /(a|ión|dad|tud)$/.test(w);
+}
+
+/** Vocabulario de una empresa: el personalizado si lo tiene, si no el del segmento. */
+export function unitsFor(segment: Segment, one?: string | null, many?: string | null): Units {
+  const o = (one || '').trim().toLowerCase();
+  const m = (many || '').trim().toLowerCase();
+  if (o && m) return { one: o, many: m, fem: guessFem(o) };
+  return DEFAULT_UNITS[segment];
+}
+
+/**
+ * Vocabulario de los puntos NFC cuando el informe es de una sola sede: en una
+ * tarjeta profesional o una institución cada punto es la tarjeta o el punto
+ * de atención; en un comercio, un punto NFC dentro de la tienda.
+ */
+export function pointUnits(segment: Segment, units: Units): Units {
+  return segment === 'professional' || segment === 'institution'
+    ? units
+    : { one: 'punto NFC', many: 'puntos NFC', fem: false };
+}
+
+export async function companyUnits(companyId: string | null | undefined, segment: Segment): Promise<Units> {
+  if (!companyId) return DEFAULT_UNITS[segment];
+  try {
+    const r = await query<{ unit_one: string | null; unit_many: string | null }>(
+      `SELECT unit_one, unit_many FROM companies WHERE id = $1`,
+      [companyId]
+    );
+    return unitsFor(segment, r[0]?.unit_one, r[0]?.unit_many);
+  } catch {
+    return DEFAULT_UNITS[segment];
+  }
+}
+
+export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

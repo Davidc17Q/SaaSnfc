@@ -10,7 +10,7 @@ import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
 import { detectChannel } from '../lib/channel';
-import { companySegment, inferSegment, isSegment } from '../lib/segments';
+import { companySegment, inferSegment, isSegment, unitsFor } from '../lib/segments';
 import { invalidatePlan, planStatus } from '../lib/plans';
 import { config } from '../config';
 import { isMailEnabled, sendReportMail } from '../lib/mailer';
@@ -1960,6 +1960,7 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment,
+              c.unit_one, c.unit_many,
               COUNT(DISTINCT l.id) AS locations,
               COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') AS active_locations,
               COUNT(DISTINCT d.id) FILTER (WHERE d.mode = 'survey') AS survey_points,
@@ -1967,18 +1968,25 @@ export async function apiRoutes(app: FastifyInstance) {
          FROM companies c
          LEFT JOIN locations l ON l.company_id = c.id
          LEFT JOIN devices d ON d.location_id = l.id
-         GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment
+         GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment,
+                  c.unit_one, c.unit_many
          ORDER BY c.name ASC`
     );
-    return rows.map((r: any) => ({
-      id: r.id, name: r.name, slug: r.slug, status: r.status, plan: r.plan,
-      trial_ends_at: r.trial_ends_at, basic_since: r.basic_since,
-      locations: parseInt(r.locations, 10),
-      segment: r.segment, // null = automático
-      segmentEffective: isSegment(r.segment)
+    return rows.map((r: any) => {
+      const segmentEffective = isSegment(r.segment)
         ? r.segment
-        : inferSegment(Number(r.active_locations), Number(r.survey_points), Number(r.points)),
-    }));
+        : inferSegment(Number(r.active_locations), Number(r.survey_points), Number(r.points));
+      const u = unitsFor(segmentEffective, r.unit_one, r.unit_many);
+      return {
+        id: r.id, name: r.name, slug: r.slug, status: r.status, plan: r.plan,
+        trial_ends_at: r.trial_ends_at, basic_since: r.basic_since,
+        locations: parseInt(r.locations, 10),
+        segment: r.segment, // null = automático
+        segmentEffective,
+        unitsCustom: !!(r.unit_one && r.unit_many),
+        units: `${u.one} / ${u.many}`,
+      };
+    });
   });
 
   // ---------- Plan de la empresa del usuario (permitido también en Básico) ----------
@@ -2031,6 +2039,31 @@ export async function apiRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: 'Segmento no válido.' });
       }
       const r = await pool.query(`UPDATE companies SET segment = $1 WHERE id = $2`, [seg || null, req.params.id]);
+      if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
+      return { ok: true };
+    }
+  );
+
+  // ---------- Cómo llama la empresa a sus sedes (solo superadmin) ----------
+  // Formato "singular / plural" (ej. "almacén / almacenes"); vacío = la del segmento.
+  app.patch<{ Params: { id: string }; Body: { units?: string | null } }>(
+    '/api/companies/:id/units',
+    async (req, reply) => {
+      const s = getSession(req);
+      if (s?.role !== 'superadmin') {
+        return reply.code(403).send({ error: 'Solo el superadmin puede cambiar este nombre.' });
+      }
+      const raw = (req.body?.units || '').trim();
+      let one: string | null = null;
+      let many: string | null = null;
+      if (raw) {
+        const parts = raw.split('/').map((x) => x.trim().toLowerCase());
+        if (parts.length !== 2 || !parts[0] || !parts[1] || parts.some((x) => x.length > 40)) {
+          return reply.code(400).send({ error: 'Escribe singular / plural, por ejemplo: almacén / almacenes.' });
+        }
+        [one, many] = parts;
+      }
+      const r = await pool.query(`UPDATE companies SET unit_one = $1, unit_many = $2 WHERE id = $3`, [one, many, req.params.id]);
       if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
       return { ok: true };
     }

@@ -379,3 +379,7 @@ ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAU
 -- datos (ver src/lib/segments.ts).
 -- ============================================================================
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS segment TEXT;
+-- Cómo llama la empresa a cada sede en informes y correos (NULL = la palabra
+-- de su segmento: tienda, sede, tarjeta, punto de atención).
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS unit_one TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS unit_many TEXT;
