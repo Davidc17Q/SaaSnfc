@@ -1104,10 +1104,14 @@ async function renderTop() {
     title: 'Sin sedes con tráfico',
     hint: 'No hay escaneos registrados para los filtros actuales.',
   });
+  // La altura sigue al número de sedes: con pocas, barras finas y no gigantes.
+  const box = $('#topChartBox');
   if (data.length === 0) {
+    if (box) box.style.height = '';
     destroyChart('top');
     return;
   }
+  if (box) box.style.height = `${Math.max(120, data.length * 40 + 16)}px`;
 
   upsertChart('top', ctx, {
     type: 'bar',
@@ -1115,17 +1119,23 @@ async function renderTop() {
       labels: data.map((d) => shorten(d.name)),
       datasets: [
         {
-          label: 'Escaneos',
+          label: 'Interacciones',
           data: data.map((d) => d.scans),
-          backgroundColor: accentA(0.78),
+          // La primera (la que más mueve) en azul pleno; el resto, más tenue.
+          backgroundColor: data.map((_, i) => (i === 0 ? accentA(0.9) : accentA(0.5))),
           hoverBackgroundColor: accent(),
-          borderRadius: 6,
+          borderRadius: 4,
+          maxBarThickness: 22,
+          categoryPercentage: 0.7,
         },
       ],
     },
+    plugins: [barValuePlugin],
     options: {
       indexAxis: 'y',
       responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 56 } },
       plugins: {
         legend: { display: false },
         // Tooltip con el nombre COMPLETO de la sede (el eje va truncado, el tooltip no).
@@ -1138,12 +1148,29 @@ async function renderTop() {
         e.native.target.style.cursor = els.length ? 'pointer' : 'default';
       },
       scales: {
-        x: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
-        y: { grid: { display: false }, ticks: { color: tickColor() } },
+        // El valor va escrito al final de cada barra: el eje X sobra.
+        x: { display: false, beginAtZero: true },
+        y: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor(), font: { weight: '600' } } },
       },
     },
   });
 }
+
+// Escribe el valor (es-CO) al final de cada barra horizontal.
+const barValuePlugin = {
+  id: 'barValue',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    const values = chart.data.datasets[0]?.data || [];
+    ctx.save();
+    ctx.font = `600 12px ${Chart.defaults.font.family}`;
+    ctx.fillStyle = tickColor();
+    ctx.textBaseline = 'middle';
+    meta.data.forEach((bar, i) => ctx.fillText(fmt(values[i]), bar.x + 8, bar.y));
+    ctx.restore();
+  },
+};
 
 function renderOs(k) {
   const ctx = $('#osChart');
