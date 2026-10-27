@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>REUNION-HOGAR-Y-MODA</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 820px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.6; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid #6366f1; padding-bottom: .3rem; }
+  h2 { font-size: 1.4rem; margin-top: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: .2rem; }
+  h3 { font-size: 1.15rem; margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #cbd5e1; padding: .5rem .7rem; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #6366f1; margin: 1rem 0; padding: .5rem 1rem; background: #f8fafc; color: #475569; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; margin: .5rem 0; display: block; }
+  a { color: #4f46e5; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+  @media print { body { max-width: none; } a { color: #1e293b; } }
+</style>
+</head>
+<body>
+<h1>Reunión con el gerente de Hogar y Moda — jueves en la mañana</h1>
+<p>Plan completo para llegar preparado. <strong>No es para entregar</strong>: es tu guion. Léelo completo una vez hoy, ensaya la demo dos veces mañana y repasa la sección 1 el jueves temprano.</p>
+<hr/>
+<h2>0. La meta de la reunión (una sola)</h2>
+<p><strong>Salir con un "sí" al piloto de 6 sedes</strong>, con tres cosas concretas:</p>
+<ol>
+<li>Las <strong>6 sedes</strong> elegidas (al menos una de las de peor calificación, como Junín).</li>
+<li><strong>Una persona responsable</strong> del lado de Hogar y Moda (con nombre y WhatsApp).</li>
+<li><strong>Una fecha</strong> de instalación.</li>
+</ol>
+<p>Si no se puede cerrar ahí, la meta mínima es <strong>una segunda reunión con fecha</strong> con quien decide (si es empresa familiar, puede ser el papá o un socio).</p>
+<p>Todo lo que hagas en la reunión empuja hacia esas tres cosas. Si una parte de la demo no ayuda a eso, se salta.</p>
+<hr/>
+<h2>1. Checklist antes del jueves</h2>
+<h3>Martes / miércoles (hoy y mañana)</h3>
+<ul>
+<li>☐ <strong>Publicar el arreglo del resumen</strong> (commit <code>7c9cf64</code>). Sin él, el resumen de producción dice "4 sedes con menos interacciones" con datos falsos y "Destino principal: Sin datos". Es lo primero que vería el gerente.</li>
+<li>☐ <strong>Crear el usuario del gerente en producción</strong>: Empresas y usuarios → Nuevo usuario, rol administrador de empresa, empresa <strong>Hogar y Moda</strong>. Así en la demo solo se ve su empresa (nada de Lalico, el profe ni "Todas las empresas"). Pruébalo en el portátil <strong>y</strong> en el celular.</li>
+<li>☐ <strong>Grabar una tarjeta NFC de demostración</strong> (el momento más fuerte de la reunión, ver sección 3.3):</li>
+</ul>
+<ol>
+<li>En producción, entra como el usuario de Hogar y Moda → Puntos NFC → sede <strong>Manrique</strong> (o La Playa) → punto Caja principal → ícono QR.</li>
+<li>Copia el <strong>"Enlace para grabar en el chip NFC"</strong> (termina en <code>?s=n</code>).</li>
+<li>Grábalo en una tarjeta con la app gratuita <strong>NFC Tools</strong> (Android o iPhone): Escribir → Añadir registro → URL. Pruébala con tu celular.</li>
+<li>Ten también ese QR en el celular o impreso.</li>
+</ol>
+<ul>
+<li>☐ <strong>Decidir el "valor por destino"</strong> (Informes → Valor y metas). La tarjeta "Valor estimado generado" muestra millones de pesos según lo que se configure. Dos opciones:</li>
+<li><strong>Recomendado:</strong> dejarlo vacío y configurarlo <strong>en vivo con él</strong> (sección 3.6): "¿Cuánto vale para ti un chat de crédito?". Así el número es suyo, no tuyo.</li>
+<li>Si lo dejas configurado, usa valores <strong>conservadores</strong> (por ejemplo WhatsApp $8.000, reseña $2.000) y sé capaz de explicarlos.</li>
+<li>☐ Ensayar la demo completa <strong>dos veces en voz alta</strong> con cronómetro (sección 3). La segunda, sin mirar este papel.</li>
+<li>☐ Imprimir <strong>2 copias</strong> de la propuesta (<code>cotizaciones/hogar-y-moda/ Propuesta-NFCloud-Hogar-y-Moda.pdf</code>) y tenerla también en el celular.</li>
+<li>☐ Imprimir el <strong>hablador</strong> en tamaño carta (<code>cotizaciones/hogar-y-moda/ hablador/Hablador-carta-IMPRENTA.pdf</code>). Si alcanzas, en un acrílico; si no, la lámina de presentación en el celular/tablet.</li>
+</ul>
+<h3>Jueves temprano (antes de salir)</h3>
+<ul>
+<li>☐ <strong>Refrescar la demo de producción</strong> para que los datos lleguen hasta hoy: Railway → Postgres → activar un momento el TCP Proxy → en PowerShell, desde la carpeta del proyecto: <code>powershell -File scripts\demo-produccion.ps1</code> y pega <code>DATABASE_PUBLIC_URL</code> cuando lo pida. Al terminar, <strong>desactiva el TCP Proxy otra vez</strong>.</li>
+<li>Esto regenera los 120 días con las alertas a propósito: Turbo sin actividad, Copacabana y El Peñol con caídas. Son tu historia.</li>
+<li><strong>Ojo:</strong> regenerar crea puntos nuevos, así que la tarjeta NFC grabada el martes dejaría de apuntar a un punto válido. Haz el refresco <strong>antes</strong> de grabar la tarjeta, o vuelve a copiar el enlace y regrábala después.</li>
+<li>☐ Abrir el panel con el usuario de Hogar y Moda, <strong>recargar con Ctrl + Shift + R</strong>, revisar el resumen, una ficha de sede y el informe.</li>
+<li>☐ Probar la tarjeta NFC: tócala y confirma que la interacción aparece en el panel (se refresca solo cada ~8 segundos).</li>
+<li>☐ Portátil y celular <strong>cargados</strong>; datos móviles listos para compartir internet si el Wi-Fi de la oficina falla.</li>
+<li>☐ Pestañas abiertas en orden: (1) panel en el Resumen, (2) Google Maps con "Hogar y Moda Junín", (3) Google Maps con "Flamingo Itagüí", (4) la ficha de Lalico en Google (tu caso real 5 → 29), (5) el informe mensual.</li>
+<li>☐ <strong>Plan B sin internet:</strong> el PDF de la propuesta y capturas del panel en el celular (resumen, una ficha, el informe). Tómalas el miércoles.</li>
+</ul>
+<h3>Qué llevar</h3>
+<p>Portátil y cargador · celular con datos · tarjeta NFC de demo · 2 propuestas impresas · hablador impreso (o lámina en el celular) · libreta y esfero para anotar lo que él diga (anotar sus palabras genera confianza).</p>
+<hr/>
+<h2>2. Lo que tienes que saber de memoria</h2>
+<p><strong>Hogar y Moda en Google Maps (área metropolitana, revisión del 23 de octubre):</strong></p>
+<table><thead><tr><th>Cadena</th><th>Sedes en Google</th><th>Calificación</th><th>Reseñas por sede</th></tr></thead><tbody>
+<tr><td>Flamingo</td><td>8</td><td>4,30</td><td>1.132</td></tr>
+<tr><td>Alkomprar</td><td>7</td><td>4,35</td><td>1.130</td></tr>
+<tr><td>Jamar (referencia)</td><td>3</td><td>4,16</td><td>680</td></tr>
+<tr><td>Electrobello</td><td>4</td><td>4,30</td><td>84</td></tr>
+<tr><td><strong>Hogar y Moda</strong></td><td><strong>32 fichas</strong></td><td><strong>3,75</strong></td><td><strong>16</strong></td></tr>
+</tbody></table>
+<ul>
+<li>Flamingo tiene <strong>17 veces más reseñas con la cuarta parte de las sedes</strong>.</li>
+<li><strong>19 de las 32 fichas</strong> de Hogar y Moda están por debajo de 4,0. En Flamingo, ninguna.</li>
+<li><strong>Junín Principal: 2,7 con 41 reseñas.</strong></li>
+<li>Fichas desordenadas: varias se llaman solo "HOGAR Y MODA", sin barrio, y la Dirección General aparece como si fuera una tienda (3,1).</li>
+<li>La calidad no está lejos (medio punto); <strong>el frente a mover es el volumen</strong>.</li>
+</ul>
+<p><strong>Tu evidencia propia:</strong> Lalico pasó de 5 a 29 reseñas en dos semanas, manteniendo 5 estrellas, sin cambiar su operación.</p>
+<p><strong>Evidencia externa (por si pregunta "¿y eso en plata?"):</strong> Harvard (Michael Luca) midió que una estrella más se asocia con 5 % a 9 % más de ingresos, y que el efecto es mayor en marcas regionales que en las muy conocidas. Es un orden de magnitud, no una promesa (detalle en <code>documentos/RESPALDO-EVIDENCIA.md</code>).</p>
+<p><strong>La empresa:</strong> Hogar y Moda S.A.S., desde 1995 (empezó con venta por catálogo y puerta a puerta), ~80 sedes, ventas reportadas de más de 100.000 millones al año. Venden a crédito: <strong>el crédito es su motor</strong>, no solo la reseña.</p>
+<hr/>
+<h2>3. La reunión, minuto a minuto (45 minutos)</h2>
+<blockquote>Regla de oro: <strong>él habla más que tú en los primeros 10 minutos.</strong> Si escuchas bien, el resto de la reunión se vende sola.</blockquote>
+<h3>3.1 Apertura (0–3 min)</h3>
+<blockquote>"Gracias por el espacio. Te traigo algo que ya funciona en negocios reales y que creo que le puede servir a Hogar y Moda en dos cosas que se pueden medir: reputación en Google y clientes que llegan por WhatsApp. Antes de mostrarte nada, quiero entender cómo lo ven ustedes."</blockquote>
+<p>Es familia: <strong>más profesional, no menos.</strong> Trátalo como a un cliente grande.</p>
+<h3>3.2 Preguntas para él (3–10 min)</h3>
+<p>Hazlas y <strong>anota sus respuestas con sus palabras</strong>. Las usarás en el cierre.</p>
+<ol>
+<li>"¿Cómo les llegan hoy los clientes de crédito? ¿Por la tienda, por WhatsApp, por los promotores?"</li>
+<li>"¿Tienen un WhatsApp de la empresa o cada sede tiene el suyo? ¿Hay un canal de promociones?"</li>
+<li>"¿Revisan las reseñas de Google de cada sede? ¿Hay alguna que les preocupe?"</li>
+<li>"Si mañana quisieran lanzar una promoción en todas las sedes, ¿cómo lo hacen hoy y cuánto se demora?"</li>
+<li>"¿Cómo saben hoy qué sede está funcionando mejor y cuál se está quedando?"</li>
+<li>"Si hiciéramos un piloto, ¿quién sería la persona encargada de su lado? ¿Y quién más participa en una decisión así?"</li>
+</ol>
+<p>La respuesta a la 6 te dice <strong>quién decide</strong>. Si no es él, la meta pasa a ser la segunda reunión con esa persona.</p>
+<h3>3.3 El momento de impacto (10–13 min)</h3>
+<p>Antes de cualquier gráfico, saca la tarjeta NFC:</p>
+<blockquote>"Toca esta tarjeta con tu celular."</blockquote>
+<p>Se le abre la reseña de Google (o el destino que hayas puesto). Gira el portátil:</p>
+<blockquote>"Eso que acabas de hacer ya quedó registrado. Esa es la sede, ese es el punto, esa es la hora. Así se ve cuando lo hacen cientos de clientes en tus 27 sedes."</blockquote>
+<p>Si el panel no la muestra al instante, no pasa nada: se actualiza cada pocos segundos. Sigue hablando y vuelve a mirarlo después.</p>
+<h3>3.4 El diagnóstico (13–18 min)</h3>
+<blockquote>"Revisé sus fichas de Google frente a la competencia." (tabla de la sección 2)</blockquote>
+<ul>
+<li>Muestra <strong>Junín en Google Maps</strong> en su propio celular o en el tuyo: 2,7.</li>
+<li>Muestra <strong>Flamingo Itagüí</strong>: 3.146 reseñas.</li>
+<li>La frase clave:</li>
+</ul>
+<blockquote>"No es que la atención sea mala: están a medio punto de Flamingo. La diferencia es que el cliente contento de Hogar y Moda no deja reseña y el molesto sí. Eso es lo que se cambia, y es lo más rápido y barato de mover."</blockquote>
+<h3>3.5 La demo (18–30 min)</h3>
+<p><strong>Antes de empezar, dilo una vez y claro:</strong></p>
+<blockquote>"Los números que vas a ver son <strong>simulados</strong> sobre tus 27 sedes reales, para que veas cómo se vería. Lo real es lo que te mostré de Google y lo de Lalico. Con el piloto, estos números serán los tuyos."</blockquote>
+<p>Decirlo protege tu credibilidad: si él ve "Turbo sin actividad" y llama a Turbo, no puede pensar que lo engañaste.</p>
+<p>Orden de la demo (cada paso responde una pregunta de él):</p>
+<ol>
+<li><strong>Resumen</strong> → "¿Cómo vamos?": la frase de arriba, "Desde que empezaste" y las cuatro tarjetas. No leas los números: di qué significan.</li>
+<li><strong>Alertas</strong> → "¿Qué tengo que atender?": «Turbo lleva 3 días sin interacciones». "Esto te lo dice el sistema solo; también te puede llegar al correo."</li>
+<li><strong>Ficha de sede</strong> (clic en Ver sede de Turbo, y luego <strong>Manrique</strong> desde el gráfico) → "Mira cómo va Manrique": posición en la cadena, si subió o bajó, reseñas, WhatsApp, sus puntos NFC uno por uno. <strong>Este es el "wow"</strong>: quédate aquí.</li>
+<li><strong>Cambio masivo</strong> (Puntos NFC → Cambio masivo) → "Llega Black Friday: en un clic, los habladores de todas las sedes llevan a la promoción, sin reimprimir nada." Muéstralo sin aplicarlo (o aplícalo y deshazlo desde el historial).</li>
+<li><strong>Mapa de calor</strong> → "Sábado de 5 a 7 es tu momento más fuerte: ahí debe estar el asesor de crédito."</li>
+<li><strong>Informe mensual</strong> (Informes → Generar informe) → "Esto te llega cada mes. No tienes que entrar al panel: qué pasó, qué sede atender y qué hacer."</li>
+</ol>
+<p><strong>Qué NO mostrar:</strong> Empresas y usuarios, el selector de empresas, las otras empresas, el detalle técnico de sistemas operativos. Tampoco abras un módulo que no hayas ensayado.</p>
+<h3>3.6 El valor (30–33 min) — opcional pero poderoso</h3>
+<p>En Informes → Valor y metas, pregúntale:</p>
+<blockquote>"¿Cuánto vale para Hogar y Moda un cliente que escribe por WhatsApp preguntando por crédito? No la venta: solo el contacto."</blockquote>
+<p>Escribe <strong>su</strong> número (por ejemplo $10.000) y vuelve al Resumen: la tarjeta "Valor estimado generado" ahora está en sus términos. Remata:</p>
+<blockquote>"Con tu propio número, esto es lo que el piloto tendría que demostrar."</blockquote>
+<p>Si dice un número muy alto, no lo corrijas: anótalo.</p>
+<h3>3.7 La propuesta (33–40 min)</h3>
+<p>Entrega la propuesta impresa y ve directo a la página del piloto:</p>
+<ul>
+<li><strong>Kit por sede:</strong> hablador carta en caja (reseña + asesor de crédito/cuota + promociones) y media carta en la entrada (crédito por WhatsApp).</li>
+<li><strong>Piloto:</strong> 6 sedes, 90 días. Implementación <strong>$249.900 por sede</strong> (en vez de $279.800), plataforma <strong>$34.900 por sede al mes</strong>, <strong>primer mes sin costo</strong>. <strong>Total del piloto: $1.918.200.</strong></li>
+<li><strong>Garantía:</strong> si al día 60 las sedes del piloto no subieron sus reseñas en Google, las mensualidades del piloto no se cobran.</li>
+<li><strong>Después del piloto</strong> (solo para que sepa que el camino existe): Opción A $199.900 por sede + $19.900 al mes; Opción B $44.900 por sede al mes todo incluido, sin inversión inicial.</li>
+</ul>
+<p><strong>Cómo decir el precio:</strong> léelo de la hoja, con voz normal, y <strong>quédate callado</strong>. El silencio no es un "no". El primero que habla después del precio suele ceder; que no seas tú.</p>
+<h3>3.8 El cierre (40–45 min)</h3>
+<blockquote>"Te propongo esto: elegimos juntos las 6 sedes, incluida Junín. Me das una persona de contacto y en 8 días hábiles está instalado. A los 90 días te entrego el antes y el después de cada sede con tus propios números. Si no funciona, no seguimos. ¿Qué sedes pondrías?"</blockquote>
+<p>Termina con una <strong>pregunta de elección</strong> ("¿qué sedes?"), no con una de sí/no ("¿te interesa?").</p>
+<p>Si dice que lo tiene que pensar o consultar:</p>
+<blockquote>"Claro. ¿Qué necesitarías ver para decidir? ¿Y con quién lo hablarías? Si quieres, lo presento yo mismo en una próxima reunión; ¿el martes te sirve?"</blockquote>
+<p>Sal con <strong>fecha</strong>, aunque no sea un sí.</p>
+<hr/>
+<h2>4. Objeciones: respuestas listas</h2>
+<p><strong>"Es caro."</strong></p>
+<blockquote>"Son $34.900 al mes por sede: menos de lo que vale una venta pequeña a crédito. Si una sola sede consigue un cliente más al mes, ya se pagó. Y en el piloto, si no suben las reseñas, no pagas las mensualidades."</blockquote>
+<p>No bajes el precio por pedirlo. Si hay que ceder, <strong>cambia algo a cambio</strong>: más sedes, contrato más largo o permiso para usar el caso como referencia.</p>
+<p><strong>"Ya tenemos códigos QR."</strong></p>
+<blockquote>"Un QR normal lleva siempre al mismo sitio y no mide nada. Este se puede cambiar sin reimprimir, te dice qué sede y qué punto funciona, y te avisa si una sede deja de usarlo. Además funciona tocando, sin abrir la cámara."</blockquote>
+<p><strong>"Los empleados no lo van a ofrecer."</strong></p>
+<blockquote>"Por eso el panel muestra sede por sede: si una no lo usa, se ve el mismo día y llega una alerta. Y el hablador hace la mitad del trabajo: está en la caja, donde el cliente espera mientras le facturan o le estudian el crédito."</blockquote>
+<p><strong>"El cliente no sabe qué es NFC."</strong></p>
+<blockquote>"No tiene que saberlo: acerca el celular o escanea el QR, las dos opciones están en el hablador. Y medimos cuántos usan cada una."</blockquote>
+<p><strong>"¿Las reseñas son reales? ¿Esto no es comprar reseñas?"</strong></p>
+<blockquote>"Son reales, de clientes reales. Solo hacemos fácil que dejen la suya. No compramos, no inventamos y no filtramos: Google lo prohíbe y protege tu ficha."</blockquote>
+<p><strong>"¿Y si llegan reseñas malas?"</strong></p>
+<blockquote>"Pueden llegar, y eso también es información. Pero los datos muestran que el cliente contento es mayoría: el problema hoy es que no habla. Además, con la encuesta interna te enteras de un problema antes de que llegue a Google."</blockquote>
+<p><strong>"¿Qué pasa si dejamos de pagar o si tú desapareces?"</strong></p>
+<blockquote>"Las tarjetas y habladores siguen llevando a su destino; solo se deja de ver el panel. Nunca quedan rotos en la tienda. Y si el servidor fallara, tengo un plan de contingencia para que los puntos sigan funcionando."</blockquote>
+<p><strong>"¿Qué datos guardan de nuestros clientes?" (Habeas Data, Ley 1581)</strong></p>
+<blockquote>"Ninguno personal: no pedimos nombre, cédula ni teléfono. Solo registramos la interacción (sede, punto, hora, tipo de celular). La encuesta es anónima."</blockquote>
+<p><strong>"¿Por qué no lo hacemos nosotros mismos?"</strong></p>
+<blockquote>"Pueden imprimir un QR, sí. Lo que no tienen es la medición sede por sede, el cambio de destino en un clic, las alertas y el informe mensual con qué hacer. Eso es lo que construí y lo que te ahorro."</blockquote>
+<p><strong>"¿Cuánto se demora la instalación?"</strong></p>
+<blockquote>"8 días hábiles desde que apruebas: diseño, configuración por sede e instalación. Tu equipo no tiene que hacer nada técnico."</blockquote>
+<p><strong>"¿Se conecta con nuestro WhatsApp de crédito?"</strong></p>
+<blockquote>"Sí: el punto lleva al WhatsApp que ustedes usen, de la empresa o de cada sede, con un mensaje que dice de qué sede viene el cliente."</blockquote>
+<p><strong>"Déjame hablarlo con mi papá / con los socios."</strong></p>
+<blockquote>"Perfecto. ¿Quieres que te deje la propuesta y lo presentamos juntos? Así respondo yo las preguntas técnicas. ¿Qué día les queda bien?"</blockquote>
+<p><strong>"Hagámoslo gratis primero, somos familia."</strong></p>
+<blockquote>"Precisamente porque somos familia quiero que salga bien: un piloto pagado nos compromete a los dos a medirlo en serio. Por eso puse la garantía: si no funciona, no pagas las mensualidades."</blockquote>
+<p><strong>"¿Y esto lo tiene otra empresa?"</strong></p>
+<blockquote>"Hay herramientas de QR y de reseñas por separado. Lo que hago distinto es juntarlo en tu tienda física, medir cada sede y decirte qué hacer con eso."</blockquote>
+<hr/>
+<h2>5. Lo que NO debes hacer</h2>
+<ul>
+<li><strong>No prometas un número exacto de reseñas</strong> ("van a llegar 500"). Promete medir y mostrar el antes y el después.</li>
+<li><strong>No hables de tecnología</strong> (servidores, Redis, código). Habla de clientes, sedes y ventas.</li>
+<li><strong>No critiques a su equipo</strong> ni la atención de una sede: el problema es el volumen de reseñas, no la gente.</li>
+<li><strong>No hagas pasar los datos de la demo por reales.</strong></li>
+<li><strong>No improvises descuentos.</strong> Si te piden rebaja, "lo reviso y te confirmo hoy mismo por escrito".</li>
+<li><strong>No ofrezcas funciones que aún no están listas</strong> como si lo estuvieran: los avisos por WhatsApp todavía necesitan la cuenta de Twilio. Di "en camino".</li>
+<li><strong>No llenes los silencios</strong> después del precio.</li>
+</ul>
+<hr/>
+<h2>6. Después de la reunión</h2>
+<ul>
+<li><strong>El mismo día</strong>, por WhatsApp o correo: un resumen corto con lo que acordaron, sus palabras ("me dijiste que Junín te preocupa…"), la propuesta en PDF y el próximo paso con fecha.</li>
+<li>Si dijo que sí: crear sus 6 sedes y puntos en el panel, programar el informe semanal a su correo, activar el aviso de sede sin actividad, diseñar los habladores con los QR reales (descargados del panel, <code>?s=q</code>) y grabar los chips con su enlace (<code>?s=n</code>).</li>
+<li>Si quedó una segunda reunión: prepara la presentación para quien decide con sus respuestas a las preguntas de la sección 3.2.</li>
+<li>Anota qué preguntas te hizo que no tenías preparadas: son oro para la próxima.</li>
+</ul>
+<hr/>
+<h2>7. Mentalidad</h2>
+<ul>
+<li>Llegas desde la <strong>fuerza</strong>: producto funcionando, clientes reales, un caso medido y un diagnóstico de su propia empresa que nadie más le ha traído.</li>
+<li>Él no te está haciendo un favor: tú le estás mostrando una oportunidad que su competencia ya está aprovechando.</li>
+<li>Si algo falla en la demo, sonríe y di "por eso existe el piloto". Nadie compra por una demo perfecta; compran por confianza.</li>
+<li>Respira antes del precio. Dilo y calla.</li>
+</ul>
+
+</body>
+</html>

@@ -68,6 +68,14 @@
   WhatsApp; aviso al instante (casilla en Avisos).
 - Mapa de calor día × hora y "Descargar todas (Excel)" en el resumen.
 
+## Reunión con Hogar y Moda (jueves 29 de octubre, en la mañana)
+
+- Plan completo: `documentos/REUNION-HOGAR-Y-MODA.md` (también en HTML y PDF):
+  meta, checklist, guion minuto a minuto, demo, precios, objeciones y cierre.
+- Arreglado el 27 de octubre (`7c9cf64`): el resumen tomaba los destinos como
+  alertas y "Destino principal" decía "Sin datos" desde que se añadió el mapa
+  de calor. La demo ahora simula el origen NFC/QR.
+
 ## Pendiente
 
 - Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo
