@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { pool } from '../db/pool';
 import { redis, deviceCacheKey, dedupeKey, surveyDedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
-import { deviceChannel } from '../lib/channel';
+import { deviceChannel, isSafeTarget } from '../lib/channel';
 import { config } from '../config';
 import { transitionHtml } from '../lib/transition';
 import { surveyHtml } from '../lib/survey';
@@ -219,15 +219,24 @@ export async function redirectRoutes(app: FastifyInstance) {
     // fricción a reseñas/WhatsApp. El preview sirve para probar/demostrar.
     // La pantalla aparece si el dispositivo la tiene activada (columna
     // transition) o si se fuerza con ?preview=1 (para pruebas/demos).
+    // Un destino con protocolo raro (javascript:, data:) nunca pasa por la
+    // pantalla, que lo ejecutaría con location.replace: va por el 302 de siempre.
     const preview =
-      (device as any).transition === true ||
-      (req.query as { preview?: string })?.preview === '1';
+      ((device as any).transition === true ||
+        (req.query as { preview?: string })?.preview === '1') &&
+      isSafeTarget(device.target_url);
     if (preview) {
       reply
         .header('Cache-Control', 'no-store')
         .header('ngrok-skip-browser-warning', 'true')
         .type('text/html; charset=utf-8')
-        .send(transitionHtml({ targetUrl: device.target_url, companyName: device.company_name }));
+        .send(
+          transitionHtml({
+            targetUrl: device.target_url,
+            companyName: device.company_name,
+            channel: deviceChannel(device),
+          })
+        );
     } else {
       // Redirigir de inmediato (no bloquear en el registro del evento).
       // 'ngrok-skip-browser-warning' evita la pantalla intermedia de ngrok gratis.

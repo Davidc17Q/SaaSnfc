@@ -58,3 +58,15 @@ export function detectChannel(targetUrl: string): string {
 export function deviceChannel(d: { target_url: string; channel?: string | null }): string {
   return d.channel || detectChannel(d.target_url);
 }
+
+/**
+ * Destino válido para un punto: URL bien formada con un protocolo que abre
+ * una web o una app (nunca javascript: ni data:, que ejecutarían código).
+ */
+export function isSafeTarget(url: string): boolean {
+  try {
+    return ['http:', 'https:', 'tel:', 'mailto:', 'sms:', 'whatsapp:'].includes(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}

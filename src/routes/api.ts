@@ -9,7 +9,7 @@ import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
-import { CHANNELS, detectChannel, deviceChannel } from '../lib/channel';
+import { CHANNELS, detectChannel, deviceChannel, isSafeTarget } from '../lib/channel';
 import { companySegment, inferSegment, isSegment, unitsFor } from '../lib/segments';
 import { sinceStart } from '../lib/since-start';
 import { invalidatePlan, planStatus } from '../lib/plans';
@@ -1500,10 +1500,7 @@ export async function apiRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: 'Nada que actualizar.' });
     }
     if (target_url) {
-      try {
-        // eslint-disable-next-line no-new
-        new URL(target_url);
-      } catch {
+      if (!isSafeTarget(target_url)) {
         return reply.code(400).send({ error: 'target_url inválida.' });
       }
     }
@@ -1706,10 +1703,7 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!target_url) {
       return reply.code(400).send({ error: 'La target_url es obligatoria.' });
     }
-    try {
-      // eslint-disable-next-line no-new
-      new URL(target_url);
-    } catch {
+    if (!isSafeTarget(target_url)) {
       return reply.code(400).send({ error: 'target_url inválida.' });
     }
     const st = status === 'inactive' ? 'inactive' : 'active';
@@ -1783,10 +1777,7 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!target_url) {
       return reply.code(400).send({ error: 'La nueva URL es obligatoria.' });
     }
-    try {
-      // eslint-disable-next-line no-new
-      new URL(target_url);
-    } catch {
+    if (!isSafeTarget(target_url)) {
       return reply.code(400).send({ error: 'URL inválida.' });
     }
     if (scope !== 'all' && scope !== 'brand' && scope !== 'location') {
