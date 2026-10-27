@@ -537,6 +537,7 @@ async function loadLocationView() {
   renderSourceSplit($('#locSourceSplit'), s.sources);
   renderLocationReputation(s);
   renderLocationSurvey(s);
+  renderCompetition(id, L);
 }
 
 /** Franja "Desde que empezaste": verde si crece, roja si baja, neutra si estable. */
@@ -2933,6 +2934,7 @@ async function renderImpact() {
 
 async function loadExecutive() {
   renderGoals();
+  renderCompetitionSummary();
   await renderImpact();
   await renderBenchmark();
   populateCompareSelectors();
@@ -3847,6 +3849,200 @@ async function saveBusinessSettings() {
     return;
   }
   toast('Valor y metas guardados');
+}
+
+// ---------------------------------------------------------------------------
+// Competencia en Google (src/routes/competition.ts)
+// ---------------------------------------------------------------------------
+const stars = (r) => (r === null || r === undefined ? '—' : `${r.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★`);
+const gainedTxt = (g) => (g === null || g === undefined ? '—' : g > 0 ? `+${fmt(g)}` : fmt(g));
+let compLoc = null; // { id, name, city } de la ficha abierta
+
+async function renderCompetition(id, L) {
+  const card = $('#compCard');
+  if (!card) return;
+  let d;
+  try {
+    d = await api(`/api/locations/${encodeURIComponent(id)}/competition`);
+  } catch {
+    d = null;
+  }
+  if (id !== locView.id) return;
+  // Sin conexión a Google y sin datos guardados: no se muestra.
+  if (!d || (!d.enabled && !d.own && !d.competitors.length)) {
+    card.classList.add('hidden');
+    return;
+  }
+  compLoc = { id, name: L.name, city: L.city };
+  card.classList.remove('hidden');
+  const body = $('#compBody');
+  $('#compAdd').classList.toggle('hidden', !d.enabled || !d.own || d.competitors.length >= d.max);
+  $('#compRefresh').classList.toggle('hidden', !d.enabled || !d.own);
+
+  if (!d.own) {
+    body.innerHTML = `<div class="comp-empty">
+        <p>Conecta esta sede con su ficha de Google para compararla con hasta ${d.max} competidores cercanos.</p>
+        ${d.enabled ? '<button type="button" class="btn-primary text-sm" id="compLink">Conectar con Google</button>' : '<p class="text-xs text-muted">La conexión con Google no está configurada en el servidor.</p>'}
+      </div>`;
+    $('#compLink')?.addEventListener('click', () => openPlaceModal('own'));
+    return;
+  }
+
+  const rows = [{ ...d.own, own: true }, ...d.competitors];
+  const since = rows.map((r) => r.since).filter(Boolean).sort()[0];
+  $('#compSub').textContent = since
+    ? `Calificación y reseñas en Google · reseñas ganadas desde el ${fmtDay(since)}`
+    : 'Calificación y reseñas en Google · las reseñas ganadas se ven desde la próxima medición semanal';
+  const best = Math.max(...rows.map((r) => r.rating ?? 0));
+  body.innerHTML =
+    `<div class="comp-table">
+      <div class="comp-head"><span>Negocio</span><span>Calificación</span><span>Reseñas</span><span>Ganadas</span><span></span></div>
+      ${rows
+        .map(
+          (r) => `<div class="comp-row ${r.own ? 'comp-own' : ''}">
+          <span class="comp-name"><span class="truncate">${escapeHtml(r.own ? `${nice(L.name)} (tú)` : r.name)}</span>${r.address ? `<span class="comp-addr truncate">${escapeHtml(r.address)}</span>` : ''}</span>
+          <span class="comp-num ${r.rating !== null && r.rating === best ? 'comp-best' : ''}">${stars(r.rating)}</span>
+          <span class="comp-num">${r.reviews === null ? '—' : fmt(r.reviews)}</span>
+          <span class="comp-num">${gainedTxt(r.gained)}</span>
+          <span class="comp-act">${
+            r.own
+              ? '<button type="button" class="link-btn text-xs" id="compRelink">Cambiar</button>'
+              : `<button type="button" class="icon-btn comp-del" data-id="${r.id}" aria-label="Quitar ${escapeHtml(r.name)}">${icon('trash', { size: 14 })}</button>`
+          }</span>
+        </div>`
+        )
+        .join('')}
+    </div>` +
+    (!d.competitors.length ? '<p class="text-sm text-muted mt-3">Agrega los competidores que los clientes de esta sede también visitan.</p>' : '') +
+    `<p class="text-xs text-muted mt-3">Datos públicos de Google Maps. Se miden solos una vez por semana.</p>`;
+
+  $('#compRelink')?.addEventListener('click', () => openPlaceModal('own'));
+  body.querySelectorAll('.comp-del').forEach((b) =>
+    b.addEventListener('click', async () => {
+      await fetch(`/api/locations/${encodeURIComponent(id)}/competitors/${b.dataset.id}`, { method: 'DELETE', credentials: 'same-origin' });
+      renderCompetition(id, L);
+    })
+  );
+}
+
+let placeMode = 'own';
+function openPlaceModal(mode) {
+  placeMode = mode;
+  $('#placeModalTitle').textContent = mode === 'own' ? 'Conectar la sede con Google' : 'Agregar competidor';
+  $('#placeModalHint').textContent =
+    mode === 'own'
+      ? 'Busca el negocio tal como aparece en Google Maps (nombre y ciudad o barrio).'
+      : 'Busca un negocio cercano que compita con esta sede.';
+  $('#placeQuery').value = mode === 'own' && compLoc ? `${nice(compLoc.name)} ${compLoc.city}` : '';
+  $('#placeResults').innerHTML = '';
+  const m = $('#placeModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+  $('#placeQuery').focus();
+}
+function closePlaceModal() {
+  const m = $('#placeModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+async function searchPlacesUi(e) {
+  e.preventDefault();
+  const q = $('#placeQuery').value.trim();
+  const box = $('#placeResults');
+  if (q.length < 3) return;
+  box.innerHTML = '<p class="text-sm text-muted">Buscando en Google…</p>';
+  const res = await fetch(`/api/places/search?q=${encodeURIComponent(q)}`, { credentials: 'same-origin' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    box.innerHTML = `<p class="text-sm" style="color:var(--danger)">${escapeHtml(data.error || 'No se pudo buscar.')}</p>`;
+    return;
+  }
+  if (!data.length) {
+    box.innerHTML = '<p class="text-sm text-muted">Sin resultados. Prueba con el barrio o la ciudad.</p>';
+    return;
+  }
+  box.innerHTML = data
+    .map(
+      (p, i) => `<button type="button" class="place-opt" data-i="${i}">
+        <span class="place-name">${escapeHtml(p.name)}</span>
+        <span class="place-addr">${escapeHtml(p.address)}</span>
+        <span class="place-meta">${stars(p.rating)}${p.reviewCount !== null ? ` · ${fmt(p.reviewCount)} reseñas` : ''}</span>
+      </button>`
+    )
+    .join('');
+  box.querySelectorAll('.place-opt').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const p = data[Number(b.dataset.i)];
+      if (!compLoc) return;
+      b.disabled = true;
+      const url =
+        placeMode === 'own'
+          ? `/api/locations/${encodeURIComponent(compLoc.id)}/google-place`
+          : `/api/locations/${encodeURIComponent(compLoc.id)}/competitors`;
+      const r = await fetch(url, {
+        method: placeMode === 'own' ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ placeId: p.placeId, name: p.name, address: p.address }),
+      });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast(out.error || 'No se pudo guardar.', false);
+        b.disabled = false;
+        return;
+      }
+      closePlaceModal();
+      toast(placeMode === 'own' ? 'Sede conectada con Google' : 'Competidor agregado');
+      renderCompetition(compLoc.id, compLoc);
+    })
+  );
+}
+(function wirePlaces() {
+  $('#placeSearchForm')?.addEventListener('submit', searchPlacesUi);
+  $('#closePlaceModal')?.addEventListener('click', closePlaceModal);
+  $('#compAdd')?.addEventListener('click', () => openPlaceModal('competitor'));
+  $('#compRefresh')?.addEventListener('click', async (e) => {
+    if (!compLoc) return;
+    const b = e.currentTarget;
+    b.disabled = true;
+    const r = await fetch(`/api/locations/${encodeURIComponent(compLoc.id)}/competition/refresh`, { method: 'POST', credentials: 'same-origin' });
+    const out = await r.json().catch(() => ({}));
+    b.disabled = false;
+    if (!r.ok) toast(out.error || 'No se pudo actualizar.', false);
+    else toast(`Actualizado desde Google (${out.measured} de ${out.total})`);
+    renderCompetition(compLoc.id, compLoc);
+  });
+})();
+
+// Comparar sedes: cada sede frente a su mejor competidor; primero las que van detrás.
+async function renderCompetitionSummary() {
+  const card = $('#compSummaryCard');
+  if (!card) return;
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  let d;
+  try {
+    d = await api(`/api/competition${cq}`);
+  } catch {
+    d = null;
+  }
+  if (!d || !d.enabled) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  $('#compSummary').textContent = `Igual o mejor calificada en ${d.ahead} de ${d.items.length} sedes`;
+  $('#compSummaryList').innerHTML = d.items
+    .map(
+      (it) => `<button type="button" class="comp-sum-row" data-id="${it.id}">
+        <span class="goal-name"><span class="truncate">${escapeHtml(nice(it.name))}</span><span class="goal-city">${escapeHtml(it.city)}</span></span>
+        <span class="comp-num"><b>${stars(it.rating)}</b> <span class="text-muted">vs ${stars(it.best.rating)}</span></span>
+        <span class="comp-vs text-muted truncate">${escapeHtml(it.best.name)}</span>
+        <span class="comp-num comp-gain">${it.gained !== null ? `${gainedTxt(it.gained)} reseñas${it.compGained !== null ? ` <span class="text-muted">(ellos ${gainedTxt(it.compGained)})</span>` : ''}` : ''}</span>
+        <span class="goal-badge ${it.ahead ? 'goal-ok' : 'goal-bad'}">${it.ahead ? 'Adelante' : 'Detrás'}</span>
+      </button>`
+    )
+    .join('');
+  $('#compSummaryList').querySelectorAll('.comp-sum-row').forEach((b) => b.addEventListener('click', () => openLocation(b.dataset.id)));
 }
 
 // ---------------------------------------------------------------------------

@@ -428,3 +428,30 @@ ALTER TABLE locations ADD COLUMN IF NOT EXISTS monthly_goal INTEGER;
 -- ============================================================================
 ALTER TABLE inactivity_alerts ADD COLUMN IF NOT EXISTS low_survey BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE survey_responses  ADD COLUMN IF NOT EXISTS contact TEXT;
+
+-- ============================================================================
+-- COMPETENCIA EN GOOGLE (src/lib/places.ts, Places API). Cada sede puede
+-- enlazar su ficha de Google y hasta 3 competidores; una medición semanal de
+-- calificación y número de reseñas por lugar.
+-- ============================================================================
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS google_place_id TEXT;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS google_place_name TEXT;
+
+CREATE TABLE IF NOT EXISTS location_competitors (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  location_id UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  place_id    TEXT        NOT NULL,
+  name        TEXT        NOT NULL,
+  address     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (location_id, place_id)
+);
+CREATE INDEX IF NOT EXISTS idx_location_competitors_loc ON location_competitors(location_id);
+
+CREATE TABLE IF NOT EXISTS place_snapshots (
+  place_id     TEXT         NOT NULL,
+  rating       NUMERIC(3,2) NOT NULL,
+  review_count INT          NOT NULL DEFAULT 0,
+  measured_on  DATE         NOT NULL DEFAULT CURRENT_DATE,
+  PRIMARY KEY (place_id, measured_on)
+);

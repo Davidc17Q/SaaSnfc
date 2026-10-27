@@ -2162,3 +2162,49 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .heatmap .heat-h { font-size: 0.65rem; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 .heatmap .empty-state { grid-column: 1 / -1; }
 @media (max-width: 640px) { .heatmap { gap: 2px; } .heatmap .heat-c { aspect-ratio: 0.9; } }
+
+/* Competencia en Google */
+.comp-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem; font-size: 0.9rem; }
+.comp-table { display: grid; gap: 0.15rem; }
+.comp-head, .comp-row { display: grid; grid-template-columns: minmax(0, 2fr) 6rem 5.5rem 5rem 4rem; gap: 0.75rem; align-items: center; }
+.comp-head { font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 0 0.6rem 0.35rem; }
+.comp-row { padding: 0.6rem; border-radius: 0.6rem; }
+.comp-row.comp-own { background: var(--accent-soft); }
+.comp-name { display: flex; flex-direction: column; min-width: 0; font-weight: 600; font-size: 0.875rem; }
+.comp-addr { font-weight: 400; font-size: 0.72rem; color: var(--muted); }
+.comp-num { font-size: 0.875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.comp-best { font-weight: 800; }
+.comp-act { justify-self: end; }
+@media (max-width: 640px) {
+  .comp-head { display: none; }
+  .comp-row { grid-template-columns: minmax(0, 1fr) auto auto auto; row-gap: 0.3rem; }
+  .comp-row .comp-name { grid-column: 1 / 4; grid-row: 1; }
+  .comp-row .comp-act { grid-column: 4; grid-row: 1; }
+}
+.comp-list { display: grid; gap: 0.35rem; }
+.comp-sum-row {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) 9rem minmax(0, 1fr) minmax(0, 1.1fr) 5.5rem; gap: 0.9rem;
+  align-items: center; width: 100%; text-align: left; padding: 0.55rem 0.6rem; border-radius: 0.6rem;
+  background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; transition: background 0.15s ease;
+}
+.comp-sum-row:hover { background: var(--hover); }
+.comp-sum-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.comp-vs { font-size: 0.8rem; }
+@media (max-width: 760px) {
+  .comp-sum-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.2rem; }
+  .comp-sum-row .comp-vs { display: none; }
+  .comp-sum-row .goal-name { grid-row: 1; grid-column: 1; }
+  .comp-sum-row .goal-badge { grid-row: 1; grid-column: 2; }
+  .comp-sum-row .comp-num { grid-column: 1 / -1; }
+  .comp-sum-row .comp-gain:empty { display: none; }
+}
+.place-results { display: grid; gap: 0.4rem; max-height: 22rem; overflow-y: auto; }
+.place-opt {
+  display: flex; flex-direction: column; gap: 0.15rem; text-align: left; padding: 0.7rem 0.8rem; border-radius: 0.6rem;
+  border: 1px solid var(--card-border); background: transparent; color: inherit; font: inherit; cursor: pointer;
+}
+.place-opt:hover { background: var(--hover); }
+.place-opt:disabled { opacity: 0.5; cursor: wait; }
+.place-name { font-weight: 600; font-size: 0.9rem; }
+.place-addr, .place-meta { font-size: 0.78rem; color: var(--muted); }
+.comp-act .link-btn { font-size: 0.75rem; }

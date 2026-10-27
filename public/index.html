@@ -328,6 +328,18 @@
           </div>
         </div>
 
+        <!-- Frente a la competencia en Google (solo si hay sedes enlazadas) -->
+        <div id="compSummaryCard" class="card hidden">
+          <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
+            <div>
+              <h3 class="font-semibold">Frente a la competencia en Google</h3>
+              <p class="text-sm text-muted">Tu calificación contra la del mejor competidor de cada sede</p>
+            </div>
+            <p id="compSummary" class="text-sm font-semibold"></p>
+          </div>
+          <div id="compSummaryList" class="comp-list"></div>
+        </div>
+
         <!-- Top 3 vs Bottom 3 -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div class="card">
@@ -603,6 +615,21 @@
             <span class="text-xs text-muted">Tocando el chip NFC o escaneando el QR</span>
           </div>
           <div id="locSourceSplit"></div>
+        </div>
+
+        <!-- Tú frente a tu competencia en Google (solo con la conexión a Google configurada) -->
+        <div id="compCard" class="card hidden">
+          <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h3 class="font-semibold">Tú frente a tu competencia</h3>
+              <p id="compSub" class="text-sm text-muted">Calificación y reseñas en Google</p>
+            </div>
+            <span class="flex items-center gap-2">
+              <button id="compRefresh" type="button" class="btn-ghost text-xs hidden" style="border:1px solid var(--card-border)">Actualizar ahora</button>
+              <button id="compAdd" type="button" class="btn-primary text-xs hidden">Agregar competidor</button>
+            </span>
+          </div>
+          <div id="compBody"></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1058,6 +1085,22 @@
         </div>
       </div>
       <p id="editLocMsg" class="text-sm mt-3"></p>
+    </div>
+  </div>
+
+  <!-- Modal: buscar un negocio en Google (ficha propia o competidor) -->
+  <div id="placeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-lg">
+      <div class="flex items-center justify-between mb-2">
+        <h3 id="placeModalTitle" class="font-semibold text-lg">Buscar en Google</h3>
+        <button id="closePlaceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
+      </div>
+      <p id="placeModalHint" class="text-sm text-muted mb-3"></p>
+      <form id="placeSearchForm" class="flex gap-2">
+        <input id="placeQuery" type="search" class="input w-full text-sm" placeholder="Ej. Almacén Éxito La Playa Medellín" autocomplete="off" />
+        <button type="submit" class="btn-primary text-sm">Buscar</button>
+      </form>
+      <div id="placeResults" class="place-results mt-3"></div>
     </div>
   </div>
 

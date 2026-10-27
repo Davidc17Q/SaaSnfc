@@ -15,6 +15,7 @@ import { buildReportData, normalizeMonth } from './report-data';
 import { reportLinkUrl } from './report-link';
 import { runInactivityAlerts } from './inactivity-alerts';
 import { isMessagingEnabled } from './messaging';
+import { isPlacesEnabled, runPlacesRefresh } from './places';
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // cada hora
 
@@ -99,7 +100,7 @@ async function runDueSchedules(): Promise<void> {
 export function startReportScheduler(): void {
   // Sin correo los informes no salen, pero los avisos pueden ir por WhatsApp/SMS
   // (runDueSchedules y runInactivityAlerts revisan cada uno su vía de envío).
-  if (!isMailEnabled() && !isMessagingEnabled()) {
+  if (!isMailEnabled() && !isMessagingEnabled() && !isPlacesEnabled()) {
     console.log('[scheduler] Ni correo ni WhatsApp/SMS configurados: envíos programados desactivados.');
     return;
   }
@@ -108,6 +109,8 @@ export function startReportScheduler(): void {
   const tick = () => {
     runDueSchedules().catch((e) => console.error('[scheduler]', e.message));
     runInactivityAlerts().catch((e) => console.error('[alertas]', e.message));
+    // Medición semanal de la competencia en Google (solo lo que ya toca).
+    runPlacesRefresh().catch((e) => console.error('[competencia]', e.message));
   };
   setTimeout(() => {
     tick();
