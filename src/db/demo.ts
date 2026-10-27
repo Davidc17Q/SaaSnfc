@@ -238,7 +238,9 @@ async function insertScans(devices: DemoDevice[], from: Date, to: Date, today: D
         const at = new Date(day.getTime() + hourPick() * 3600_000 + Math.floor(rnd() * 3600_000));
         if (at < from || at > to) continue;
         const os = osPick();
-        rows.push([dev.id, dev.locationId, os, detectChannel(dev.url), UA[os], ip(), at.toISOString()]);
+        // Origen simulado: en iPhone se toca más; en Android también se escanea mucho el QR.
+        const source = rnd() < (os === 'iOS' ? 0.7 : 0.55) ? 'nfc' : 'qr';
+        rows.push([dev.id, dev.locationId, os, detectChannel(dev.url), UA[os], ip(), at.toISOString(), source]);
       }
     }
   }
@@ -248,12 +250,12 @@ async function insertScans(devices: DemoDevice[], from: Date, to: Date, today: D
     const values: string[] = [];
     const params: any[] = [];
     chunk.forEach((r, j) => {
-      const b = j * 7;
-      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7})`);
+      const b = j * 8;
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8})`);
       params.push(...r);
     });
     await pool.query(
-      `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, scanned_at)
+      `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, scanned_at, source)
        VALUES ${values.join(',')}`,
       params
     );

@@ -857,7 +857,7 @@ function buildInsights(k, alerts) {
     const grave = alerts.filter((a) => a.level === 'grave');
     const leves = alerts.length - grave.length;
     if (grave.length === 1) {
-      items.push({ level: 'critical', text: `${grave[0].title}.`, action: { label: 'Ver sede', go: `sede:${grave[0].locationId}` } });
+      items.push({ level: 'critical', text: `${nice(grave[0].title)}.`, action: { label: 'Ver sede', go: `sede:${grave[0].locationId}` } });
     } else if (grave.length > 1) {
       items.push({
         level: 'critical',
@@ -3680,7 +3680,7 @@ async function loadDashboard({ silent = false } = {}) {
   try {
     if (!silent || !state.campaigns) await loadCampaigns();
     const k = await loadKpis();
-    const [, , , channels, alerts] = await Promise.all([
+    const [, , , , channels, alerts] = await Promise.all([
       renderTrend(),
       renderTop(),
       renderHourly(),
