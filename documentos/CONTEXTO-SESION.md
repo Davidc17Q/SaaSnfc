@@ -49,17 +49,40 @@
 - Los habladores se generan desde HTML (`hablador-*.html`, `hablador.js`) con
   Chrome sin interfaz; los PSD con `psd-tools` por capas (`data-capa`).
 
+### Hecho el 26 de octubre (en commits locales; ver `git log`)
+
+- Gráfico de sedes con altura según el número de sedes, valor en la barra y
+  sin el prefijo común ("Punto de Venta …").
+- Canales: wa.link / walink.co cuentan como WhatsApp; "Tipo de destino"
+  fijable a mano por punto (`devices.channel`); la caché de puntos se borra al
+  editar (`dropDeviceCache`), ya no guarda objetos incompletos.
+- Pantalla intermedia nueva (negocio + ícono y color del destino); destinos
+  solo http(s)/tel/mailto/sms/whatsapp (`isSafeTarget`).
+- Revisión del panel: nombres en MAYÚSCULAS se ven normales (`nice()`),
+  fechas "27 sep", brecha en "N veces", "Salud de puntos", alertas plegadas.
+- Avisos por WhatsApp con SMS de respaldo (Twilio, `src/lib/messaging.ts`);
+  falta crear la cuenta: `documentos/AVISOS-WHATSAPP-TWILIO.md`.
+- Valor estimado en pesos y metas del mes por sede (`src/routes/business.ts`;
+  se configuran en Informes → Valor y metas).
+- Rescate del cliente insatisfecho: encuesta con nota baja ofrece dejar
+  WhatsApp; aviso al instante (casilla en Avisos).
+- Mapa de calor día × hora y "Descargar todas (Excel)" en el resumen.
+
 ## Pendiente
 
 - Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo
   de producción (`--continuar`) para que no salgan alertas de días sin
   interacciones, crear un usuario `company_admin` de Hogar y Moda y repasar
   el guion (`documentos/PREPARACION-REUNIONES.md`, ya con la competencia real).
-- En producción: marcar al profe (y a Inplux) como segmento **Profesional**.
+  Configurar en la demo valores por destino y una meta para lucir las nuevas
+  secciones.
+- Inplux como segmento **Profesional** (el profe ya está).
+- Crear la cuenta de Twilio y sus variables en Railway (guía arriba).
 - Al crear los puntos del piloto: QR descargados del panel (`?s=q`) y chips
   grabados con el enlace del chip (`?s=n`).
 - Segunda fase del vocabulario: el panel aún dice "sede(s)" (más de 150 textos).
 - El resumen del panel todavía usa frases iguales para todos los segmentos.
-- Seguridad: eliminar el TCP Proxy de Postgres en Railway y rotar su contraseña.
-- Ideas validadas para después: etiquetas en puntos, acceso por tienda,
-  Google Business Profile para reseñas, informes con NFC vs QR.
+- Valor y metas aún no salen en el informe mensual ni en el correo.
+- Ideas validadas para después: competencia en Google Maps, acceso por tienda,
+  atribución por vendedor, prueba de destinos, resumen semanal por WhatsApp,
+  etiquetas en puntos, Google Business Profile, informes con NFC vs QR.
