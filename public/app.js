@@ -258,7 +258,7 @@ const campaignBandsPlugin = {
 const VIEW_TITLES = {
   dashboard: 'Resumen',
   executive: 'Comparar sedes',
-  operations: 'Estado de sedes',
+  operations: 'Salud de puntos',
   survey: 'Calificación',
   locations: 'Sedes',
   devices: 'Puntos NFC',
@@ -399,6 +399,14 @@ function setDelta(el, v) {
   el.innerHTML = `${icon(ic, { size: 14 })} ${v > 0 ? '+' : ''}${pctFmt(v)} %`;
 }
 
+/** '2026-10-19' -> '19 oct'. Para ejes y rangos cortos. */
+function fmtShortDay(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${MONTHS_SHORT[m - 1]}`;
+}
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 /** '2026-10-19' -> '19 oct 2026'. */
 function fmtDay(iso) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -479,7 +487,7 @@ async function loadLocationView() {
   if (id !== locView.id) return; // el usuario ya abrió otra sede
 
   const L = s.location;
-  $('#locViewName').textContent = L.name;
+  $('#locViewName').textContent = nice(L.name);
   const lastTxt = s.health.lastScan ? sinceText(s.health.lastScan).replace('Usado', 'Última interacción') : 'Sin interacciones todavía';
   $('#locMeta').innerHTML = `${escapeHtml(L.city)} · ${L.status === 'active' ? 'Activa' : 'Inactiva'} · ${escapeHtml(lastTxt)}`;
 
@@ -621,7 +629,7 @@ function renderLocationTrend(s) {
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: cleanTooltip((items) => items[0].label) },
       scales: {
-        x: { grid: { color: gridColor() }, ticks: { color: tickColor(), maxTicksLimit: 8, callback: (v, i) => data[i]?.day.slice(5) } },
+        x: { grid: { color: gridColor() }, ticks: { color: tickColor(), maxTicksLimit: 8, callback: (v, i) => fmtShortDay(data[i]?.day) } },
         y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
@@ -771,7 +779,7 @@ async function loadKpis() {
   $('#kpiLocTotal').textContent = k.locationsTotal ? ` de ${fmt(k.locationsTotal)}` : '';
 
   const topEl = $('#kpiTopLoc');
-  topEl.textContent = k.topLocation ? k.topLocation.name : 'Sin datos';
+  topEl.textContent = k.topLocation ? nice(k.topLocation.name) : 'Sin datos';
   topEl.title = k.topLocation ? k.topLocation.name : '';
   $('#kpiTopLocScans').textContent = k.topLocation
     ? `${fmt(k.topLocation.scans)} interacciones · ${pctFmt(
@@ -794,7 +802,7 @@ function fillDerivedKpis(k, channels, alerts) {
   const n = alerts.length;
   status.className = n ? 'kpi-sub kpi-sub-alert' : 'kpi-sub';
   status.textContent = n
-    ? `${n} ${n === 1 ? 'requiere' : 'requieren'} atención`
+    ? `${n} en alerta hoy`
     : 'Todas operando con normalidad';
 }
 
@@ -831,7 +839,7 @@ function buildInsights(k, alerts) {
     items.push({
       level: 'critical',
       text: `${fmt(n)} de ${fmt(total)} sedes no registran actividad reciente. Al ser casi todas, puede ser un problema general (puntos retirados o captura de datos), no de cada tienda.`,
-      action: { label: 'Ver estado de sedes', go: 'operations' },
+      action: { label: 'Ver salud de puntos', go: 'operations' },
     });
   } else if (n) {
     const grave = alerts.filter((a) => a.level === 'grave');
@@ -999,7 +1007,7 @@ async function renderTrend() {
   const empty = data.every((d) => !d.scans);
   toggleChartEmpty('#trendChart', data.length === 0 || empty, {
     icon: 'activity',
-    title: 'Sin escaneos en este periodo',
+    title: 'Sin interacciones en este periodo',
     hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
   });
   if (data.length === 0 || empty) {
@@ -1048,6 +1056,7 @@ async function renderTrend() {
     return g;
   };
 
+  $('#trendAvgLegend')?.classList.toggle('hidden', !state.locationId);
   upsertChart('trend', ctx, {
     type: 'line',
     data: {
@@ -1064,7 +1073,8 @@ async function renderTrend() {
           borderWidth: 2.5,
         },
         {
-          label: 'Promedio cadena',
+          label: 'Promedio por sede',
+          hidden: !state.locationId,
           data: data.map((d) => d.avg),
           borderColor: token('--neutral-state', '#94a3b8'),
           borderDash: [5, 4],
@@ -1081,12 +1091,12 @@ async function renderTrend() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: cleanTooltip((items) => items[0].label),
+        tooltip: cleanTooltip((items) => fmtDay(items[0].label)),
       },
       scales: {
         x: {
           grid: { color: gridColor() },
-          ticks: { color: tickColor(), callback: (v, i) => data[i]?.day.slice(5) },
+          ticks: { color: tickColor(), maxRotation: 0, autoSkipPadding: 12, callback: (v, i) => fmtShortDay(data[i]?.day) },
         },
         y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
@@ -1102,7 +1112,7 @@ async function renderTop() {
   toggleChartEmpty('#topChart', data.length === 0, {
     icon: 'store',
     title: 'Sin sedes con tráfico',
-    hint: 'No hay escaneos registrados para los filtros actuales.',
+    hint: 'No hay interacciones registradas para los filtros actuales.',
   });
   // La altura sigue al número de sedes: con pocas, barras finas y no gigantes.
   const box = $('#topChartBox');
@@ -1234,7 +1244,7 @@ async function renderHourly() {
   const empty = !data.length || data.every((d) => !d.scans);
   toggleChartEmpty('#hourlyChart', empty, {
     icon: 'activity',
-    title: 'Sin escaneos en este periodo',
+    title: 'Sin interacciones en este periodo',
     hint: 'Prueba ampliar el rango de fechas o quitar filtros.',
   });
   if (empty) {
@@ -1249,7 +1259,7 @@ async function renderHourly() {
       labels: data.map((d) => `${String(d.hour).padStart(2, '0')}h`),
       datasets: [
         {
-          label: 'Escaneos',
+          label: 'Interacciones',
           data: data.map((d) => d.scans),
           backgroundColor: accentA(0.78),
           hoverBackgroundColor: accent(),
@@ -1277,6 +1287,7 @@ async function renderHourly() {
 }
 
 function shorten(name) {
+  name = nice(name);
   return name.length > 26 ? name.slice(0, 24) + '…' : name;
 }
 
@@ -1308,7 +1319,7 @@ async function renderChannels() {
 
   toggleChartEmpty('#channelChart', data.length === 0, {
     icon: 'activity',
-    title: 'Sin escaneos por destino',
+    title: 'Sin interacciones por destino',
     hint: 'No hay redirecciones registradas para los filtros actuales.',
   });
   if (data.length === 0) {
@@ -1337,7 +1348,7 @@ async function renderChannels() {
       labels: data.map((d) => d.channel),
       datasets: [
         {
-          label: 'Escaneos',
+          label: 'Interacciones',
           data: data.map((d) => d.scans),
           backgroundColor: grads,
           borderRadius: 10,
@@ -1444,7 +1455,7 @@ function renderComboOptions(filter) {
           state.role === 'superadmin' && !state.companyId && l.companyName
             ? ` · ${escapeHtml(l.companyName)}`
             : '';
-        return `<div class="combo-opt" data-id="${l.id}">${escapeHtml(l.name)}
+        return `<div class="combo-opt" data-id="${l.id}">${escapeHtml(nice(l.name))}
              <span class="muted">· ${escapeHtml(l.city)}${co}</span></div>`;
       }),
   ];
@@ -1515,7 +1526,7 @@ function renderLocationsTable(filter = '') {
     .map(
       (l) => `
       <tr class="data-card">
-        <td class="td td-title font-medium" data-label="Sede"><button type="button" class="link-btn loc-open-btn" data-id="${l.id}">${escapeHtml(l.name)}</button>${
+        <td class="td td-title font-medium" data-label="Sede"><button type="button" class="link-btn loc-open-btn" data-id="${l.id}">${escapeHtml(nice(l.name))}</button>${
           showCompany && l.companyName
             ? `<br><span class="text-xs text-slate-500">${escapeHtml(l.companyName)}</span>`
             : ''
@@ -1831,7 +1842,7 @@ async function deleteLocation(id) {
   const name = l ? l.name : 'esta sede';
   const message =
     l && l.nfcPoints > 0
-      ? `Se eliminará "${name}" junto con sus ${l.nfcPoints} punto(s) NFC y todos sus escaneos. Esta acción no se puede deshacer.`
+      ? `Se eliminará "${name}" junto con sus ${l.nfcPoints} punto(s) NFC y todas sus interacciones. Esta acción no se puede deshacer.`
       : `Se eliminará "${name}". Esta acción no se puede deshacer.`;
   const ok = await confirmDialog({
     title: 'Eliminar sede',
@@ -1893,7 +1904,7 @@ function renderDevicesTable(filter = '') {
       <td class="td td-title font-medium" data-label="Sede">${
         child
           ? `<span class="text-xs text-slate-500 section-title-icon">${icon('corner-down-right', { size: 13 })} ${escapeHtml(d.label)}</span>`
-          : `${escapeHtml(d.location_name)}<br><span class="text-xs text-slate-500">${escapeHtml(d.location_city)}</span>`
+          : `${escapeHtml(nice(d.location_name))}<br><span class="text-xs text-slate-500">${escapeHtml(d.location_city)}</span>`
       }</td>
       <td class="td" data-label="Punto">${escapeHtml(d.label)}${
         d.mode === 'survey'
@@ -1931,7 +1942,7 @@ function renderDevicesTable(filter = '') {
         <tr class="data-card loc-group-row" data-loc="${g.locationId}">
           <td class="td td-title font-medium" data-label="Sede">
             <span class="expand-caret ${open ? 'open' : ''}">${icon('chevron-right', { size: 16 })}</span>
-            ${escapeHtml(g.name)}<br>
+            ${escapeHtml(nice(g.name))}<br>
             <span class="text-xs text-slate-500" style="margin-left:1.5rem">${escapeHtml(g.city)}</span>
           </td>
           <td class="td text-slate-500" data-label="Punto">${g.devices.length} puntos NFC</td>
@@ -2008,7 +2019,7 @@ async function openBulk() {
     .join('');
   // Poblar sedes
   $('#bulkLocation').innerHTML = state.locations
-    .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+    .map((l) => `<option value="${l.id}">${escapeHtml(nice(l.name))} · ${escapeHtml(l.city)}</option>`)
     .join('');
 
   $('#bulkScope').value = 'all';
@@ -2178,6 +2189,30 @@ function statusBadge(status) {
     : '<span class="badge-inactive"><span class="dot"></span> inactivo</span>';
 }
 
+// Nombres guardados en MAYÚSCULAS ("PUNTO DE VENTA LA 49") se muestran en
+// formato normal ("Punto de Venta la 49"): solo al pintar, el dato no cambia.
+// Respeta siglas (NFC, QR, SAS…) y palabras con números.
+const NICE_KEEP = new Set(['NFC', 'QR', 'SAS', 'S.A.S', 'CC', 'IPS', 'EPS', 'LTDA', 'SA', 'ID', 'TV', 'USA']);
+const NICE_SMALL = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'en', 'a', 'al', 'por', 'con']);
+function niceRun(run) {
+  return run
+    .split(/(\s+)/)
+    .map((w, i) => {
+      if (/^\s+$/.test(w) || NICE_KEEP.has(w) || /\d/.test(w)) return w;
+      const low = w.toLocaleLowerCase('es');
+      if (i > 0 && NICE_SMALL.has(low)) return low;
+      return low.charAt(0).toLocaleUpperCase('es') + low.slice(1);
+    })
+    .join('');
+}
+function nice(s) {
+  const str = String(s ?? '');
+  // Tramos de 2+ palabras en mayúsculas dentro de un texto ("PUNTO DE VENTA X lleva 4 días").
+  return str.replace(/(?<!\p{L})\p{Lu}[\p{Lu}\d.&'-]*(?:\s+[\p{Lu}\d][\p{Lu}\d.&'-]*)+(?!\p{L})/gu, (run) =>
+    /\p{Lu}{3}/u.test(run) ? niceRun(run) : run
+  ).replace(/^\p{Lu}{4,}$/u, (w) => (NICE_KEEP.has(w) ? w : niceRun(w)));
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
@@ -2232,7 +2267,7 @@ function renderActiveFilters() {
   }
   if (state.channel) chips.push({ key: 'Canal', label: state.channel, type: 'channel' });
   if (state.from || state.to) {
-    const label = `${state.from || '…'} → ${state.to || '…'}`;
+    const label = `${state.from ? fmtShortDay(state.from) : '…'} → ${state.to ? fmtShortDay(state.to) : '…'}`;
     chips.push({ key: 'Fechas', label, type: 'dates' });
   }
 
@@ -2785,7 +2820,7 @@ async function renderImpact() {
       <tbody>${d.locations
         .map(
           (l) => `<tr>
-            <td><span class="impact-loc">${escapeHtml(l.name)}</span><span class="impact-city">${escapeHtml(l.city)}</span></td>
+            <td><span class="impact-loc">${escapeHtml(nice(l.name))}</span><span class="impact-city">${escapeHtml(l.city)}</span></td>
             <td class="num">${l.reviewsGained >= 0 ? '+' : ''}${fmt(l.reviewsGained)}</td>
             <td class="num">${nf1.format(l.ratingBefore)} → ${nf1.format(l.ratingNow)}</td>
           </tr>`
@@ -2812,13 +2847,14 @@ async function renderBenchmark() {
     gapVal.textContent = b.totalLocations > 0 ? '∞' : '—';
     gapDet.textContent =
       b.totalLocations > 0
-        ? 'La sede de menor rendimiento no tuvo escaneos en el periodo'
+        ? 'La sede de menor rendimiento no tuvo interacciones en el periodo'
         : 'Sin datos en el periodo';
   } else {
-    gapVal.textContent = `${fmt(b.gapPct)}%`;
-    gapDet.textContent = `El líder tiene ${fmt(b.leaderScans)} escaneos vs ${fmt(
-      b.laggardScans
-    )} del más bajo`;
+    // Con brechas grandes, "27.000 %" no se entiende; "271 veces" sí.
+    const ratio = b.laggardScans ? b.leaderScans / b.laggardScans : null;
+    gapVal.textContent =
+      ratio !== null && ratio >= 2 ? `${fmt(Math.round(ratio))} veces` : `+${fmt(b.gapPct)} %`;
+    gapDet.textContent = `La líder tuvo ${fmt(b.leaderScans)} interacciones; la más baja, ${fmt(b.laggardScans)}`;
   }
 
   renderRankList('#leadersList', b.top3, 'leader');
@@ -2842,7 +2878,7 @@ function renderRankList(sel, items, kind) {
         <div class="rank-left">
           <span class="${badgeCls}">${badgeInner}</span>
           <div class="rank-name">
-            <div class="rank-title" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</div>
+            <div class="rank-title" title="${escapeHtml(nice(it.name))}">${escapeHtml(nice(it.name))}</div>
             <div class="rank-sub">${escapeHtml(it.city)}</div>
           </div>
         </div>
@@ -2855,7 +2891,7 @@ function renderRankList(sel, items, kind) {
 
 function populateCompareSelectors(force = false) {
   const optsHtml = state.locations
-    .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+    .map((l) => `<option value="${l.id}">${escapeHtml(nice(l.name))} · ${escapeHtml(l.city)}</option>`)
     .join('');
   const a = $('#compareA');
   const bSel = $('#compareB');
@@ -2888,15 +2924,15 @@ async function runCompare() {
   const nameB = res.b.location ? res.b.location.name : 'Sede B';
   $('#compareLabelA').textContent = nameA;
   $('#compareLabelB').textContent = nameB;
-  $('#compareTotalA').textContent = `${fmt(res.a.totals)} escaneos`;
-  $('#compareTotalB').textContent = `${fmt(res.b.totals)} escaneos`;
+  $('#compareTotalA').textContent = `${fmt(res.a.totals)} interacciones`;
+  $('#compareTotalB').textContent = `${fmt(res.b.totals)} interacciones`;
 
   const ctx = $('#compareChart');
   destroyChart('compare');
   state.charts.compare = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: res.days.map((d) => d.slice(5)),
+      labels: res.days.map((d) => fmtShortDay(d)),
       datasets: [
         {
           label: nameA,
@@ -3387,7 +3423,7 @@ function renderOpTable() {
     .map(
       (it) => `
       <tr>
-        <td class="td font-medium" title="${escapeHtml(it.name)}"><button type="button" class="link-btn op-open-btn" data-id="${it.id}">${escapeHtml(it.name)}</button></td>
+        <td class="td font-medium" title="${escapeHtml(it.name)}"><button type="button" class="link-btn op-open-btn" data-id="${it.id}">${escapeHtml(nice(it.name))}</button></td>
         <td class="td">${escapeHtml(it.city)}</td>
         <td class="td">${opStateBadge(it.state)}</td>
         <td class="td text-slate-500">${lastScanText(it)}</td>
@@ -3489,7 +3525,11 @@ async function renderAlerts() {
   $('#alertsToggle').textContent = alertsHidden ? 'Mostrar' : 'Ocultar';
 
   // Un directivo necesita las más graves primero, no una lista de 80 filas.
-  const shown = alertsExpanded ? alerts : alerts.slice(0, ALERTS_VISIBLE);
+  // Si la mitad o más de las sedes están en alerta, el resumen ya da un
+  // mensaje general: la lista arranca plegada y no empuja los KPIs.
+  const totalLocs = (state.locations || []).length;
+  const massive = totalLocs >= 4 && alerts.length >= totalLocs * 0.5;
+  const shown = alertsExpanded ? alerts : massive ? [] : alerts.slice(0, ALERTS_VISIBLE);
   list.innerHTML = shown
     .map((a) => {
       const ic = a.kind === 'drop' ? 'trending-down' : ALERT_ICON[a.level] || 'alert-triangle';
@@ -3500,7 +3540,7 @@ async function renderAlerts() {
       <div class="alert-row lvl-${a.level}">
         <span class="alert-badge ${a.level}">${a.level}</span>
         <div class="alert-body">
-          <div class="alert-row-title">${escapeHtml(a.title)}</div>
+          <div class="alert-row-title">${escapeHtml(nice(a.title))}</div>
           <div class="alert-row-detail">${escapeHtml(a.detail)}</div>
         </div>
         ${metric}
@@ -3508,9 +3548,11 @@ async function renderAlerts() {
       </div>`;
     })
     .join('') +
-    (alerts.length > ALERTS_VISIBLE
+    (alerts.length > ALERTS_VISIBLE || massive
       ? `<button id="alertsMore" class="alerts-more">${
-          alertsExpanded ? 'Mostrar solo las 5 primeras' : `Ver las ${alerts.length} sedes`
+          alertsExpanded
+            ? massive ? 'Plegar la lista' : 'Mostrar solo las 5 primeras'
+            : `Ver las ${alerts.length} sedes`
         }</button>`
       : '');
   const more = $('#alertsMore');
@@ -4164,7 +4206,7 @@ function fillReportLocations() {
   const options =
     '<option value="">Todas las sedes</option>' +
     locs
-      .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.city)}</option>`)
+      .map((l) => `<option value="${l.id}">${escapeHtml(nice(l.name))} · ${escapeHtml(l.city)}</option>`)
       .join('');
   locSel.innerHTML = options;
   // Los avisos de sede inactiva tienen su propio selector (misma empresa).
@@ -4388,7 +4430,7 @@ function renderDevLocationOptions(filter) {
   let html = shown
     .map(
       (l) =>
-        `<div class="combo-opt" data-id="${l.id}" data-label="${escapeHtml(l.name)} · ${escapeHtml(l.city)}">${escapeHtml(l.name)}
+        `<div class="combo-opt" data-id="${l.id}" data-label="${escapeHtml(nice(l.name))} · ${escapeHtml(l.city)}">${escapeHtml(nice(l.name))}
            <span class="muted">· ${escapeHtml(l.city)}</span></div>`
     )
     .join('');

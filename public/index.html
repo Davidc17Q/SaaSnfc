@@ -30,7 +30,7 @@
       <nav class="sidebar-nav">
         <a href="#dashboard" class="nav-link active"><span data-icon="bar-chart-3"></span> Resumen</a>
         <a href="#executive" class="nav-link"><span data-icon="target"></span> Comparar sedes</a>
-        <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Estado de sedes</a>
+        <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Salud de puntos</a>
         <a href="#survey" class="nav-link"><span data-icon="star"></span> Calificación</a>
         <a href="#locations" class="nav-link"><span data-icon="store"></span> Sedes</a>
         <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Puntos NFC</a>
@@ -191,7 +191,7 @@
               </div>
               <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
                 <span class="legend-dot legend-accent"></span> Selección
-                <span class="legend-dot legend-neutral"></span> Promedio cadena
+                <span id="trendAvgLegend" class="hidden"><span class="legend-dot legend-neutral"></span> Promedio por sede</span>
                 <span id="campaignLegend" class="campaign-legend hidden"><span class="campaign-swatch"></span> Campaña</span>
                 <button id="campaignsBtn" class="btn-ghost text-xs campaigns-btn">Campañas</button>
               </div>
@@ -336,7 +336,7 @@
           <div class="card">
             <p class="kpi-label section-title-icon"><span class="txt-amber" data-icon="circle"></span> Bajo flujo</p>
             <p id="opLow" class="kpi-value">—</p>
-            <p class="text-xs text-slate-500 mt-1">Sin escaneos entre 24 y 48h</p>
+            <p class="text-xs text-slate-500 mt-1">Sin interacciones entre 24 y 48 h</p>
           </div>
           <div class="card">
             <p class="kpi-label section-title-icon"><span class="txt-rose" data-icon="alert-triangle"></span> Alerta / Inactivas</p>
@@ -368,7 +368,7 @@
                   <th class="th">Sede</th>
                   <th class="th">Ciudad</th>
                   <th class="th">Estado</th>
-                  <th class="th">Último escaneo</th>
+                  <th class="th">Última interacción</th>
                 </tr>
               </thead>
               <tbody id="opTableBody"></tbody>
@@ -673,7 +673,7 @@
           <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h3 class="font-semibold">Copia de seguridad de datos</h3>
-              <p class="text-sm text-slate-500">Descarga un respaldo (JSON) con empresas, sedes, dispositivos y escaneos.</p>
+              <p class="text-sm text-slate-500">Descarga un respaldo (JSON) con empresas, sedes, puntos NFC e interacciones.</p>
             </div>
             <a id="backupBtn" href="/api/export" class="btn-primary text-sm section-title-icon"><span data-icon="download"></span> Descargar respaldo</a>
           </div>
