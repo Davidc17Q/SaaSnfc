@@ -66,6 +66,7 @@ function count(mean: number): number {
 const STORES: { name: string; city: string; size: number }[] = [
   { name: 'PUNTO DE VENTA LA PLAYA', city: 'Medellín', size: 2.2 },
   { name: 'PUNTO DE VENTA BODEGA LA 49', city: 'Medellín', size: 1.9 },
+  { name: 'PUNTO DE VENTA JUNÍN PRINCIPAL', city: 'Medellín', size: 1.6 },
   { name: 'PUNTO DE VENTA MANRIQUE', city: 'Medellín', size: 1.5 },
   { name: 'PUNTO DE VENTA ARANJUEZ', city: 'Medellín', size: 1.4 },
   { name: 'PUNTO DE VENTA BELLO', city: 'Bello', size: 1.6 },
@@ -117,6 +118,70 @@ const SURVEY_STORES = new Set([
   'PUNTO DE VENTA BUCARAMANGA',
   'PUNTO DE VENTA MANIZALES',
 ]);
+
+// ----------------------------------------------------------------------------
+// Competencia en Google: fichas y competidores REALES (place_id de Places API,
+// valores consultados el 27 oct 2026). Las sedes enlazadas son las de peor
+// reputación. Proyección "así se vería": la sede arranca hace 16 semanas en su
+// valor real de hoy y gana reseñas al ritmo de las tarjetas (nota media 4,6);
+// los competidores terminan hoy en su valor real, con su ritmo natural.
+// ----------------------------------------------------------------------------
+interface GPlace { placeId: string; name: string; address: string; rating: number; reviews: number }
+const GOOGLE: Record<string, { own: GPlace; competitors: GPlace[] }> = {
+  'PUNTO DE VENTA JUNÍN PRINCIPAL': {
+    own: { placeId: 'ChIJZ3l9OpQpRI4RV0zxkI17iv0', name: 'Almacenes Hogar y Moda Junín Principal', address: 'Cra. 49 #48-43, La Candelaria, Medellín', rating: 2.7, reviews: 41 },
+    competitors: [
+      { placeId: 'ChIJ91zTG1YoRI4RIon8xB8n2bc', name: 'AGAVAL JUNÍN', address: 'Cra. 49 #48-46, La Candelaria, Medellín', rating: 4.3, reviews: 2280 },
+      { placeId: 'ChIJMWNYofgoRI4RZYr7VjdQrqQ', name: 'Éxito JUNIN', address: 'C. 50 #49-33, La Candelaria, Medellín', rating: 4.2, reviews: 360 },
+      { placeId: 'ChIJyfATkBopRI4RT0dJmQqBOnU', name: 'Surtitodo Junin', address: 'Cra. 49 #50-10, La Candelaria, Medellín', rating: 4.4, reviews: 273 },
+    ],
+  },
+  'PUNTO DE VENTA ITAGÜÍ': {
+    own: { placeId: 'ChIJ3Ux4XmuDRo4Rdkx2FsmzDZA', name: 'Hogar y Moda Itagüí Número 2', address: 'Cra. 50 #49-38, Villa Paula, Itagüí', rating: 3.1, reviews: 10 },
+    competitors: [
+      { placeId: 'ChIJnewmwy2CRo4RUUZLsXeLHZE', name: 'Flamingo Almacenes Itagüí', address: 'Cl. 49 #50-01, Villa Paula, Itagüí', rating: 4.3, reviews: 3147 },
+      { placeId: 'ChIJi7BxciuCRo4RIveSa01UGVI', name: 'Éxito Itagüí', address: 'Cra. 50A #41-42, Germania, Itagüí', rating: 4.3, reviews: 7090 },
+      { placeId: 'ChIJ11vVXm2DRo4RfW7wl9N_DtA', name: 'El Centro de la Moda Itagüí', address: 'Cra. 52D #81-08, Itagüí', rating: 4.5, reviews: 213 },
+    ],
+  },
+  'PUNTO DE VENTA COPACABANA': {
+    own: { placeId: 'ChIJOWujLzklRI4RdYpuskI7HU4', name: 'Hogar y Moda Copacabana', address: 'Cl. 50 #50A-30, Copacabana', rating: 3.3, reviews: 4 },
+    competitors: [
+      { placeId: 'ChIJZ8ENbm0lRI4R7JDju4oKy_A', name: 'Flamingo Amigo Copacabana', address: 'Cl. 50 #48-26, Copacabana', rating: 4.5, reviews: 15 },
+      { placeId: 'ChIJzz6XoDQlRI4RLciapfAIxic', name: 'Hogar & Muebles Copacabana', address: 'Cra. 50 #48-34, Copacabana', rating: 3.7, reviews: 3 },
+      { placeId: 'ChIJQ9bbWWklRI4Rz365Nq3Wsh8', name: 'IMUSA Outlet Copacabana', address: 'Cl. 59 #42-345, Copacabana', rating: 4.6, reviews: 436 },
+    ],
+  },
+  'PUNTO DE VENTA MANRIQUE': {
+    own: { placeId: 'ChIJM8D7IcEoRI4RFzVbhP8Eosg', name: 'Almacenes HOGAR Y MODA', address: 'Cra. 45 #79, Campo Valdés II, Manrique, Medellín', rating: 3.8, reviews: 105 },
+    competitors: [
+      { placeId: 'ChIJP_IGsSUpRI4RQS8ivFNrAxw', name: 'Flamingo Amigo Manrique', address: 'Cra. 45 #76-15, El Pomar, Medellín', rating: 4.0, reviews: 53 },
+      { placeId: 'ChIJGY1wDOwoRI4RCJ6Hnmq9BZo', name: 'Merkepaisa Manrique', address: 'Cl. 67 #44-110, Manrique Central II, Medellín', rating: 4.3, reviews: 787 },
+      { placeId: 'ChIJb-a646QpRI4R7n1Yx7HzNoc', name: 'Dollarcity Manrique', address: 'Cra. 45 #69-55, Aranjuez, Medellín', rating: 4.6, reviews: 819 },
+    ],
+  },
+  'PUNTO DE VENTA BELLO': {
+    own: { placeId: 'ChIJk2xL56YvRI4RSZj2WWk8JoY', name: 'Hogar y Moda Bello Uno', address: 'Cl. 49 #49-80, Prado, Bello', rating: 3.9, reviews: 184 },
+    competitors: [
+      { placeId: 'ChIJ29u8ojMvRI4R5w5WmwvZEec', name: 'Flamingo Amigo Parque de Bello', address: 'Cl. 49 #49-27, Prado, Bello', rating: 4.6, reviews: 5 },
+      { placeId: 'ChIJG1UcWJovRI4R7YXYPjopxFI', name: 'Flamingo Almacenes Bello', address: 'C.C. Puerta del Norte, Bello', rating: 4.3, reviews: 1107 },
+      { placeId: 'ChIJ6zzFR5ovRI4RMYTGRamzBbc', name: 'Éxito Bello', address: 'Dg. 51 #35-120, Bello', rating: 4.4, reviews: 3816 },
+    ],
+  },
+  'PUNTO DE VENTA APARTADÓ': {
+    own: { placeId: 'ChIJXy6P-noNUI4RjvnLip7n3as', name: 'HOGAR Y MODA', address: 'Cl. 98 #99-27, Apartadó', rating: 3.8, reviews: 46 },
+    competitors: [
+      { placeId: 'ChIJ6YKm0ioNUI4R4VPEyrh9cVY', name: 'Almacén Marly Apartadó', address: 'Cl. 98 #98-06, Apartadó', rating: 5.0, reviews: 18 },
+      { placeId: 'ChIJV3v2uHsNUI4RkhYLwyrCimw', name: 'Alkomprar Apartadó', address: 'Cra. 100 #103-45, Apartadó', rating: 4.3, reviews: 316 },
+      { placeId: 'ChIJ4VUhL2UNUI4RG5WDDqGr1ZY', name: 'Éxito Apartado', address: 'C.C. Plaza del Río, Apartadó', rating: 4.4, reviews: 4517 },
+    ],
+  },
+};
+const GOOGLE_WEEKS = 16;
+
+// Valor por destino (pesos por interacción) y meta del mes en reseñas.
+const CHANNEL_VALUES = { 'Google Reviews': 2500, WhatsApp: 12000, Instagram: 800, 'Sitio web': 1500 };
+const GOAL_CHANNEL = 'Google Reviews';
 
 // Campañas relativas a hoy, con su efecto en el tráfico.
 function campaignsFor(today: Date): { name: string; start: Date; end: Date; factor: number; note: string }[] {
@@ -354,6 +419,8 @@ async function insertReputation(locations: { id: string; name: string; size: num
   let total = 0;
   const points = [-DAYS + 5, -DAYS + 35, -DAYS + 65, -DAYS + 95, -2];
   for (const loc of locations) {
+    if (GOOGLE[loc.name]) continue; // su reputación sale de la medición de Google
+
     let rating = 3.8 + rnd() * 0.5;
     let reviews = Math.round(30 + loc.size * 120 + rnd() * 60);
     for (let i = 0; i < points.length; i++) {
@@ -368,6 +435,58 @@ async function insertReputation(locations: { id: string; name: string; size: num
         [loc.id, Math.round(rating * 10) / 10, reviews, iso(addDays(today, points[i]))]
       );
       total++;
+    }
+  }
+  return total;
+}
+
+/**
+ * Enlaza las sedes de GOOGLE con su ficha y sus competidores, y genera una
+ * medición semanal de cada lugar (place_snapshots + reputación de la sede).
+ */
+async function insertCompetition(locations: { id: string; name: string; size: number }[], today: Date): Promise<number> {
+  let total = 0;
+  const snap = async (placeId: string, rating: number, reviews: number, on: string) => {
+    await pool.query(
+      `INSERT INTO place_snapshots (place_id, rating, review_count, measured_on) VALUES ($1, $2, $3, $4::date)
+       ON CONFLICT (place_id, measured_on) DO UPDATE SET rating = EXCLUDED.rating, review_count = EXCLUDED.review_count`,
+      [placeId, rating, reviews, on]
+    );
+    total++;
+  };
+  for (const loc of locations) {
+    const g = GOOGLE[loc.name];
+    if (!g) continue;
+    await pool.query(`UPDATE locations SET google_place_id = $1, google_place_name = $2 WHERE id = $3`, [
+      g.own.placeId, g.own.name, loc.id,
+    ]);
+    const ids = [g.own.placeId, ...g.competitors.map((c) => c.placeId)];
+    await pool.query(`DELETE FROM place_snapshots WHERE place_id = ANY($1)`, [ids]);
+    for (const c of g.competitors) {
+      await pool.query(
+        `INSERT INTO location_competitors (location_id, place_id, name, address) VALUES ($1, $2, $3, $4)`,
+        [loc.id, c.placeId, c.name, c.address]
+      );
+    }
+    // Semana 0 = hace 15 semanas; la última es hoy.
+    let added = 0;
+    for (let w = 0; w < GOOGLE_WEEKS; w++) {
+      const on = iso(addDays(today, -7 * (GOOGLE_WEEKS - 1 - w)));
+      if (w > 0) added += Math.max(1, Math.round(loc.size * (5 + rnd() * 3)));
+      const n = g.own.reviews + added;
+      const rating = Math.round(((g.own.rating * g.own.reviews + 4.6 * added) / n) * 100) / 100;
+      await snap(g.own.placeId, rating, n, on);
+      await pool.query(
+        `INSERT INTO reputation_snapshots (location_id, rating, review_count, measured_on, source, note)
+         VALUES ($1, $2, $3, $4::date, 'google', 'Dato de demostración')
+         ON CONFLICT (location_id, measured_on) DO NOTHING`,
+        [loc.id, Math.round(rating * 10) / 10, n, on]
+      );
+      for (const c of g.competitors) {
+        const perWeek = Math.max(0.15, c.reviews * 0.002);
+        const reviews = Math.max(1, Math.round(c.reviews - perWeek * (GOOGLE_WEEKS - 1 - w)));
+        await snap(c.placeId, c.rating, reviews, on);
+      }
     }
   }
   return total;
@@ -498,6 +617,15 @@ async function main() {
   const scans = await insertScans(devices, from, now, today);
   const responses = await insertSurvey(companyId, devices, from, now);
   const reps = await insertReputation(locations, today);
+  const places = await insertCompetition(locations, today);
+
+  // Valor por destino y meta mensual de reseñas por sede (según su tamaño).
+  await pool.query(`UPDATE companies SET channel_values = $1::jsonb, goal_monthly = 90, goal_channel = $2 WHERE id = $3`, [
+    JSON.stringify(CHANNEL_VALUES), GOAL_CHANNEL, companyId,
+  ]);
+  for (const loc of locations) {
+    await pool.query(`UPDATE locations SET monthly_goal = $1 WHERE id = $2`, [Math.round((loc.size * 75) / 10) * 10, loc.id]);
+  }
 
   console.log('\n========================================================');
   console.log(` DEMO LISTA · ${COMPANY_NAME}`);
@@ -506,7 +634,7 @@ async function main() {
   console.log(` Puntos NFC:          ${devices.length}`);
   console.log(` Interacciones:       ${scans} (${DAYS} días hasta hoy)`);
   console.log(` Respuestas encuesta: ${responses}`);
-  console.log(` Mediciones Google:   ${reps}`);
+  console.log(` Mediciones Google:   ${reps} manuales + ${places} de fichas reales (${Object.keys(GOOGLE).length} sedes con competencia)`);
   console.log(` Alertas esperadas:   ${SILENT_STORE} (sin actividad), ${DROP_STORE} y ${SOFT_DROP_STORE} (caídas)`);
   console.log('\n Para mantenerla al día: npm run demo -- --continuar');
 }
