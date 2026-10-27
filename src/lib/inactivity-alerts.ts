@@ -1,5 +1,5 @@
 /**
- * Avisos de sede inactiva por correo.
+ * Avisos de sede inactiva por correo y/o WhatsApp (SMS de respaldo).
  *
  * Cada hora (desde el worker de scheduler.ts) busca sedes activas que llevan
  * más de threshold_hours sin una sola interacción y envía UN correo por aviso
@@ -13,6 +13,7 @@
 import { pool, query } from '../db/pool';
 import { config } from '../config';
 import { isMailEnabled, sendHtmlMail } from './mailer';
+import { isMessagingEnabled, sendAlertMessage } from './messaging';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 const SEND_FROM_HOUR = 7;
@@ -29,7 +30,8 @@ export interface InactiveLocation {
 
 interface InactiveRow {
   alert_id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   threshold_hours: number;
   company_name: string;
   location_id: string;
@@ -61,7 +63,7 @@ async function findInactive(opts: { onlyNew: boolean; alertId?: string }): Promi
     extra += ` AND (n.alert_id IS NULL OR n.last_scan_at IS DISTINCT FROM ls.last_scan)`;
   }
   return query<InactiveRow>(
-    `SELECT a.id AS alert_id, a.email, a.threshold_hours, co.name AS company_name,
+    `SELECT a.id AS alert_id, a.email, a.phone, a.threshold_hours, co.name AS company_name,
             l.id AS location_id, l.name, l.city, ls.last_scan
        FROM inactivity_alerts a
        JOIN companies co ON co.id = a.company_id
@@ -184,6 +186,56 @@ export function inactivityMailHtml(d: {
 </html>`;
 }
 
+/** El aviso en una frase para WhatsApp/SMS (los nombres, hasta 4). */
+export function inactivityMessageText(locations: InactiveLocation[], thresholdHours: number): string {
+  const n = locations.length;
+  const t = thresholdLabel(thresholdHours);
+  if (n === 1) return `La sede ${locations[0].name} lleva más de ${t} sin interacciones.`;
+  const names = locations.slice(0, 4).map((l) => l.name).join(', ');
+  return `${n} sedes llevan más de ${t} sin interacciones: ${names}${n > 4 ? ` y ${n - 4} más` : ''}.`;
+}
+
+/**
+ * Manda el aviso por cada vía configurada (correo y/o celular). Devuelve las
+ * vías que funcionaron; lanza error solo si ninguna funcionó.
+ */
+async function deliver(first: InactiveRow, list: InactiveRow[]): Promise<string[]> {
+  const locations = toLocations(list);
+  const done: string[] = [];
+  const errors: string[] = [];
+  if (first.email && isMailEnabled()) {
+    try {
+      await sendHtmlMail(
+        first.email,
+        inactivityMailSubject(first.company_name, list.length, first.threshold_hours),
+        inactivityMailHtml({
+          companyName: first.company_name,
+          thresholdHours: first.threshold_hours,
+          locations,
+          panelUrl: panelUrl(),
+        })
+      );
+      done.push(first.email);
+    } catch (err: any) {
+      errors.push(`correo: ${err.message}`);
+    }
+  }
+  if (first.phone && isMessagingEnabled()) {
+    try {
+      const via = await sendAlertMessage(first.phone, {
+        companyName: first.company_name,
+        text: inactivityMessageText(locations, first.threshold_hours),
+        link: panelUrl(),
+      });
+      done.push(`${via === 'whatsapp' ? 'WhatsApp' : 'SMS'} ${first.phone}`);
+    } catch (err: any) {
+      errors.push(`celular: ${err.message}`);
+    }
+  }
+  if (!done.length) throw new Error(errors.join(' · ') || 'Ninguna vía de envío está configurada.');
+  return done;
+}
+
 function panelUrl(): string {
   return `${config.publicBaseUrl.replace(/\/$/, '')}/`;
 }
@@ -194,7 +246,7 @@ function toLocations(rows: InactiveRow[]): InactiveLocation[] {
 
 /** Pasada del worker: envía los avisos pendientes y marca las sedes avisadas. */
 export async function runInactivityAlerts(): Promise<void> {
-  if (!isMailEnabled()) return;
+  if (!isMailEnabled() && !isMessagingEnabled()) return;
   const hour = businessHour();
   if (hour < SEND_FROM_HOUR || hour >= SEND_UNTIL_HOUR) return;
 
@@ -209,16 +261,7 @@ export async function runInactivityAlerts(): Promise<void> {
   for (const [alertId, list] of byAlert) {
     const first = list[0];
     try {
-      await sendHtmlMail(
-        first.email,
-        inactivityMailSubject(first.company_name, list.length, first.threshold_hours),
-        inactivityMailHtml({
-          companyName: first.company_name,
-          thresholdHours: first.threshold_hours,
-          locations: toLocations(list),
-          panelUrl: panelUrl(),
-        })
-      );
+      const done = await deliver(first, list);
       for (const r of list) {
         await pool.query(
           `INSERT INTO inactivity_alert_notices (alert_id, location_id, last_scan_at, notified_at)
@@ -229,7 +272,7 @@ export async function runInactivityAlerts(): Promise<void> {
         );
       }
       await pool.query(`UPDATE inactivity_alerts SET last_sent_at = now() WHERE id = $1`, [alertId]);
-      console.log(`[alertas] ${list.length} sede(s) inactiva(s) avisadas a ${first.email}`);
+      console.log(`[alertas] ${list.length} sede(s) inactiva(s) avisadas a ${done.join(', ')}`);
     } catch (err: any) {
       // Sin marcar las sedes: se reintenta en la próxima pasada.
       console.error(`[alertas] error enviando aviso ${alertId}:`, err.message);
@@ -245,16 +288,6 @@ export async function runInactivityAlerts(): Promise<void> {
 export async function sendInactivityTest(alertId: string): Promise<number> {
   const rows = await findInactive({ onlyNew: false, alertId });
   if (!rows.length) return 0;
-  const first = rows[0];
-  await sendHtmlMail(
-    first.email,
-    inactivityMailSubject(first.company_name, rows.length, first.threshold_hours),
-    inactivityMailHtml({
-      companyName: first.company_name,
-      thresholdHours: first.threshold_hours,
-      locations: toLocations(rows),
-      panelUrl: panelUrl(),
-    })
-  );
+  await deliver(rows[0], rows);
   return rows.length;
 }

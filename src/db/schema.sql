@@ -400,3 +400,11 @@ UPDATE scan_events se SET channel = 'WhatsApp'
    AND se.scanned_at >= d.updated_at
    AND d.channel IS NULL
    AND d.target_url ~* '^(https?://)?([a-z0-9-]+\.)*(wa\.link|walink\.co|wa\.click|wame\.link)([/?#]|$)';
+
+-- ============================================================================
+-- AVISOS POR WHATSAPP / SMS (Twilio, src/lib/messaging.ts): el aviso de sede
+-- inactiva puede ir a un correo, a un celular o a ambos. El correo deja de ser
+-- obligatorio (relajar NOT NULL no borra ni altera datos).
+-- ============================================================================
+ALTER TABLE inactivity_alerts ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE inactivity_alerts ALTER COLUMN email DROP NOT NULL;

@@ -14,6 +14,7 @@ import { isMailEnabled, sendReportMail } from './mailer';
 import { buildReportData, normalizeMonth } from './report-data';
 import { reportLinkUrl } from './report-link';
 import { runInactivityAlerts } from './inactivity-alerts';
+import { isMessagingEnabled } from './messaging';
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // cada hora
 
@@ -96,8 +97,10 @@ async function runDueSchedules(): Promise<void> {
 }
 
 export function startReportScheduler(): void {
-  if (!isMailEnabled()) {
-    console.log('[scheduler] SMTP no configurado: envío programado de informes desactivado.');
+  // Sin correo los informes no salen, pero los avisos pueden ir por WhatsApp/SMS
+  // (runDueSchedules y runInactivityAlerts revisan cada uno su vía de envío).
+  if (!isMailEnabled() && !isMessagingEnabled()) {
+    console.log('[scheduler] Ni correo ni WhatsApp/SMS configurados: envíos programados desactivados.');
     return;
   }
   // Primera pasada al minuto de arrancar, luego cada hora.

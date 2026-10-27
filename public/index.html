@@ -640,11 +640,15 @@
         <!-- Avisos de sede inactiva -->
         <div class="card">
           <h3 class="font-semibold mb-1">Avisos de sede sin actividad</h3>
-          <p class="text-sm text-slate-500 mb-4">Si una sede pasa el tiempo elegido sin interacciones, avisamos por correo al responsable con las sedes afectadas y qué revisar.</p>
+          <p class="text-sm text-slate-500 mb-4">Si una sede pasa el tiempo elegido sin interacciones, avisamos al responsable por correo, por WhatsApp o por ambos, con las sedes afectadas. Si WhatsApp no llega, va por SMS.</p>
           <div class="flex flex-wrap items-end gap-3">
-            <div class="flex-1 min-w-[220px]">
+            <div class="flex-1 min-w-[200px]">
               <label class="kpi-label block mb-1" for="alertEmail">Correo del responsable</label>
               <input id="alertEmail" type="email" class="input text-sm w-full" placeholder="gerente@empresa.com" autocomplete="off" />
+            </div>
+            <div class="flex-1 min-w-[180px]">
+              <label class="kpi-label block mb-1" for="alertPhone">WhatsApp o celular</label>
+              <input id="alertPhone" type="tel" class="input text-sm w-full" placeholder="300 123 4567" autocomplete="off" inputmode="tel" />
             </div>
             <div>
               <label class="kpi-label block mb-1" for="alertLocation">Sedes a vigilar</label>

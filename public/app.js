@@ -3931,12 +3931,14 @@ function loadReports() {
 // Crea un aviso de sede sin actividad.
 async function createInactivityAlert() {
   const email = $('#alertEmail').value.trim();
-  if (!email) {
-    toast('Escribe el correo del responsable.', false);
+  const phone = $('#alertPhone').value.trim();
+  if (!email && !phone) {
+    toast('Escribe el correo o el celular del responsable.', false);
     return;
   }
   const body = {
-    email,
+    email: email || undefined,
+    phone: phone || undefined,
     threshold_hours: Number($('#alertThreshold').value),
     location_id: $('#alertLocation').value || undefined,
     company_id: reportCompanyId() || undefined,
@@ -3953,6 +3955,7 @@ async function createInactivityAlert() {
     return;
   }
   $('#alertEmail').value = '';
+  $('#alertPhone').value = '';
   toast('Aviso activado');
   renderInactivityAlerts();
 }
@@ -3972,7 +3975,7 @@ async function renderInactivityAlerts() {
   }
   if (!rows.length) {
     cont.innerHTML =
-      '<p class="text-xs text-slate-500">Ningún aviso activo. Agrega el correo del gerente para enterarte cuando una tienda deje de usar sus puntos NFC.</p>';
+      '<p class="text-xs text-slate-500">Ningún aviso activo. Agrega el correo o el WhatsApp del gerente para enterarte cuando una tienda deje de usar sus puntos NFC.</p>';
     return;
   }
   const umbral = (h) => (h === 24 ? '24 horas' : h === 168 ? '1 semana' : `${h / 24} días`);
@@ -3987,7 +3990,7 @@ async function renderInactivityAlerts() {
         : '<span class="badge-inactive">pausado</span>';
       return `<div class="flex items-center justify-between gap-3 flex-wrap p-3" style="border:1px solid var(--card-border);border-radius:10px">
           <div class="min-w-0">
-            <div class="font-medium text-sm" style="overflow-wrap:anywhere">${escapeHtml(r.email)}</div>
+            <div class="font-medium text-sm" style="overflow-wrap:anywhere">${[r.email, r.phone && `WhatsApp ${r.phone}`].filter(Boolean).map(escapeHtml).join(' · ')}</div>
             <div class="text-xs text-slate-500">Tras ${umbral(r.threshold_hours)} sin actividad · ${alcance} · ${ultimo}</div>
           </div>
           <div class="flex items-center gap-2">
@@ -4032,7 +4035,7 @@ async function renderInactivityAlerts() {
     b.addEventListener('click', async () => {
       const ok = await confirmDialog({
         title: 'Eliminar aviso',
-        message: '¿Dejar de avisar a este correo cuando una sede se quede sin actividad?',
+        message: '¿Dejar de avisar a este responsable cuando una sede se quede sin actividad?',
         confirmText: 'Eliminar',
         danger: true,
       });
