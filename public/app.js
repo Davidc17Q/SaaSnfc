@@ -1118,6 +1118,9 @@ async function renderTrend() {
 }
 
 async function renderTop() {
+  // El Excel usa los mismos filtros que la vista.
+  const exp = $('#exportLocations');
+  if (exp) exp.href = `/api/export/locations.csv${qs()}`;
   const data = await api(`/api/top-locations${qs()}`);
   const ctx = $('#topChart');
 
@@ -1138,7 +1141,7 @@ async function renderTop() {
   upsertChart('top', ctx, {
     type: 'bar',
     data: {
-      labels: data.map((d) => shorten(d.name)),
+      labels: stripCommonPrefix(data.map((d) => nice(d.name))).map((n) => shorten(n, ctx.clientWidth < 520 ? 18 : 26)),
       datasets: [
         {
           label: 'Interacciones',
@@ -1249,6 +1252,62 @@ function renderOs(k) {
     .join('');
 }
 
+// Mapa de calor día × hora en monocromo azul. Solo las horas con actividad
+// (recortadas al rango real) para que las celdas no queden diminutas.
+const DOW = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const DOW_LONG = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const hourLabel = (h) => (h === 0 ? '12 a. m.' : h < 12 ? `${h} a. m.` : h === 12 ? '12 m.' : `${h - 12} p. m.`);
+async function renderHeatmap() {
+  const box = $('#heatmap');
+  if (!box) return;
+  let d;
+  try {
+    d = await api(`/api/heatmap${qs()}`);
+  } catch {
+    d = null;
+  }
+  const grid = d?.grid || [];
+  const max = Math.max(0, ...grid.flat());
+  if (!max) {
+    box.innerHTML = `<div class="empty-state"><span class="empty-title">Sin interacciones en este periodo</span><span class="empty-hint">Prueba ampliar el rango de fechas o quitar filtros.</span></div>`;
+    $('#heatInsight').textContent = '';
+    return;
+  }
+  const active = [...Array(24).keys()].filter((h) => grid.some((r) => r[h] > 0));
+  const from = Math.min(...active);
+  const to = Math.max(...active);
+  const hours = [];
+  for (let h = from; h <= to; h++) hours.push(h);
+
+  // Franja más fuerte (2 horas seguidas) para la frase de arriba.
+  let best = { v: -1, d: 0, h: from };
+  grid.forEach((row, di) => {
+    for (let h = from; h < to; h++) {
+      const v = row[h] + row[h + 1];
+      if (v > best.v) best = { v, d: di, h };
+    }
+  });
+  const until = hourLabel((best.h + 2) % 24);
+  $('#heatInsight').textContent = `El momento más fuerte: ${DOW_LONG[best.d]} de ${hourLabel(best.h)} a ${until}${until.endsWith('.') ? '' : '.'}`;
+
+  box.style.setProperty('--heat-cols', hours.length);
+  box.innerHTML =
+    `<span></span>${hours.map((h) => `<span class="heat-h">${h % 3 === 0 || hours.length <= 12 ? h : ''}</span>`).join('')}` +
+    grid
+      .map(
+        (row, di) =>
+          `<span class="heat-d">${DOW[di]}</span>` +
+          hours
+            .map((h) => {
+              const v = row[h];
+              const a = v ? 0.12 + 0.88 * (v / max) : 0;
+              return `<span class="heat-c" style="background:${v ? accentA(a.toFixed(2)) : 'var(--neutral-state-soft)'}" title="${DOW_LONG[di]} ${hourLabel(h)}: ${fmt(v)} interacciones"></span>`;
+            })
+            .join('')
+      )
+      .join('');
+}
+
 async function renderHourly() {
   const data = await api(`/api/hourly${qs()}`);
   const ctx = $('#hourlyChart');
@@ -1298,9 +1357,23 @@ async function renderHourly() {
   });
 }
 
-function shorten(name) {
+function shorten(name, max = 26) {
   name = nice(name);
-  return name.length > 26 ? name.slice(0, 24) + '…' : name;
+  return name.length > max ? name.slice(0, max - 2) + '…' : name;
+}
+
+// Si todas las sedes empiezan igual ("Punto de Venta …"), el eje muestra solo
+// lo que las distingue; el nombre completo sigue en el tooltip.
+function stripCommonPrefix(names) {
+  if (names.length < 2) return names;
+  const words = names.map((n) => n.split(' '));
+  let k = 0;
+  while (words.every((w) => w.length > k + 1 && w[k].toLowerCase() === words[0][k].toLowerCase())) k++;
+  if (!k) return names;
+  return words.map((w) => {
+    const rest = w.slice(k).join(' ');
+    return rest.charAt(0).toLocaleUpperCase('es') + rest.slice(1);
+  });
 }
 
 // Paleta por canal (consistente)
@@ -3611,6 +3684,7 @@ async function loadDashboard({ silent = false } = {}) {
       renderTrend(),
       renderTop(),
       renderHourly(),
+      renderHeatmap(),
       renderChannels(),
       renderAlerts(),
     ]);

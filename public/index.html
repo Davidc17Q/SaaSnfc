@@ -225,11 +225,26 @@
           </div>
         </div>
 
+        <!-- Cuándo interactúan: día de la semana × hora (para turnos y promociones) -->
+        <div class="card">
+          <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h3 class="font-semibold">Cuándo interactúan tus clientes</h3>
+              <p id="heatInsight" class="text-sm text-muted"></p>
+            </div>
+            <span class="text-xs text-muted">Día de la semana y hora</span>
+          </div>
+          <div id="heatmap" class="heatmap"></div>
+        </div>
+
         <!-- Comparar sedes es el valor central para cadenas -->
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 class="font-semibold">Sedes con más interacciones</h3>
-            <span class="text-xs text-muted">Top 10 del periodo</span>
+            <span class="flex items-center gap-3">
+              <span class="text-xs text-muted">Top 10 del periodo</span>
+              <a id="exportLocations" class="btn-ghost text-xs" style="border:1px solid var(--card-border)" href="#" download>Descargar todas (Excel)</a>
+            </span>
           </div>
           <div id="topChartBox" class="relative" style="min-width:0"><canvas id="topChart"></canvas></div>
         </div>

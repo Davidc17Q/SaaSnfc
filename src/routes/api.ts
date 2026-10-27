@@ -314,6 +314,81 @@ export async function apiRoutes(app: FastifyInstance) {
     return hours;
   });
 
+  // ---------- Exportar a Excel: una fila por sede con sus destinos ----------
+  // CSV con BOM y ";" (lo que Excel en español abre directo, con tildes).
+  app.get('/api/export/locations.csv', async (req, reply) => {
+    const q = req.query as any;
+    const companyId = resolveCompanyId(req);
+    const { where, params } = buildFilters(q, companyId);
+    const rows = await query<{ location_id: string; channel: string; scans: string }>(
+      `SELECT se.location_id, se.channel, COUNT(*) AS scans
+         FROM scan_events se ${where}
+        GROUP BY se.location_id, se.channel`,
+      params
+    );
+    const locParams: any[] = [];
+    let locWhere = '';
+    if (companyId !== undefined) {
+      locParams.push(companyId);
+      locWhere = 'WHERE l.company_id = $1';
+    }
+    const locs = await query<{ id: string; name: string; city: string; status: string; company: string | null }>(
+      `SELECT l.id, l.name, l.city, l.status, co.name AS company
+         FROM locations l LEFT JOIN companies co ON co.id = l.company_id ${locWhere}
+        ORDER BY l.name`,
+      locParams
+    );
+    const channels = [...new Set(rows.map((r) => r.channel))].sort();
+    const byLoc = new Map<string, Record<string, number>>();
+    for (const r of rows) {
+      const m = byLoc.get(r.location_id) || {};
+      m[r.channel] = parseInt(r.scans, 10);
+      byLoc.set(r.location_id, m);
+    }
+    const cell = (v: unknown) => {
+      const s = String(v ?? '');
+      return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ['Empresa', 'Sede', 'Ciudad', 'Estado', 'Interacciones', ...channels];
+    const lines = locs
+      .map((l) => {
+        const m = byLoc.get(l.id) || {};
+        const total = Object.values(m).reduce((a, b) => a + b, 0);
+        return { l, m, total };
+      })
+      .filter((x) => !q.locationId || x.l.id === q.locationId)
+      .sort((a, b) => b.total - a.total)
+      .map(({ l, m, total }) =>
+        [l.company || '', l.name, l.city, l.status === 'active' ? 'Activa' : 'Inactiva', total, ...channels.map((c) => m[c] || 0)]
+          .map(cell)
+          .join(';')
+      );
+    const period = q.from && q.to ? `${q.from}_a_${q.to}` : 'todo';
+    reply
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="nfcloud-sedes-${period}.csv"`);
+    return '\ufeff' + [header.map(cell).join(';'), ...lines].join('\r\n');
+  });
+
+  // ---------- Mapa de calor: día de la semana × hora (hora local) ----------
+  app.get('/api/heatmap', async (req) => {
+    const q = req.query as any;
+    const { where, params } = buildFilters(q, resolveCompanyId(req));
+    const rows = await query<{ dow: number; hour: number; scans: string }>(
+      `SELECT EXTRACT(ISODOW FROM se.scanned_at AT TIME ZONE '${APP_TZ}')::int AS dow,
+              EXTRACT(HOUR FROM se.scanned_at AT TIME ZONE '${APP_TZ}')::int AS hour,
+              COUNT(*) AS scans
+         FROM scan_events se
+         ${where}
+         GROUP BY dow, hour`,
+      params
+    );
+    // 7 filas (lunes = 0) × 24 horas.
+    const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+    for (const r of rows) grid[r.dow - 1][r.hour] = parseInt(r.scans, 10);
+    return { grid };
+  });
+
   // ---------- Desglose por canal / destino (WhatsApp, Instagram, ...) ----------
   app.get('/api/channels', async (req) => {
     const q = req.query as any;

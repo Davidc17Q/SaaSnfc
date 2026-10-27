@@ -2154,3 +2154,11 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 /* Ficha de sede: cliente que pidió contacto tras una mala nota */
 .loc-contact { display: block; margin-top: 0.3rem; font-size: 0.8rem; color: var(--warn); }
 .loc-contact a { color: inherit; text-decoration: underline; }
+
+/* Mapa de calor día × hora: celdas cuadradas, monocromo azul */
+.heatmap { display: grid; grid-template-columns: 2.4rem repeat(var(--heat-cols, 24), minmax(0, 1fr)); gap: 3px; align-items: center; }
+.heatmap .heat-c { aspect-ratio: 1.6; border-radius: 3px; min-height: 12px; }
+.heatmap .heat-d { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.heatmap .heat-h { font-size: 0.65rem; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.heatmap .empty-state { grid-column: 1 / -1; }
+@media (max-width: 640px) { .heatmap { gap: 2px; } .heatmap .heat-c { aspect-ratio: 0.9; } }
