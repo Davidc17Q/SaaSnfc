@@ -704,7 +704,14 @@ function renderLocationSurvey(s) {
     )
     .join('');
   const comments = sv.comments.length
-    ? `<div class="loc-comments">${sv.comments.map((c) => `<p>“${escapeHtml(c.text)}”<span>${escapeHtml(fmtDay(c.date))}</span></p>`).join('')}</div>`
+    ? `<div class="loc-comments">${sv.comments
+        .map(
+          (c) =>
+            `<p>${c.text ? `“${escapeHtml(c.text)}”` : 'Sin comentario'}${
+              c.contact ? `<b class="loc-contact">Pidió contacto: <a href="https://wa.me/${escapeHtml(c.contact.replace('+', ''))}" target="_blank" rel="noopener">${escapeHtml(c.contact)}</a></b>` : ''
+            }<span>${escapeHtml(fmtDay(c.date))}</span></p>`
+        )
+        .join('')}</div>`
     : '';
   box.innerHTML = `
     <div class="loc-rep-big">${sv.avg !== null ? pctFmt(sv.avg) : '—'} <span class="loc-rep-of">de 5</span></div>
@@ -4118,6 +4125,7 @@ async function createInactivityAlert() {
   const body = {
     email: email || undefined,
     phone: phone || undefined,
+    low_survey: $('#alertLowSurvey').checked,
     threshold_hours: Number($('#alertThreshold').value),
     location_id: $('#alertLocation').value || undefined,
     company_id: reportCompanyId() || undefined,
@@ -4170,7 +4178,7 @@ async function renderInactivityAlerts() {
       return `<div class="flex items-center justify-between gap-3 flex-wrap p-3" style="border:1px solid var(--card-border);border-radius:10px">
           <div class="min-w-0">
             <div class="font-medium text-sm" style="overflow-wrap:anywhere">${[r.email, r.phone && `WhatsApp ${r.phone}`].filter(Boolean).map(escapeHtml).join(' · ')}</div>
-            <div class="text-xs text-slate-500">Tras ${umbral(r.threshold_hours)} sin actividad · ${alcance} · ${ultimo}</div>
+            <div class="text-xs text-slate-500">Tras ${umbral(r.threshold_hours)} sin actividad${r.low_survey ? ' y con encuestas con mala nota' : ''} · ${alcance} · ${ultimo}</div>
           </div>
           <div class="flex items-center gap-2">
             ${estado}

@@ -6,6 +6,8 @@ import { deviceChannel, isSafeTarget } from '../lib/channel';
 import { config } from '../config';
 import { transitionHtml } from '../lib/transition';
 import { surveyHtml } from '../lib/survey';
+import { notifyLowSurvey } from '../lib/survey-alerts';
+import { normalizePhone } from '../lib/messaging';
 import type { DeviceCache } from '../types';
 
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
@@ -282,7 +284,7 @@ export async function redirectRoutes(app: FastifyInstance) {
   // última solo para el anti-doble-conteo).
   app.post<{
     Params: { deviceId: string };
-    Body: { ratings?: Record<string, number>; comment?: string };
+    Body: { ratings?: Record<string, number>; comment?: string; contact?: string };
   }>('/r/:deviceId/survey', async (req, reply) => {
     const { deviceId } = req.params;
 
@@ -360,15 +362,17 @@ export async function redirectRoutes(app: FastifyInstance) {
     }
 
     const comment = (req.body?.comment || '').toString().slice(0, 2000).trim() || null;
+    // Contacto opcional que el cliente deja si calificó mal (solo un celular válido).
+    const contact = normalizePhone((req.body?.contact || '').toString().slice(0, 30));
 
     // Insertar respuesta + notas en una transacción.
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const resp = await client.query(
-        `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip, source)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [device.device_id, device.location_id, templateId, comment, ip, scanSource(req.query)]
+        `INSERT INTO survey_responses (device_id, location_id, template_id, comment, ip, source, contact)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [device.device_id, device.location_id, templateId, comment, ip, scanSource(req.query), contact]
       );
       const responseId = resp.rows[0].id;
       for (const aid of aspectIds) {
@@ -385,6 +389,17 @@ export async function redirectRoutes(app: FastifyInstance) {
     } finally {
       client.release();
     }
+
+    // Aviso al instante si la nota es mala (sin frenar la respuesta al cliente).
+    setImmediate(() => {
+      notifyLowSurvey({
+        locationId: device.location_id,
+        ratings: aspectIds.map((aid) => ratings[aid]),
+        scaleMax,
+        comment,
+        contact,
+      }).catch((err) => console.error('[encuesta] aviso de nota baja:', err.message));
+    });
 
     return reply.send({ ok: true });
   });

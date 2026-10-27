@@ -420,3 +420,11 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS channel_values JSONB;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS goal_monthly INTEGER;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS goal_channel TEXT;
 ALTER TABLE locations ADD COLUMN IF NOT EXISTS monthly_goal INTEGER;
+
+-- ============================================================================
+-- RESCATE DEL CLIENTE INSATISFECHO (src/lib/survey-alerts.ts): un aviso puede
+-- pedir también las encuestas con mala nota; el cliente puede dejar (opcional)
+-- su WhatsApp para que lo contacten.
+-- ============================================================================
+ALTER TABLE inactivity_alerts ADD COLUMN IF NOT EXISTS low_survey BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE survey_responses  ADD COLUMN IF NOT EXISTS contact TEXT;

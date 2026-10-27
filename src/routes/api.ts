@@ -907,11 +907,11 @@ export async function apiRoutes(app: FastifyInstance) {
           ORDER BY asp.position`,
         [id]
       );
-      const comments = await query<{ comment: string; submitted_at: string }>(
-        `SELECT comment, to_char(submitted_at AT TIME ZONE '${APP_TZ}', 'YYYY-MM-DD') AS submitted_at
+      const comments = await query<{ comment: string | null; contact: string | null; submitted_at: string }>(
+        `SELECT comment, contact, to_char(submitted_at AT TIME ZONE '${APP_TZ}', 'YYYY-MM-DD') AS submitted_at
            FROM survey_responses
           WHERE location_id = $1 AND submitted_at >= ${curStart}
-            AND comment IS NOT NULL AND btrim(comment) <> ''
+            AND ((comment IS NOT NULL AND btrim(comment) <> '') OR contact IS NOT NULL)
           ORDER BY survey_responses.submitted_at DESC
           LIMIT 3`,
         [id]
@@ -972,7 +972,7 @@ export async function apiRoutes(app: FastifyInstance) {
           total: n(surveyTotal[0]?.total),
           avg: avgAll,
           aspects: aspects.map((a) => ({ label: a.label, avg: Math.round(parseFloat(a.avg) * 10) / 10 })),
-          comments: comments.map((c) => ({ text: c.comment, date: c.submitted_at })),
+          comments: comments.map((c) => ({ text: c.comment, contact: c.contact, date: c.submitted_at })),
         },
         reputation: snaps.map((s) => ({
           rating: parseFloat(s.rating),
@@ -2358,7 +2358,7 @@ export async function apiRoutes(app: FastifyInstance) {
       cWhere = 'WHERE a.company_id = $1';
     }
     return query(
-      `SELECT a.id, a.company_id, a.location_id, a.email, a.phone, a.threshold_hours, a.active,
+      `SELECT a.id, a.company_id, a.location_id, a.email, a.phone, a.threshold_hours, a.active, a.low_survey,
               a.last_sent_at, l.name AS location_name
          FROM inactivity_alerts a
          LEFT JOIN locations l ON l.id = a.location_id
@@ -2369,7 +2369,10 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   app.post<{
-    Body: { company_id?: string; location_id?: string; email?: string; phone?: string; threshold_hours?: number };
+    Body: {
+      company_id?: string; location_id?: string; email?: string; phone?: string; threshold_hours?: number;
+      low_survey?: boolean;
+    };
   }>('/api/inactivity-alerts', async (req, reply) => {
     const s = getSession(req);
     // Correo, celular (WhatsApp/SMS) o ambos; al menos uno.
@@ -2404,10 +2407,10 @@ export async function apiRoutes(app: FastifyInstance) {
       }
     }
     const r = await pool.query(
-      `INSERT INTO inactivity_alerts (company_id, location_id, email, phone, threshold_hours)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, company_id, location_id, email, phone, threshold_hours, active`,
-      [companyId, locationId, email, phone, threshold]
+      `INSERT INTO inactivity_alerts (company_id, location_id, email, phone, threshold_hours, low_survey)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, company_id, location_id, email, phone, threshold_hours, active, low_survey`,
+      [companyId, locationId, email, phone, threshold, req.body?.low_survey === true]
     );
     return reply.code(201).send({ ok: true, alert: r.rows[0] });
   });

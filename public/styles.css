@@ -2150,3 +2150,7 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 /* Informes en móvil: los selectores de sede con nombres largos no desbordan */
 #view-reports .flex-wrap > div { max-width: 100%; }
 #view-reports select.input { max-width: 100%; }
+
+/* Ficha de sede: cliente que pidió contacto tras una mala nota */
+.loc-contact { display: block; margin-top: 0.3rem; font-size: 0.8rem; color: var(--warn); }
+.loc-contact a { color: inherit; text-decoration: underline; }

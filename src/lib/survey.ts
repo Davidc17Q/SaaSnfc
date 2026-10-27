@@ -126,6 +126,11 @@ export function surveyHtml(opts: {
     padding:10px 12px; font:inherit; font-size:14px}
   textarea:focus-visible{outline:none; border-color:var(--azul); box-shadow:0 0 0 3px rgba(59,130,246,.25)}
   .contador{text-align:right; font-size:12px; color:var(--texto2); margin-top:4px}
+  .rescate{display:none; margin-top:18px; padding:14px; border-radius:12px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3)}
+  .rescate.ver{display:block}
+  .rescate p{font-size:14px; line-height:1.5; margin-bottom:10px}
+  .rescate input{width:100%; background:var(--fondo); color:var(--texto); border:1px solid var(--borde); border-radius:10px; padding:10px 12px; font:inherit; font-size:15px}
+  .rescate input:focus-visible{outline:none; border-color:var(--azul); box-shadow:0 0 0 3px rgba(59,130,246,.25)}
   .enviar{width:100%; margin-top:20px; padding:14px; border:none; border-radius:12px;
     background:var(--azul); color:#fff; font-size:16px; font-weight:600; cursor:pointer;
     transition:background .15s ease}
@@ -163,6 +168,11 @@ export function surveyHtml(opts: {
           <textarea id="coment" maxlength="2000" placeholder="Cuéntanos más si quieres…"></textarea>
           <div class="contador"><span id="count">0</span>/2000</div>
         </div>
+        <div class="rescate" id="rescate">
+          <p>Sentimos que no fuera una buena experiencia. Si quieres, deja tu WhatsApp y ${nombre ? `el equipo de ${esc(nombre)}` : 'el equipo'} te contactará.</p>
+          <label class="sr" for="contacto" style="position:absolute;left:-9999px">Tu WhatsApp (opcional)</label>
+          <input id="contacto" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="Tu WhatsApp (opcional)" />
+        </div>
       </div>
       <button type="button" class="enviar" id="enviar" disabled>Enviar</button>
       <div id="msg" class="sub" style="text-align:center;margin-top:10px;min-height:18px"></div>
@@ -170,7 +180,7 @@ export function surveyHtml(opts: {
     <div class="ok" aria-live="polite">
       <div class="marca"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-4-4"/></svg></div>
       <h2>¡Gracias por tu calificación!</h2>
-      <p>Tu respuesta se registró de forma anónima.</p>
+      <p id="okTexto">Tu respuesta se registró de forma anónima.</p>
     </div>
     <div class="pie">nfcloud</div>
   </div>
@@ -179,6 +189,9 @@ export function surveyHtml(opts: {
   (function(){
     var deviceCode = ${jsString(opts.deviceCode)};
     var totalAspectos = ${opts.aspects.length};
+    var notaBaja = ${Math.max(1, Math.floor(opts.scaleMax * 0.4))};
+    var rescate = document.getElementById('rescate');
+    var contacto = document.getElementById('contacto');
     var ratings = {};
     var wrap = document.querySelector('.wrap');
 
@@ -208,6 +221,9 @@ export function surveyHtml(opts: {
     var msg = document.getElementById('msg');
     function actualizarBoton(){
       btn.disabled = Object.keys(ratings).length < totalAspectos;
+      // Con una nota baja se ofrece (opcional) dejar un contacto.
+      var baja = Object.keys(ratings).some(function(k){ return ratings[k] <= notaBaja; });
+      rescate.classList.toggle('ver', baja);
     }
 
     btn.addEventListener('click', function(){
@@ -218,12 +234,19 @@ export function surveyHtml(opts: {
       fetch('/r/' + encodeURIComponent(deviceCode) + '/survey' + location.search, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ratings: ratings, comment: coment.value })
+        body: JSON.stringify({
+          ratings: ratings,
+          comment: coment.value,
+          contact: rescate.classList.contains('ver') ? contacto.value : ''
+        })
       }).then(function(res){
         if (!res.ok) throw new Error('error');
         return res.json();
       }).then(function(){
         msg.textContent = '';
+        if (rescate.classList.contains('ver') && contacto.value.trim()) {
+          document.getElementById('okTexto').textContent = 'Te contactaremos pronto.';
+        }
         wrap.classList.add('mostrar-ok');
       }).catch(function(){
         btn.disabled = false;
