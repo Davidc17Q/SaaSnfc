@@ -22,6 +22,11 @@ const state = {
 // ---------------------------------------------------------------------------
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n) => new Intl.NumberFormat('es-CO').format(n);
+/** Pesos: "$4,2 M" desde un millón, "$850.000" por debajo. */
+const fmtMoney = (n) =>
+  Math.abs(n) >= 1e6
+    ? `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(n / 1e6)} M`
+    : `$${fmt(Math.round(n))}`;
 
 /** Normaliza texto para búsqueda: minúsculas y sin tildes/diacríticos. */
 const norm = (s) =>
@@ -1796,6 +1801,7 @@ function openEditLocation(id) {
   $('#editLocBrand').value = l.brand;
   $('#editLocCity').value = l.city;
   $('#editLocStatus').value = l.status;
+  $('#editLocGoal').value = l.monthlyGoal || '';
   $('#editLocMsg').textContent = '';
   const m = $('#editLocationModal');
   m.classList.remove('hidden');
@@ -1831,6 +1837,22 @@ async function saveEditLocation() {
     msg.textContent = err.error || 'Error al guardar.';
     msg.style.color = '#dc2626';
     return;
+  }
+  // Meta propia de la sede (vacía = la común); solo si cambió.
+  const goalRaw = $('#editLocGoal').value.trim();
+  const l = state.locations.find((x) => x.id === editingLocationId);
+  if (String(l?.monthlyGoal || '') !== goalRaw) {
+    const gr = await fetch(`/api/locations/${editingLocationId}/goal`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monthlyGoal: goalRaw ? Number(goalRaw) : null }),
+    });
+    if (!gr.ok) {
+      const err = await gr.json().catch(() => ({}));
+      msg.textContent = err.error || 'No se pudo guardar la meta.';
+      msg.style.color = '#dc2626';
+      return;
+    }
   }
   closeEditLocation();
   await Promise.all([loadLocations(), loadDevices()]);
@@ -2830,6 +2852,7 @@ async function renderImpact() {
 }
 
 async function loadExecutive() {
+  renderGoals();
   await renderImpact();
   await renderBenchmark();
   populateCompareSelectors();
@@ -3589,9 +3612,160 @@ async function loadDashboard({ silent = false } = {}) {
     renderOs(k);
     renderSourceSplit($('#sourceSplit'), await api(`/api/sources${qs()}`));
     renderSinceStart();
+    renderValue();
   } finally {
     cards.forEach((c) => c.classList.remove('is-loading'));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Valor estimado y metas (src/routes/business.ts)
+// ---------------------------------------------------------------------------
+
+// Tarjeta "Valor estimado generado" del resumen. Solo con una empresa elegida y
+// valores definidos; si no, no ocupa espacio.
+async function renderValue() {
+  const card = $('#valueCard');
+  if (!card) return;
+  let v;
+  try {
+    v = await api(`/api/value${qs()}`);
+  } catch {
+    v = null;
+  }
+  if (!v || !v.enabled || !v.total) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  $('#valueTotal').textContent = fmtMoney(v.total);
+  setDelta($('#valueDelta'), v.variationPct);
+  $('#valuePeriod').textContent = $('#kpiPeriod')?.textContent || '';
+  $('#valueBreakdown').innerHTML = v.byChannel
+    .slice(0, 4)
+    .map(
+      (c) => `<div class="value-row">
+        <span class="value-ch"><span class="os-legend-dot" style="background:${channelColor(c.channel)}"></span>${escapeHtml(c.channel)}</span>
+        <span class="value-calc">${fmt(c.scans)} × ${fmtMoney(c.unit)}</span>
+        <span class="value-amt">${fmtMoney(c.value)}</span>
+      </div>`
+    )
+    .join('');
+}
+
+// "Metas del mes" en Comparar sedes: primero las que van más atrasadas.
+const GOAL_STATUS = {
+  done: { label: 'Cumplida', cls: 'goal-done' },
+  on_track: { label: 'En camino', cls: 'goal-ok' },
+  close: { label: 'Cerca', cls: 'goal-warn' },
+  behind: { label: 'Atrasada', cls: 'goal-bad' },
+};
+const GOALS_VISIBLE = 8;
+let goalsExpanded = false;
+async function renderGoals() {
+  const card = $('#goalsCard');
+  if (!card) return;
+  const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
+  let g;
+  try {
+    g = await api(`/api/goals${cq}`);
+  } catch {
+    g = null;
+  }
+  if (!g || !g.enabled) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  const metric = g.metric === 'Interacciones' ? 'interacciones' : g.metric;
+  $('#goalsSub').textContent = `Día ${g.day} de ${g.days} · meta de ${metric} · la proyección sigue el ritmo de lo que va del mes`;
+  $('#goalsSummary').textContent = `${g.onTrack} de ${g.items.length} en camino de cumplir`;
+  // Las más atrasadas primero; el resto se despliega.
+  const shown = goalsExpanded ? g.items : g.items.slice(0, GOALS_VISIBLE);
+  $('#goalsList').innerHTML = shown
+    .map((it) => {
+      const st = GOAL_STATUS[it.status];
+      const w = Math.min(100, it.pct);
+      const proj = Math.min(100, it.projPct);
+      return `<button type="button" class="goal-row" data-id="${it.id}" aria-label="Ver ficha de ${escapeHtml(nice(it.name))}">
+        <span class="goal-name"><span class="truncate">${escapeHtml(nice(it.name))}</span><span class="goal-city">${escapeHtml(it.city)}</span></span>
+        <span class="goal-bar" title="Proyección al cierre: ${fmt(it.projected)}">
+          <span class="goal-proj" style="width:${proj}%"></span>
+          <span class="goal-fill ${st.cls}" style="width:${w}%"></span>
+        </span>
+        <span class="goal-num">${fmt(it.actual)} <span class="text-muted">/ ${fmt(it.goal)}</span></span>
+        <span class="goal-badge ${st.cls}">${st.label}</span>
+      </button>`;
+    })
+    .join('') +
+    (g.items.length > GOALS_VISIBLE
+      ? `<button type="button" class="goals-more" id="goalsMore">${goalsExpanded ? 'Ver solo las más atrasadas' : `Ver las ${g.items.length} sedes`}</button>`
+      : '');
+  $('#goalsList').querySelectorAll('.goal-row').forEach((b) => b.addEventListener('click', () => openLocation(b.dataset.id)));
+  $('#goalsMore')?.addEventListener('click', () => {
+    goalsExpanded = !goalsExpanded;
+    renderGoals();
+  });
+}
+
+// Configuración de valor y metas (Informes). Por empresa.
+async function renderBusinessSettings() {
+  const form = $('#businessForm');
+  if (!form) return;
+  const cid = reportCompanyId();
+  const none = !cid;
+  $('#businessNoCompany').classList.toggle('hidden', !none);
+  form.classList.toggle('hidden', none);
+  if (none) return;
+  let s;
+  try {
+    s = await api(`/api/business-settings?companyId=${encodeURIComponent(cid)}`);
+  } catch {
+    form.classList.add('hidden');
+    return;
+  }
+  // Destinos que la empresa usa + los que ya tienen valor guardado.
+  const chans = [...new Set([...(s.channels || []), ...Object.keys(s.channelValues || {})])];
+  const list = chans.length ? chans : ['WhatsApp', 'Google Reviews', 'Instagram'];
+  $('#businessValues').innerHTML = list
+    .map(
+      (c) => `<label class="business-value">
+        <span class="value-ch"><span class="os-legend-dot" style="background:${channelColor(c)}"></span>${escapeHtml(c)}</span>
+        <input type="number" min="0" step="500" class="input text-sm" data-ch="${escapeHtml(c)}" value="${s.channelValues?.[c] || ''}" placeholder="$ por interacción" />
+      </label>`
+    )
+    .join('');
+  $('#goalMonthly').value = s.goalMonthly || '';
+  $('#goalChannel').innerHTML =
+    '<option value="">Todas las interacciones</option>' +
+    list.map((c) => `<option value="${escapeHtml(c)}">Solo ${escapeHtml(c)}</option>`).join('');
+  $('#goalChannel').value = s.goalChannel || '';
+}
+
+async function saveBusinessSettings() {
+  const cid = reportCompanyId();
+  if (!cid) return;
+  const channelValues = {};
+  $('#businessValues').querySelectorAll('input[data-ch]').forEach((i) => {
+    if (Number(i.value) > 0) channelValues[i.dataset.ch] = Number(i.value);
+  });
+  const goal = $('#goalMonthly').value.trim();
+  const res = await fetch(`/api/business-settings?companyId=${encodeURIComponent(cid)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      channelValues,
+      goalMonthly: goal ? Number(goal) : null,
+      goalChannel: $('#goalChannel').value || null,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || 'No se pudo guardar.', false);
+    return;
+  }
+  toast('Valor y metas guardados');
 }
 
 // ---------------------------------------------------------------------------
@@ -3901,6 +4075,7 @@ function loadReports() {
         fillReportLocations();
         renderSchedules();
         renderInactivityAlerts();
+        renderBusinessSettings();
       });
     const sendBtn = $('#repSendNow');
     if (sendBtn) sendBtn.addEventListener('click', sendReportNow);
@@ -3908,6 +4083,8 @@ function loadReports() {
     if (schBtn) schBtn.addEventListener('click', createSchedule);
     const alertBtn = $('#alertCreate');
     if (alertBtn) alertBtn.addEventListener('click', createInactivityAlert);
+    const busBtn = $('#businessSave');
+    if (busBtn) busBtn.addEventListener('click', saveBusinessSettings);
   }
 
   // Estado del correo: si SMTP no está configurado, avisar y desactivar envío.
@@ -3920,12 +4097,14 @@ function loadReports() {
       const alertBtn = $('#alertCreate');
       if (sendBtn) sendBtn.disabled = !st.enabled;
       if (schBtn) schBtn.disabled = !st.enabled;
-      if (alertBtn) alertBtn.disabled = !st.enabled;
+      // Los avisos pueden salir por correo o por WhatsApp/SMS.
+      if (alertBtn) alertBtn.disabled = !st.enabled && !st.messaging;
     })
     .catch(() => {});
 
   renderSchedules();
   renderInactivityAlerts();
+  renderBusinessSettings();
 }
 
 // Crea un aviso de sede sin actividad.

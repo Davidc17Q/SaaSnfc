@@ -2101,3 +2101,52 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .since-strip.tone-down .since-k { color: var(--danger); }
 .since-strip .since-main { font-size: 1rem; font-weight: 700; margin-top: 0.2rem; line-height: 1.4; color: var(--input-text); }
 .since-strip .since-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+/* Valor estimado: cifra grande + desglose por destino */
+.value-card { display: grid; gap: 1rem 2rem; align-items: center; }
+@media (min-width: 900px) { .value-card { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); } }
+.value-card.hidden { display: none; }
+.value-breakdown { display: grid; gap: 0.45rem; min-width: 0; }
+.value-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.75rem; align-items: baseline; font-size: 0.85rem; }
+.value-ch { display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 600; min-width: 0; }
+.value-calc { color: var(--muted); font-variant-numeric: tabular-nums; }
+.value-amt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 5.5rem; }
+
+/* Metas del mes: barra con lo logrado y, tenue, la proyección al cierre */
+.goals-list { display: grid; gap: 0.35rem; }
+.goal-row {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto 5.5rem; gap: 0.9rem;
+  align-items: center; width: 100%; text-align: left; padding: 0.55rem 0.6rem; border-radius: 0.6rem;
+  background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer;
+  transition: background 0.15s ease;
+}
+.goals-more { margin-top: 0.5rem; font-size: 0.8rem; font-weight: 600; color: var(--accent); background: none; border: 0; cursor: pointer; }
+.goal-row:hover { background: var(--hover); }
+.goal-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.goal-name { display: flex; flex-direction: column; min-width: 0; font-weight: 600; font-size: 0.875rem; }
+.goal-city { font-weight: 400; font-size: 0.75rem; color: var(--muted); }
+.goal-bar { position: relative; height: 8px; border-radius: 99px; background: var(--neutral-state-soft); overflow: hidden; }
+.goal-proj, .goal-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; }
+.goal-proj { background: var(--accent-soft); }
+.goal-fill { background: var(--accent); }
+.goal-fill.goal-warn { background: var(--warn); }
+.goal-fill.goal-bad { background: var(--danger); }
+.goal-num { font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.goal-badge { justify-self: end; font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 99px; white-space: nowrap; }
+.goal-badge.goal-done, .goal-badge.goal-ok { color: var(--ok); background: var(--ok-soft); }
+.goal-badge.goal-warn { color: var(--warn); background: var(--warn-soft); }
+.goal-badge.goal-bad { color: var(--danger); background: var(--danger-soft); }
+@media (max-width: 640px) {
+  .goal-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .goal-bar { grid-column: 1 / -1; grid-row: 2; }
+  .goal-badge { grid-row: 1; grid-column: 2; }
+  .goal-num { grid-row: 3; grid-column: 1; }
+}
+
+/* Configuración de valor por destino */
+.business-values { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+.business-value { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
+
+/* Informes en móvil: los selectores de sede con nombres largos no desbordan */
+#view-reports .flex-wrap > div { max-width: 100%; }
+#view-reports select.input { max-width: 100%; }

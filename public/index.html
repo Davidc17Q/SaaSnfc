@@ -180,6 +180,16 @@
           </div>
         </div>
 
+        <!-- Valor estimado en pesos (solo si la empresa definió cuánto vale cada interacción) -->
+        <div id="valueCard" class="card value-card hidden">
+          <div class="value-main">
+            <p class="kpi-label">Valor estimado generado</p>
+            <p id="valueTotal" class="kpi-value">—</p>
+            <p class="kpi-sub"><span id="valueDelta" class="kpi-delta hidden"></span><span id="valuePeriod"></span></p>
+          </div>
+          <div id="valueBreakdown" class="value-breakdown"></div>
+        </div>
+
         <!-- Charts -->
         <!-- Fila principal: tendencia (contexto temporal) + horas pico (accionable) -->
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 charts-row-top">
@@ -275,6 +285,18 @@
             </div>
           </div>
           <div id="impactBody"></div>
+        </div>
+
+        <!-- Metas del mes por sede (solo si la empresa definió una meta) -->
+        <div id="goalsCard" class="card hidden">
+          <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
+            <div>
+              <h3 class="font-semibold">Metas del mes</h3>
+              <p id="goalsSub" class="text-sm text-muted"></p>
+            </div>
+            <p id="goalsSummary" class="text-sm font-semibold"></p>
+          </div>
+          <div id="goalsList" class="goals-list"></div>
         </div>
 
         <!-- Gap de rendimiento -->
@@ -637,6 +659,29 @@
           <div id="repScheduleList" class="mt-5 space-y-2"></div>
         </div>
 
+        <!-- Valor de cada interacción y metas -->
+        <div class="card" id="businessCard">
+          <h3 class="font-semibold mb-1">Valor y metas</h3>
+          <p class="text-sm text-slate-500 mb-4">Opcional. Di cuánto vale para tu negocio cada interacción y el panel estimará el dinero que generan tus puntos; con una meta mensual, cada sede se mide contra ella.</p>
+          <p id="businessNoCompany" class="text-sm text-muted hidden">Elige una empresa arriba para configurar sus valores y metas.</p>
+          <div id="businessForm">
+            <p class="kpi-label mb-2">Valor por interacción (pesos)</p>
+            <div id="businessValues" class="business-values"></div>
+            <div class="flex flex-wrap items-end gap-3 mt-4">
+              <div>
+                <label class="kpi-label block mb-1" for="goalMonthly">Meta mensual por sede</label>
+                <input id="goalMonthly" type="number" min="1" step="1" class="input text-sm" style="width:9rem" placeholder="Ej. 300" />
+              </div>
+              <div>
+                <label class="kpi-label block mb-1" for="goalChannel">Qué cuenta para la meta</label>
+                <select id="goalChannel" class="input text-sm"></select>
+              </div>
+              <button id="businessSave" class="btn-primary text-sm">Guardar</button>
+            </div>
+            <p class="text-xs text-muted mt-2">Una sede puede tener su propia meta: Sedes → editar sede.</p>
+          </div>
+        </div>
+
         <!-- Avisos de sede inactiva -->
         <div class="card">
           <h3 class="font-semibold mb-1">Avisos de sede sin actividad</h3>
@@ -977,11 +1022,13 @@
       <input id="editLocBrand" type="text" class="input w-full" />
       <label class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
       <input id="editLocCity" type="text" class="input w-full" />
+      <label class="block text-sm font-medium mb-1 mt-3" for="editLocGoal">Meta mensual propia <span class="text-muted">(opcional; vacía = la meta común)</span></label>
+      <input id="editLocGoal" type="number" min="1" step="1" class="input w-full" placeholder="Usa la meta común de la empresa" />
       <div class="flex items-center gap-2 mt-3">
         <label class="text-sm font-medium">Estado</label>
         <select id="editLocStatus" class="input text-sm">
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
+          <option value="active">Activa</option>
+          <option value="inactive">Inactiva</option>
         </select>
       </div>
       <div class="flex justify-between items-center mt-6">

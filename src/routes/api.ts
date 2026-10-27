@@ -28,7 +28,7 @@ const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
  * - superadmin: la que pida por ?companyId=, o null = todas.
  * Devuelve `undefined` cuando no hay que filtrar (superadmin viendo todo).
  */
-function resolveCompanyId(req: any): string | undefined {
+export function resolveCompanyId(req: any): string | undefined {
   const s = getSession(req);
   if (!s) return undefined;
   if (s.role === 'company_admin') return s.companyId || '__none__';
@@ -1371,7 +1371,7 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT
-         l.id, l.name, l.brand, l.city, l.status, l.company_id,
+         l.id, l.name, l.brand, l.city, l.status, l.company_id, l.monthly_goal,
          co.name AS company_name,
          COUNT(DISTINCT d.id) AS nfc_points,
          COALESCE(sc.total_clicks, 0) AS total_clicks
@@ -1383,7 +1383,7 @@ export async function apiRoutes(app: FastifyInstance) {
            FROM scan_events GROUP BY location_id
        ) sc ON sc.location_id = l.id
        ${cWhere}
-       GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, co.name, l.created_at, sc.total_clicks
+       GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, l.monthly_goal, co.name, l.created_at, sc.total_clicks
        ORDER BY total_clicks DESC, l.created_at DESC`,
       cParams
     );
@@ -1398,6 +1398,7 @@ export async function apiRoutes(app: FastifyInstance) {
       companyName: r.company_name,
       nfcPoints: parseInt(r.nfc_points, 10),
       totalClicks: parseInt(r.total_clicks, 10),
+      monthlyGoal: r.monthly_goal,
     }));
   });
 
@@ -2197,7 +2198,7 @@ export async function apiRoutes(app: FastifyInstance) {
   // ==========================================================================
 
   // Estado del correo (para que la UI muestre si el envío está disponible).
-  app.get('/api/mail-status', async () => ({ enabled: isMailEnabled() }));
+  app.get('/api/mail-status', async () => ({ enabled: isMailEnabled(), messaging: isMessagingEnabled() }));
 
   // Listar programaciones visibles.
   app.get('/api/report-schedules', async (req) => {

@@ -6,6 +6,7 @@ import { readFileSync } from 'fs';
 import { config } from './config';
 import { redirectRoutes } from './routes/redirect';
 import { apiRoutes } from './routes/api';
+import { businessRoutes } from './routes/business';
 import { authRoutes, registerAuthGuard } from './lib/auth';
 import { startReportScheduler } from './lib/scheduler';
 import { startPlanScheduler } from './lib/plans';
@@ -80,6 +81,7 @@ async function main() {
 
   // API + motor de redirección
   await app.register(apiRoutes);
+  await app.register(businessRoutes);
   await app.register(redirectRoutes);
 
   try {

@@ -408,3 +408,15 @@ UPDATE scan_events se SET channel = 'WhatsApp'
 -- ============================================================================
 ALTER TABLE inactivity_alerts ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE inactivity_alerts ALTER COLUMN email DROP NOT NULL;
+
+-- ============================================================================
+-- VALOR ESTIMADO Y METAS (src/routes/business.ts). Todo opcional: sin
+-- configurar, el panel no muestra estas secciones.
+-- channel_values: pesos por interacción según destino, ej. {"WhatsApp": 15000}.
+-- goal_monthly: meta mensual común por sede; goal_channel: destino que cuenta
+-- para la meta (NULL = todas las interacciones). monthly_goal: excepción por sede.
+-- ============================================================================
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS channel_values JSONB;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS goal_monthly INTEGER;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS goal_channel TEXT;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS monthly_goal INTEGER;
