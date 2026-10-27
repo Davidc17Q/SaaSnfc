@@ -20,3 +20,18 @@ export const dedupeKey = (deviceId: string, ip: string) => `dedupe:${deviceId}:$
 /** Clave para el anti-doble-conteo de respuestas de encuesta por dispositivo+IP. */
 export const surveyDedupeKey = (deviceId: string, ip: string) =>
   `survey:dedupe:${deviceId}:${ip}`;
+
+/**
+ * Borra la caché de un punto (bajo su código corto y su UUID). La siguiente
+ * lectura del motor /r/ la rellena desde Postgres con todos los campos
+ * (empresa, canal, modo…), en vez de guardar aquí un objeto incompleto.
+ */
+export async function dropDeviceCache(devices: { device_id: string; code?: string | null }[]) {
+  const keys = devices.flatMap((d) => [deviceCacheKey(d.device_id), ...(d.code ? [deviceCacheKey(d.code)] : [])]);
+  if (!keys.length) return;
+  try {
+    await redis.del(...keys);
+  } catch {
+    /* Redis caído: tampoco se lee la caché */
+  }
+}

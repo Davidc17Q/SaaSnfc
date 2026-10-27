@@ -1900,10 +1900,10 @@ function renderDevicesTable(filter = '') {
           ? ` <span class="tpl-badge-survey">${icon('star', { size: 11 })} Encuesta</span>`
           : ''
       }</td>
-      <td class="td font-mono text-xs max-w-xs truncate" data-label="Target URL" title="${escapeHtml(d.target_url)}">${
+      <td class="td text-xs max-w-xs" data-label="Destino" title="${escapeHtml(d.target_url)}">${
         d.mode === 'survey'
           ? '<span class="text-slate-400">Encuesta interna</span>'
-          : escapeHtml(d.target_url)
+          : `<span class="font-medium">${escapeHtml(d.channel || '')}</span><span class="block font-mono truncate text-muted">${escapeHtml(d.target_url)}</span>`
       }</td>
       <td class="td" data-label="Estado">${statusBadge(d.status)}</td>
       <td class="td td-actions text-right">
@@ -2631,6 +2631,10 @@ function setEditMode(mode) {
   $('#editSurveyWrap').classList.toggle('hidden', editMode !== 'survey');
 }
 
+// Mismo vocabulario que src/lib/channel.ts (CHANNELS).
+const CHANNEL_OPTIONS = ['WhatsApp', 'Instagram', 'Google Reviews', 'Facebook', 'TikTok', 'YouTube',
+  'X (Twitter)', 'Telegram', 'Linktree', 'Llamada', 'Email', 'Sitio web', 'Otro'];
+
 async function openEdit(id) {
   const d = state.devices.find((x) => x.id === id);
   if (!d) return;
@@ -2638,6 +2642,11 @@ async function openEdit(id) {
   $('#editDeviceLabel').textContent = `${d.location_name} · ${d.label}`;
   $('#editRedirectUrl').textContent = `${location.origin}/r/${d.code || d.id}`;
   $('#editTargetUrl').value = d.target_url;
+  // Canal: automático (con lo detectado hoy) o fijado a mano.
+  $('#editChannel').innerHTML =
+    `<option value="">Automático${!d.channel_fixed && d.channel ? ` (ahora: ${escapeHtml(d.channel)})` : ''}</option>` +
+    CHANNEL_OPTIONS.map((c) => `<option value="${c}">${c}</option>`).join('');
+  $('#editChannel').value = d.channel_fixed || '';
   $('#editStatus').value = d.status;
   $('#editMsg').textContent = '';
 
@@ -2693,7 +2702,7 @@ async function saveEdit() {
       msg.style.color = '#dc2626';
       return;
     }
-    payload = { mode: 'redirect', target_url, status };
+    payload = { mode: 'redirect', target_url, status, channel: $('#editChannel').value };
   }
 
   const res = await fetch(`/api/devices/${editingId}`, {
@@ -2718,6 +2727,8 @@ async function saveEdit() {
     d.mode = data.device.mode;
     d.survey_template_id = data.device.survey_template_id;
   }
+  // El canal efectivo lo calcula el servidor: se recarga la lista.
+  if (payload.mode === 'redirect') await loadDevices().catch(() => {});
   closeEdit();
   renderDevicesTable($('#devSearch').value);
   toast(editMode === 'survey' ? 'Punto en modo encuesta' : 'Destino actualizado en tiempo real');

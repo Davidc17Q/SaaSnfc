@@ -383,3 +383,20 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS segment TEXT;
 -- de su segmento: tienda, sede, tarjeta, punto de atención).
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS unit_one TEXT;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS unit_many TEXT;
+
+-- ============================================================================
+-- CANAL FIJADO A MANO en un punto (WhatsApp, Instagram, …). NULL = se detecta
+-- por la URL (src/lib/channel.ts). Sirve para acortadores que no se reconocen.
+-- ============================================================================
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS channel TEXT;
+
+-- Enlaces de WhatsApp acortados (wa.link, walink.co…) que antes se contaban
+-- como "Sitio web". Solo se corrigen las interacciones posteriores al último
+-- cambio del punto, cuando seguro llevaban a esa misma URL. Idempotente.
+UPDATE scan_events se SET channel = 'WhatsApp'
+  FROM devices d
+ WHERE se.device_id = d.id
+   AND se.channel IN ('Sitio web', 'Otro')
+   AND se.scanned_at >= d.updated_at
+   AND d.channel IS NULL
+   AND d.target_url ~* '^(https?://)?([a-z0-9-]+\.)*(wa\.link|walink\.co|wa\.click|wame\.link)([/?#]|$)';

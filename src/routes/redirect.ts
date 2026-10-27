@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { pool } from '../db/pool';
 import { redis, deviceCacheKey, dedupeKey, surveyDedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
-import { detectChannel } from '../lib/channel';
+import { deviceChannel } from '../lib/channel';
 import { config } from '../config';
 import { transitionHtml } from '../lib/transition';
 import { surveyHtml } from '../lib/survey';
@@ -112,7 +112,7 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   try {
     rows = await pool.query(
       `SELECT d.id AS device_id, d.location_id, d.target_url, d.status,
-              d.transition, d.mode, d.survey_template_id, co.name AS company_name
+              d.transition, d.mode, d.survey_template_id, d.channel, co.name AS company_name
          FROM devices d
          LEFT JOIN locations l ON l.id = d.location_id
          LEFT JOIN companies co ON co.id = l.company_id
@@ -239,7 +239,7 @@ export async function redirectRoutes(app: FastifyInstance) {
 
     // Registrar el ScanEvent de forma asíncrona (fire-and-forget).
     const os = detectOs(req.headers['user-agent']);
-    const channel = detectChannel(device.target_url);
+    const channel = deviceChannel(device);
     const ua = req.headers['user-agent'] || null;
     const ip = req.ip;
     const source = scanSource(req.query);

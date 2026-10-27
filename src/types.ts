@@ -75,6 +75,8 @@ export interface DeviceCache {
   code?: string;
   /** Nombre de la empresa dueña del punto (para la pantalla de transición). */
   company_name?: string;
+  /** Canal fijado a mano (NULL = se detecta por target_url). */
+  channel?: string | null;
   /** Si true, muestra la pantalla de transición antes de redirigir. */
   transition?: boolean;
   /** Modo del punto: redirección (actual) o encuesta. Excluyentes. */

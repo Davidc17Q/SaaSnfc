@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { pool, query } from '../db/pool';
-import { redis, deviceCacheKey } from '../db/redis';
+import { redis, dropDeviceCache } from '../db/redis';
 import type { DeviceCache } from '../types';
 import { getSession, hashPassword } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
@@ -9,7 +9,7 @@ import { reportMailHtml } from '../lib/report-mail';
 import { buildReportData, normalizeMonth } from '../lib/report-data';
 import { reportLinkUrl, verifyReportLink } from '../lib/report-link';
 import { campaignUplift } from '../lib/campaign-effect';
-import { detectChannel } from '../lib/channel';
+import { CHANNELS, detectChannel, deviceChannel } from '../lib/channel';
 import { companySegment, inferSegment, isSegment, unitsFor } from '../lib/segments';
 import { sinceStart } from '../lib/since-start';
 import { invalidatePlan, planStatus } from '../lib/plans';
@@ -869,9 +869,9 @@ export async function apiRoutes(app: FastifyInstance) {
       // registran escaneos: su uso son las respuestas recibidas.
       const devs = await query<{
         id: string; code: string; label: string; target_url: string; status: string;
-        mode: string; last_scan: string | null; scans: string;
+        mode: string; channel: string | null; last_scan: string | null; scans: string;
       }>(
-        `SELECT d.id, d.code, d.label, d.target_url, d.status, d.mode,
+        `SELECT d.id, d.code, d.label, d.target_url, d.status, d.mode, d.channel,
                 CASE WHEN d.mode = 'survey' THEN sv.last ELSE sc.last END AS last_scan,
                 CASE WHEN d.mode = 'survey' THEN COALESCE(sv.cur, 0) ELSE COALESCE(sc.cur, 0) END AS scans
            FROM devices d
@@ -962,7 +962,7 @@ export async function apiRoutes(app: FastifyInstance) {
           code: d.code,
           label: d.label,
           targetUrl: d.target_url,
-          channel: d.mode === 'survey' ? 'Encuesta' : detectChannel(d.target_url),
+          channel: d.mode === 'survey' ? 'Encuesta' : deviceChannel(d),
           status: d.status,
           lastScan: d.last_scan,
           scans: n(d.scans),
@@ -1424,7 +1424,7 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at, d.transition,
-              d.mode, d.survey_template_id,
+              d.mode, d.survey_template_id, d.channel AS channel_fixed,
               l.name AS location_name, l.city AS location_city, l.id AS location_id,
               l.company_id AS company_id
          FROM devices d
@@ -1433,7 +1433,8 @@ export async function apiRoutes(app: FastifyInstance) {
          ORDER BY l.name ASC, d.label ASC`,
       cParams
     );
-    return rows;
+    // channel = canal efectivo (fijado a mano o detectado por la URL).
+    return rows.map((r: any) => ({ ...r, channel: deviceChannel({ target_url: r.target_url, channel: r.channel_fixed }) }));
   });
 
   // ---------- Activar/desactivar pantalla de transición (SOLO superadmin) ----------
@@ -1456,14 +1457,7 @@ export async function apiRoutes(app: FastifyInstance) {
         return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
       }
       // Refrescar caché Redis (bajo código y UUID) para que surta efecto ya.
-      const device = result.rows[0] as DeviceCache & { code: string | null };
-      try {
-        const payload = JSON.stringify(device);
-        if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
-        await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
-      } catch {
-        /* ignore */
-      }
+      await dropDeviceCache([result.rows[0]]);
       return { ok: true, transition };
     }
   );
@@ -1476,24 +1470,33 @@ export async function apiRoutes(app: FastifyInstance) {
   // 'redirect', survey_template_id vuelve a NULL.
   app.patch<{
     Params: { id: string };
-    Body: { target_url?: string; status?: string; mode?: string; survey_template_id?: string | null };
+    Body: {
+      target_url?: string; status?: string; mode?: string; survey_template_id?: string | null;
+      channel?: string | null;
+    };
   }>('/api/devices/:id', async (req, reply) => {
     const { id } = req.params;
     const { target_url, status } = req.body || {};
-    {
-      const scopeCompany = resolveCompanyId(req);
-      const owner = await query<{ company_id: string | null }>(
-        `SELECT l.company_id FROM devices d JOIN locations l ON l.id = d.location_id WHERE d.id = $1`,
-        [id]
-      );
-      if (!owner[0] || (scopeCompany !== undefined && owner[0].company_id !== scopeCompany)) {
-        return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
-      }
+    const scopeCompany = resolveCompanyId(req);
+    const prev = await query<{ company_id: string | null; target_url: string; channel: string | null }>(
+      `SELECT l.company_id, d.target_url, d.channel
+         FROM devices d JOIN locations l ON l.id = d.location_id WHERE d.id = $1`,
+      [id]
+    );
+    if (!prev[0] || (scopeCompany !== undefined && prev[0].company_id !== scopeCompany)) {
+      return reply.code(404).send({ error: 'Dispositivo no encontrado.' });
     }
+    // Canal fijado a mano: '' o 'auto' vuelven a la detección por URL.
+    const rawChannel = req.body?.channel;
+    const channel =
+      rawChannel === undefined ? undefined
+      : rawChannel === '' || rawChannel === 'auto' || rawChannel === null ? null
+      : (CHANNELS as readonly string[]).includes(rawChannel) ? rawChannel
+      : undefined;
     const mode =
       req.body?.mode === 'survey' || req.body?.mode === 'redirect' ? req.body.mode : undefined;
 
-    if (!target_url && !status && mode === undefined) {
+    if (!target_url && !status && mode === undefined && channel === undefined) {
       return reply.code(400).send({ error: 'Nada que actualizar.' });
     }
     if (target_url) {
@@ -1514,6 +1517,10 @@ export async function apiRoutes(app: FastifyInstance) {
     if (status) {
       params.push(status);
       fields.push(`status = $${params.length}`);
+    }
+    if (channel !== undefined) {
+      params.push(channel);
+      fields.push(`channel = $${params.length}`);
     }
 
     if (mode === 'survey') {
@@ -1563,7 +1570,7 @@ export async function apiRoutes(app: FastifyInstance) {
       `UPDATE devices SET ${fields.join(', ')}, updated_at = now()
          WHERE id = $${params.length}
        RETURNING id AS device_id, code, location_id, target_url, status,
-                 transition, mode, survey_template_id`,
+                 transition, mode, survey_template_id, channel`,
       params
     );
 
@@ -1572,15 +1579,19 @@ export async function apiRoutes(app: FastifyInstance) {
     }
 
     const device = result.rows[0] as DeviceCache & { code: string | null };
-    // Refrescar caché Redis bajo el código corto Y el UUID (compatibilidad), con
-    // mode y survey_template_id para que el motor público resuelva al instante.
-    try {
-      const payload = JSON.stringify(device);
-      if (device.code) await redis.set(deviceCacheKey(device.code), payload, 'EX', 3600);
-      await redis.set(deviceCacheKey(device.device_id), payload, 'EX', 3600);
-    } catch {
-      /* ignore */
+    // Con la misma URL, las interacciones anteriores iban al mismo destino:
+    // si el canal cambió (fijado a mano), se corrigen también.
+    if (channel !== undefined && (!target_url || target_url === prev[0].target_url)) {
+      const prevChannel = prev[0].channel || detectChannel(prev[0].target_url);
+      const newChannel = deviceChannel(device);
+      if (prevChannel !== newChannel) {
+        await pool.query(`UPDATE scan_events SET channel = $1 WHERE device_id = $2 AND channel = $3`, [
+          newChannel, id, prevChannel,
+        ]);
+      }
     }
+    // Borrar la caché (código y UUID): el motor la rellena completa al instante.
+    await dropDeviceCache([device]);
 
     return { ok: true, device };
   });
@@ -1668,19 +1679,14 @@ export async function apiRoutes(app: FastifyInstance) {
     }
 
     // Recuperar dispositivos para limpiar su caché en Redis
-    const devs = await pool.query('SELECT id FROM devices WHERE location_id = $1', [id]);
+    const devs = await pool.query('SELECT id AS device_id, code FROM devices WHERE location_id = $1', [id]);
 
     const result = await pool.query('DELETE FROM locations WHERE id = $1', [id]);
     if (result.rowCount === 0) {
       return reply.code(404).send({ error: 'Sede no encontrada.' });
     }
 
-    try {
-      const keys = devs.rows.map((d) => deviceCacheKey(d.id));
-      if (keys.length) await redis.del(...keys);
-    } catch {
-      /* ignore */
-    }
+    await dropDeviceCache(devs.rows);
 
     return { ok: true, deletedDevices: devs.rowCount };
   });
@@ -1729,12 +1735,6 @@ export async function apiRoutes(app: FastifyInstance) {
     );
 
     const device = result.rows[0] as DeviceCache & { code: string };
-    // Precargar la caché bajo el código corto (que es lo que irá en la tarjeta/QR).
-    try {
-      await redis.set(deviceCacheKey(device.code), JSON.stringify(device), 'EX', 3600);
-    } catch {
-      /* ignore */
-    }
 
     return reply.code(201).send({
       ok: true,
@@ -1833,24 +1833,8 @@ export async function apiRoutes(app: FastifyInstance) {
       [target_url, ...upd.params]
     );
 
-    // Refrescar caché Redis de todos los afectados (por código y por UUID)
-    try {
-      const pipe = redis.pipeline();
-      for (const d of updated) {
-        const payload = JSON.stringify({
-          device_id: d.device_id,
-          location_id: d.location_id,
-          target_url,
-          status: d.status,
-          code: d.code,
-        });
-        if (d.code) pipe.set(deviceCacheKey(d.code), payload, 'EX', 3600);
-        pipe.set(deviceCacheKey(d.device_id), payload, 'EX', 3600);
-      }
-      await pipe.exec();
-    } catch {
-      /* ignore */
-    }
+    // Borrar la caché de todos los afectados (por código y por UUID).
+    await dropDeviceCache(updated);
 
     // Registrar en el historial con el snapshot para poder revertir
     const snapshot = before.map((b) => ({ device_id: b.device_id, target_url: b.target_url }));
@@ -1897,26 +1881,11 @@ export async function apiRoutes(app: FastifyInstance) {
       const res = await pool.query(
         `UPDATE devices SET target_url = $1, updated_at = now()
            WHERE id = $2
-         RETURNING id AS device_id, location_id, status`,
+         RETURNING id AS device_id, code`,
         [s.target_url, s.device_id]
       );
       if (res.rowCount) {
-        const d = res.rows[0];
-        try {
-          await redis.set(
-            deviceCacheKey(d.device_id),
-            JSON.stringify({
-              device_id: d.device_id,
-              location_id: d.location_id,
-              target_url: s.target_url,
-              status: d.status,
-            }),
-            'EX',
-            3600
-          );
-        } catch {
-          /* ignore */
-        }
+        await dropDeviceCache([res.rows[0]]);
         restored++;
       }
     }

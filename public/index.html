@@ -481,7 +481,7 @@
                 <tr>
                   <th class="th">Sede</th>
                   <th class="th">Punto</th>
-                  <th class="th">Target URL</th>
+                  <th class="th">Destino</th>
                   <th class="th">Estado</th>
                   <th class="th text-right">Acción</th>
                 </tr>
@@ -840,7 +840,7 @@
         <select id="bulkLocation" class="input w-full text-sm"></select>
       </div>
 
-      <label class="block text-sm font-medium mb-1 mt-3">Nueva Target URL</label>
+      <label class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
       <input id="bulkUrl" type="url" class="input w-full" placeholder="https://…" />
 
       <div class="bulk-preview" id="bulkPreview">Se actualizarán <b id="bulkCount">—</b> puntos NFC.</div>
@@ -877,8 +877,11 @@
 
       <!-- Rama Redirección -->
       <div id="editRedirectWrap">
-        <label class="block text-sm font-medium mb-1">Nueva Target URL</label>
+        <label class="block text-sm font-medium mb-1">Enlace de destino</label>
         <input id="editTargetUrl" type="url" class="input w-full" placeholder="https://…" />
+        <label class="block text-sm font-medium mb-1 mt-3" for="editChannel">Tipo de destino</label>
+        <select id="editChannel" class="input w-full text-sm"></select>
+        <p class="text-xs text-muted mt-1">Se reconoce solo por el enlace. Fíjalo a mano si usas un acortador (bit.ly, etc.) y no se reconoce.</p>
       </div>
 
       <!-- Rama Medición (encuesta) -->
@@ -891,8 +894,8 @@
       <div class="flex items-center gap-2 mt-3">
         <label class="text-sm font-medium">Estado</label>
         <select id="editStatus" class="input text-sm">
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
+          <option value="active">Activo</option>
+          <option value="inactive">Inactivo</option>
         </select>
       </div>
       <div class="flex justify-end gap-2 mt-6">
@@ -1003,7 +1006,7 @@
       </div>
       <label class="block text-sm font-medium mb-1 mt-3">Etiqueta del punto</label>
       <input id="devLabel" type="text" class="input w-full" placeholder="Ej: Entrada principal" />
-      <label class="block text-sm font-medium mb-1 mt-3">Target URL (destino)</label>
+      <label class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
       <input id="devTarget" type="url" class="input w-full" placeholder="https://…" />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelDevice" class="btn-ghost">Cancelar</button>
