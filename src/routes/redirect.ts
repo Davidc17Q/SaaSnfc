@@ -10,6 +10,13 @@ import { notifyLowSurvey } from '../lib/survey-alerts';
 import { normalizePhone } from '../lib/messaging';
 import type { DeviceCache } from '../types';
 
+/**
+ * Mismo navegador (user-agent) en el mismo punto dentro de esta ventana = el
+ * mismo toque leído dos veces, aunque llegue con otra IP. Corta para no juntar
+ * a dos clientes distintos con el mismo modelo de celular.
+ */
+const SAME_BROWSER_SECONDS = 10;
+
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -268,11 +275,34 @@ export async function redirectRoutes(app: FastifyInstance) {
             // Si Redis falla, seguimos y registramos igual (no perder datos).
           }
         }
-        await pool.query(
-          `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [device.device_id, device.location_id, os, channel, ua, ip, source]
-        );
+        // Segunda barrera en Postgres (por si Redis no está o la IP cambió entre
+        // dos lecturas del mismo toque, p. ej. IPv4/IPv6): no se registra si el
+        // punto ya tuvo un evento de esa IP en la ventana, o del mismo
+        // navegador hace muy poco. El candado por punto evita que dos lecturas
+        // simultáneas pasen ambas el NOT EXISTS.
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [device.device_id]);
+          await client.query(
+            `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, source)
+             SELECT $1, $2, $3, $4, $5, $6, $7
+              WHERE NOT EXISTS (
+                SELECT 1 FROM scan_events
+                 WHERE device_id = $1
+                   AND scanned_at > now() - make_interval(secs => $8)
+                   AND (ip = $6 OR (user_agent = $5 AND scanned_at > now() - make_interval(secs => $9)))
+              )`,
+            [device.device_id, device.location_id, os, channel, ua, ip, source,
+              config.scanDedupeSeconds, Math.min(config.scanDedupeSeconds, SAME_BROWSER_SECONDS)]
+          );
+          await client.query('COMMIT');
+        } catch (err) {
+          await client.query('ROLLBACK').catch(() => {});
+          throw err;
+        } finally {
+          client.release();
+        }
       } catch (err: any) {
         console.error('[scan_event] insert error:', err.message);
       }

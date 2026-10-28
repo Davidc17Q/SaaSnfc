@@ -455,3 +455,6 @@ CREATE TABLE IF NOT EXISTS place_snapshots (
   measured_on  DATE         NOT NULL DEFAULT CURRENT_DATE,
   PRIMARY KEY (place_id, measured_on)
 );
+
+-- Anti-doble-conteo en Postgres (redirect.ts): últimos eventos de un punto.
+CREATE INDEX IF NOT EXISTS idx_scan_device_time ON scan_events(device_id, scanned_at DESC);

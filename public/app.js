@@ -1274,22 +1274,29 @@ async function renderHeatmap() {
     $('#heatInsight').textContent = '';
     return;
   }
+  // Siempre al menos el horario comercial (8 a. m. – 8 p. m.), ampliado si hay
+  // actividad fuera de él: con pocos datos no quedan 1-2 celdas gigantes.
   const active = [...Array(24).keys()].filter((h) => grid.some((r) => r[h] > 0));
-  const from = Math.min(...active);
-  const to = Math.max(...active);
+  const from = Math.min(8, ...active);
+  const to = Math.max(19, ...active);
   const hours = [];
   for (let h = from; h <= to; h++) hours.push(h);
 
-  // Franja más fuerte (2 horas seguidas) para la frase de arriba.
-  let best = { v: -1, d: 0, h: from };
+  // Franja más fuerte (2 horas seguidas) para la frase de arriba; con pocas
+  // interacciones no hay patrón que contar.
+  const total = grid.flat().reduce((a, b) => a + b, 0);
+  let best = { v: -1, first: -1, d: 0, h: from };
   grid.forEach((row, di) => {
     for (let h = from; h < to; h++) {
       const v = row[h] + row[h + 1];
-      if (v > best.v) best = { v, d: di, h };
+      if (v > best.v || (v === best.v && row[h] > best.first)) best = { v, first: row[h], d: di, h };
     }
   });
   const until = hourLabel((best.h + 2) % 24);
-  $('#heatInsight').textContent = `El momento más fuerte: ${DOW_LONG[best.d]} de ${hourLabel(best.h)} a ${until}${until.endsWith('.') ? '' : '.'}`;
+  $('#heatInsight').textContent =
+    total < 20
+      ? 'Aún hay pocas interacciones para ver un patrón.'
+      : `El momento más fuerte: ${DOW_LONG[best.d]} de ${hourLabel(best.h)} a ${until}${until.endsWith('.') ? '' : '.'}`;
 
   box.style.setProperty('--heat-cols', hours.length);
   box.innerHTML =
