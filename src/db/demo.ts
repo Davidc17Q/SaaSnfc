@@ -570,10 +570,21 @@ async function main() {
   }
 
   // --- Regenerar ---------------------------------------------------------------
-  const old = await pool.query<{ id: string; code: string | null }>(
-    `SELECT d.id, d.code FROM devices d JOIN locations l ON l.id = d.location_id WHERE l.company_id = $1`,
+  const old = await pool.query<{ id: string; code: string | null; label: string }>(
+    `SELECT d.id, d.code, d.label FROM devices d JOIN locations l ON l.id = d.location_id WHERE l.company_id = $1`,
     [companyId]
   );
+  // Puntos que no creó la demo (p. ej. habladores movidos con mover-puntos.ts):
+  // borrarlos rompería chips ya grabados, así que se exige --forzar.
+  const demoLabels = new Set([...POINTS.map((p) => p.label), 'Encuesta de visita']);
+  const foreign = old.rows.filter((d) => !demoLabels.has(d.label));
+  if (foreign.length && !flag('forzar')) {
+    console.log(`[demo] La empresa tiene ${foreign.length} punto(s) que no son de la demo (chips grabados):`);
+    for (const d of foreign) console.log(`   ${d.label} (/r/${d.code ?? d.id})`);
+    console.log('[demo] Regenerar los borraría. Usa --continuar, o agrega --forzar si de verdad quieres borrarlos.');
+    process.exitCode = 1;
+    return;
+  }
   console.log(`[demo] Empresa: ${COMPANY_NAME}. Se reemplazan sus sedes, ${old.rowCount} puntos NFC y sus datos.`);
   await pool.query(`DELETE FROM campaigns WHERE company_id = $1`, [companyId]);
   await pool.query(`DELETE FROM survey_templates WHERE company_id = $1`, [companyId]);
