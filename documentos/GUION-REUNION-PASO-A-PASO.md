@@ -112,30 +112,92 @@ Muestra **Lalico**:
 > cambiar nada de su operación. En una tienda tuya, con mucho más tráfico, el
 > efecto es mayor."
 
-## Paso 6 · La demo del panel (8 minutos)
+Y el hallazgo de las fichas (detalle en la sección "El problema de las fichas de
+Google", al final):
+
+> "Además, solo en Medellín encontré 32 fichas de Hogar y Moda, varias duplicadas
+> o sin nombre de barrio, y la Dirección General aparece como si fuera una
+> tienda. No revisé el resto del país, pero es probable que haya tiendas sin
+> ficha. Una tienda sin ficha propia no puede recibir reseñas. Las tiendas del
+> piloto se las dejo organizadas como parte del servicio."
+
+## Paso 6 · El recorrido por el panel (8–10 minutos)
 
 **Primero, dilo claro:**
 
 > "Lo que vas a ver tiene tus 27 tiendas reales, pero los números son
 > **simulados**, para que veas cómo se vería. Con el piloto, serían los tuyos."
 
-1. **Resumen.** "Arriba te dice en una frase cómo vas y qué tienda necesita
-   atención." Señala la frase verde de "Desde que empezaste".
-2. **Alerta de Turbo.** "Esta tienda lleva 3 días sin que nadie use los puntos: o
-   se cayó el hablador o nadie lo está ofreciendo. Te enteras sin visitarla, y
-   también te llega al correo."
-3. **Ficha de una tienda.** Clic en una barra del gráfico de tiendas (por
-   ejemplo **Manrique**). "Mira cómo va Manrique: su puesto entre todas las
-   tiendas, si subió o bajó, cuántas reseñas y cuántos WhatsApp generó, y cada
-   punto por separado." **Quédate aquí: es lo que más impresiona.**
-4. **Cambio masivo** (Puntos NFC → Cambio masivo). "Si llega Black Friday, en un
-   clic todos los habladores de todas las tiendas llevan a la promoción, sin
-   reimprimir nada." Muéstralo, no lo apliques.
-5. **Mapa de calor.** "El sábado de 5 a 7 es el momento más fuerte: ahí debería
-   estar el asesor de crédito."
-6. **Informe mensual** (Informes → Generar informe). "Esto te llega cada mes al
-   correo. No tienes que entrar al panel: qué pasó, qué tienda atender y qué
-   hacer."
+En cada parada usa la misma estructura, para sonar ordenado:
+
+**"Mira esto"** (lo que se ve) → **"Esto significa…"** (qué pasa) →
+**"NFCloud te permite…"** (qué puede hacer él) → **"Para ti, eso es…"** (por
+qué le importa).
+
+### Parada 1 · Tarjeta + Resumen
+
+Le das la tarjeta, la toca y giras el PC.
+
+> "Mira: lo que acabas de hacer ya aparece aquí. Esto significa que cada vez que
+> un cliente toca un hablador, sabemos en qué tienda, en qué punto y a qué hora.
+> NFCloud te permite ver todas tus tiendas en una sola pantalla. Para ti, eso es
+> saber cómo va la cadena sin llamar a cada tienda."
+
+### Parada 2 · La frase de arriba y "Desde que empezaste"
+
+> "Arriba siempre te dice en una frase lo más importante del día. Y aquí, lo
+> acumulado: cuántos clientes abrieron la reseña y cuántos escribieron por
+> WhatsApp. Para ti, eso es ver el resultado en 10 segundos."
+
+### Parada 3 · Alertas
+
+> "Si vamos a 'Requieren atención', mira: Turbo lleva 3 días sin que nadie use
+> sus puntos. Esto significa que se cayó el hablador o nadie lo está ofreciendo.
+> NFCloud te avisa solo, aquí y en tu correo. Para ti, eso es enterarte el mismo
+> día, sin visitar la tienda."
+
+### Parada 4 · Ficha de una tienda (clic en Manrique en el gráfico)
+
+> "Si entramos a una tienda, mira cómo va Manrique: su puesto entre todas, si
+> subió o bajó, cuántas reseñas y cuántos WhatsApp generó, y cada punto del
+> hablador por separado. NFCloud te permite comparar tiendas y ver cuál copiar y
+> cuál corregir. Para ti, eso es decidir dónde poner la atención con números."
+
+**Quédate un momento aquí: es lo que más impresiona.**
+
+### Parada 5 · Cambio masivo (Puntos NFC → Cambio masivo)
+
+> "Ahora imagina que llega Black Friday. Desde aquí, en un clic, todos los
+> habladores de todas las tiendas llevan a la promoción. NFCloud te permite
+> cambiar el destino sin reimprimir nada. Para ti, eso es ahorrar impresión y
+> lanzar campañas el mismo día."
+
+Muéstralo, no lo apliques.
+
+### Parada 6 · Mapa de calor
+
+> "Aquí ves cuándo interactúan más tus clientes: el sábado de 5 a 7. Para ti,
+> eso es saber cuándo tener al asesor de crédito disponible."
+
+### Parada 7 · Cómo llegan los clientes
+
+> "Y esto te dice cuántos tocaron el chip y cuántos escanearon el QR, para saber
+> qué funciona mejor en cada tienda."
+
+### Parada 8 · Informe mensual (Informes → Generar informe)
+
+> "Por último: no tienes que entrar al panel. Esto te llega cada mes al correo:
+> qué pasó, qué tienda atender y qué hacer. Para ti, eso es tener un informe de
+> gerencia sin que nadie lo arme."
+
+**Frases para pasar de una parada a otra:** "Ahora, si vamos a…", "Y aquí viene lo
+interesante…", "Esto es lo que más le sirve a un gerente…".
+
+**Al terminar el recorrido, antes de hablar de precio, pregúntale:**
+
+> "¿Qué de esto te serviría más en Hogar y Moda?"
+
+Su respuesta te dice qué destacar cuando muestres la cotización.
 
 No abras nada que no hayas ensayado.
 
@@ -213,6 +275,43 @@ Sal **con una fecha**, aunque no sea un sí.
 - **El mismo día**, por WhatsApp o correo: gracias, un resumen corto de lo que
   hablaron (con sus palabras: "me dijiste que Junín te preocupa"), la cotización
   en PDF y el próximo paso con fecha.
+
+---
+
+## El problema de las fichas de Google
+
+**Lo que sabemos:** buscando en el área metropolitana de Medellín aparecen **32
+fichas** de Hogar y Moda, pero la cadena tiene **alrededor de 84 tiendas**. Además:
+
+- Varias fichas se llaman solo "HOGAR Y MODA", sin barrio: el cliente no sabe a
+  cuál tienda corresponde.
+- Hay fichas duplicadas para la misma dirección.
+- La Dirección General aparece como si fuera una tienda, con 3,1 estrellas.
+
+**Lo que no sabemos todavía:** cuántas fichas hay en el resto del país (Urabá,
+Oriente, Santander, Caldas…). Por eso **no digas "solo tienen 32 de 84"**: di
+"solo en Medellín encontré 32". Para saber el número real, usa el prompt de
+`documentos/PROMPT-FICHAS-GOOGLE.md` en otro chat.
+
+**Por qué es un problema:** una tienda **sin ficha propia no puede recibir
+reseñas**, y una ficha duplicada reparte las reseñas entre dos. El punto
+"Califícanos en Google" del hablador necesita que cada tienda tenga una ficha
+propia, verificada y con su enlace de reseña. Ordenar las fichas no es un extra:
+**es requisito para que el piloto funcione.**
+
+**Cómo se cobra:**
+
+- **En el piloto: incluido.** Son pocas tiendas y sin eso no funciona.
+- **Para el resto de la cadena, aparte** ("puesta a punto de fichas de Google"):
+  - **$70.000 por ficha** si hay que crearla o reclamarla y verificarla.
+  - **$40.000 por ficha** si ya existe y solo hay que ordenarla: nombre estándar
+    ("Hogar y Moda – Junín"), horarios, fotos, categoría y enlace de reseña.
+  - Unir duplicados se cotiza según el caso.
+- **No va en la cotización de mañana**: se habla cuando hablen de toda la cadena.
+
+**Condición que debes avisar:** la verificación la hace Google con el dueño de la
+ficha (código por correo postal, llamada o video). Necesitas que alguien de Hogar
+y Moda colabore, y puede tardar desde unos días hasta un par de semanas.
 
 ---
 
