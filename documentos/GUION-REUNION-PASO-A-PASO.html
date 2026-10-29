@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GUION-REUNION-PASO-A-PASO</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1e293b; max-width: 820px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.6; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid #6366f1; padding-bottom: .3rem; }
+  h2 { font-size: 1.4rem; margin-top: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: .2rem; }
+  h3 { font-size: 1.15rem; margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #cbd5e1; padding: .5rem .7rem; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #6366f1; margin: 1rem 0; padding: .5rem 1rem; background: #f8fafc; color: #475569; }
+  img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; margin: .5rem 0; display: block; }
+  a { color: #4f46e5; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+  @media print { body { max-width: none; } a { color: #1e293b; } }
+</style>
+</head>
+<body>
+<h1>Guion paso a paso — reunión con el gerente de Hogar y Moda</h1>
+<p>Lo que llevas: <strong>hablador carta</strong>, <strong>hablador media carta</strong>, <strong>3 tarjetas NFC</strong> (WhatsApp, Google, Instagram), <strong>tu PC</strong> y la <strong>cotización impresa</strong> (2 copias).</p>
+<p>Lee este guion completo una vez en la noche y otra vez en la mañana. No tienes que decirlo palabra por palabra: las frases entre comillas son una guía.</p>
+<hr/>
+<h2>Antes de llegar (en la mañana, en casa)</h2>
+<ol>
+<li><strong>Prueba cada muestra con tu celular</strong>: las 3 tarjetas y los 4 puntos de los dos habladores. Cada una debe abrir su destino (WhatsApp, Google, Instagram, crédito).</li>
+<li><strong>Comprueba que esos toques aparecen en el panel</strong> de Hogar y Moda (Resumen → la interacción entra en pocos segundos). Si no aparecen, esos puntos están en otra empresa del panel: muévelos o crea los puntos en Hogar y Moda y regraba los chips con el enlace que termina en <code>?s=n</code>.</li>
+<li><strong>No regeneres la demo completa</strong> (<code>scripts\demo-produccion.ps1</code> sin opciones): borra y vuelve a crear los puntos de Hogar y Moda, y tus muestras dejarían de funcionar. Si quieres datos hasta hoy, usa <code>powershell -File scripts\demo-produccion.ps1 -Continuar</code>, que solo agrega interacciones y no toca los puntos.</li>
+<li>En el PC: entra al panel <strong>con el usuario de Hogar y Moda</strong> (no como superadmin), recarga con <strong>Ctrl + Shift + R</strong> y deja abiertas estas pestañas, en este orden:</li>
+<li>Panel → Resumen.</li>
+<li>Google Maps: "Hogar y Moda Junín".</li>
+<li>Google Maps: "Flamingo Itagüí".</li>
+<li>Google Maps: Lalico (tu caso real).</li>
+<li>PC y celular <strong>cargados</strong>. Datos del celular listos para compartir internet.</li>
+<li>Ropa: camisa lisa, pantalón chino o de tela, zapatos limpios.</li>
+</ol>
+<hr/>
+<h2>Paso 1 · Saludo y para qué vienes (2 minutos)</h2>
+<p>Siéntate, saca solo la libreta. <strong>Las muestras y el PC todavía no.</strong></p>
+<blockquote>"Gracias por sacar el espacio. Te traigo algo que ya está funcionando en negocios reales, y quiero ver contigo si le sirve a Hogar y Moda en dos cosas que se pueden medir: las reseñas de Google de cada tienda y los clientes que llegan por WhatsApp. Pero antes de mostrarte nada, quiero entender cómo lo manejan ustedes."</blockquote>
+<h2>Paso 2 · Preguntas (5–8 minutos) — él habla, tú anotas</h2>
+<p>Haz estas preguntas y <strong>anota sus respuestas con sus palabras</strong>:</p>
+<ol>
+<li>"¿Cómo les llegan hoy los clientes de crédito? ¿Tienda, WhatsApp, promotores?"</li>
+<li>"¿Tienen un WhatsApp de la empresa o uno por tienda? ¿Hay un canal de promociones?"</li>
+<li>"¿Revisan las reseñas de Google de cada tienda? ¿Alguna les preocupa?"</li>
+<li>"Si mañana quieren lanzar una promoción en todas las tiendas, ¿cómo lo hacen y cuánto se demora?"</li>
+<li>"¿Cómo saben hoy qué tienda está funcionando mejor y cuál se está quedando?"</li>
+<li>"Si probáramos algo, ¿quién se encargaría de su lado? ¿Quién más participa en una decisión así?"</li>
+</ol>
+<h2>Paso 3 · El momento de las tarjetas (3 minutos)</h2>
+<p>Saca <strong>la tarjeta de Google</strong> y pásasela:</p>
+<blockquote>"Acerca tu celular a esta tarjeta."</blockquote>
+<p>Se le abre Google. Luego pásale <strong>la de WhatsApp</strong> y después <strong>la de Instagram</strong>:</p>
+<blockquote>"Así de simple para tu cliente: no descarga nada, no abre la cámara. Y si su celular no tiene NFC, escanea el código QR."</blockquote>
+<p>Ahora abre el PC en el <strong>Resumen</strong> y gíralo hacia él:</p>
+<blockquote>"Y esos toques que acabas de hacer ya quedaron registrados: qué tienda, qué punto, a qué hora. Imagina esto con miles de clientes en todas tus tiendas."</blockquote>
+<p>(Si el toque tarda unos segundos en aparecer, sigue hablando y vuelve a mostrarlo después: el panel se actualiza solo.)</p>
+<h2>Paso 4 · Los habladores (3 minutos)</h2>
+<p>Pon <strong>los dos habladores</strong> sobre la mesa, uno al lado del otro.</p>
+<blockquote>"Esto es lo que iría en cada tienda. El grande va en la <strong>caja</strong>, donde el cliente espera mientras le facturan o le estudian el crédito: ahí le pedimos la reseña, puede pagar su cuota por WhatsApp sin hacer fila y unirse a las promociones. El pequeño va en la <strong>entrada</strong>: '¿Quieres tu crédito? Escríbenos'."</blockquote>
+<p>Invítalo a tocar los puntos de los habladores.</p>
+<blockquote>"Cada punto es independiente: sé cuánta gente pidió crédito, cuánta dejó reseña y cuánta entró a promociones, tienda por tienda."</blockquote>
+<h2>Paso 5 · El diagnóstico con Google (4 minutos)</h2>
+<p>Ve a las pestañas de Google Maps.</p>
+<blockquote>"Revisé sus fichas de Google frente a la competencia. Hogar y Moda tiene en promedio 3,75 estrellas y unas 16 reseñas por tienda. Flamingo tiene 4,3 y más de mil reseñas por tienda: 17 veces más reseñas con la cuarta parte de las tiendas."</blockquote>
+<p>Muestra <strong>Junín: 2,7 con 41 reseñas</strong>.</p>
+<blockquote>"No es que la atención sea mala: están a medio punto. El problema es que el cliente contento no deja reseña y el molesto sí. Eso es lo que se cambia, y es lo más rápido y barato de mover."</blockquote>
+<p>Muestra <strong>Lalico</strong>:</p>
+<blockquote>"Esta licorería pasó de 5 a 29 reseñas en dos semanas, con la misma tarjeta, sin cambiar nada de su operación. En una tienda tuya, con mucho más tráfico, el efecto es mayor."</blockquote>
+<h2>Paso 6 · La demo del panel (8 minutos)</h2>
+<p><strong>Primero, dilo claro:</strong></p>
+<blockquote>"Lo que vas a ver tiene tus 27 tiendas reales, pero los números son <strong>simulados</strong>, para que veas cómo se vería. Con el piloto, serían los tuyos."</blockquote>
+<ol>
+<li><strong>Resumen.</strong> "Arriba te dice en una frase cómo vas y qué tienda necesita atención." Señala la frase verde de "Desde que empezaste".</li>
+<li><strong>Alerta de Turbo.</strong> "Esta tienda lleva 3 días sin que nadie use los puntos: o se cayó el hablador o nadie lo está ofreciendo. Te enteras sin visitarla, y también te llega al correo."</li>
+<li><strong>Ficha de una tienda.</strong> Clic en una barra del gráfico de tiendas (por ejemplo <strong>Manrique</strong>). "Mira cómo va Manrique: su puesto entre todas las tiendas, si subió o bajó, cuántas reseñas y cuántos WhatsApp generó, y cada punto por separado." <strong>Quédate aquí: es lo que más impresiona.</strong></li>
+<li><strong>Cambio masivo</strong> (Puntos NFC → Cambio masivo). "Si llega Black Friday, en un clic todos los habladores de todas las tiendas llevan a la promoción, sin reimprimir nada." Muéstralo, no lo apliques.</li>
+<li><strong>Mapa de calor.</strong> "El sábado de 5 a 7 es el momento más fuerte: ahí debería estar el asesor de crédito."</li>
+<li><strong>Informe mensual</strong> (Informes → Generar informe). "Esto te llega cada mes al correo. No tienes que entrar al panel: qué pasó, qué tienda atender y qué hacer."</li>
+</ol>
+<p>No abras nada que no hayas ensayado.</p>
+<h2>Paso 7 · Cuando pregunte "¿cuánto cuesta?" (5 minutos)</h2>
+<p>Entrégale <strong>la cotización impresa</strong> y léela con él, sin afán:</p>
+<blockquote>"Funciona por tienda. Cada tienda lleva un kit: los dos habladores, el diseño con su marca, la configuración y la instalación con capacitación al personal. Eso es un pago único de <strong>$249.900 por tienda</strong>. Y la plataforma, con el panel, las alertas y el informe, son <strong>$34.900 por tienda al mes</strong>. El primer mes no se cobra."</blockquote>
+<p>Luego, <strong>de palabra (no está en la cotización)</strong>:</p>
+<blockquote>"Mi sugerencia es empezar con unas <strong>6 a 8 tiendas</strong>, incluida Junín, durante 90 días. Pero tú decides cuántas."</blockquote>
+<p>Si quiere la cuenta de una vez:</p>
+<table><thead><tr><th>Tiendas</th><th>Pago inicial</th><th>Mensualidad desde el mes 2</th></tr></thead><tbody>
+<tr><td>6</td><td>$1.499.400</td><td>$209.400</td></tr>
+<tr><td>8</td><td>$1.999.200</td><td>$279.200</td></tr>
+<tr><td>10</td><td>$2.499.000</td><td>$349.000</td></tr>
+</tbody></table>
+<p>Y la garantía:</p>
+<blockquote>"Si al día 60 las tiendas del piloto no suman en promedio 5 reseñas nuevas por tienda, no te cobro las mensualidades. El riesgo lo asumo yo."</blockquote>
+<p><strong>Después de decir el precio, cállate.</strong> Deja que él hable primero.</p>
+<h3>Si pide rebaja (cede en este orden y siempre a cambio de algo)</h3>
+<ol>
+<li>"El primer mes ya va sin costo."</li>
+<li>"Si nos comprometemos a 12 meses después del piloto, te dejo el kit en $229.900 por tienda."</li>
+<li>"Si pagas los meses 2 y 3 por adelantado, te descuento 10 % de la plataforma."</li>
+</ol>
+<p><strong>Nunca menos de $199.900 por kit ni de $29.900 al mes.</strong> Si insiste: "Déjame revisarlo y hoy mismo te confirmo por escrito."</p>
+<h3>Si pregunta por las tarjetas</h3>
+<blockquote>"Son opcionales, para los asesores o promotores: $40.000 cada una, o 10 por $350.000. Así sabes cuántos contactos trae cada asesor."</blockquote>
+<p>(Es el mismo precio que le diste a Río Vivo por 10 tarjetas: no hay contradicción.)</p>
+<h2>Paso 8 · El cierre (3 minutos)</h2>
+<blockquote>"Entonces te propongo: elegimos las tiendas, me das una persona de contacto y en 8 días hábiles está instalado. Medimos cómo está cada tienda en Google el día uno y a los 90 días te muestro el antes y el después. ¿Con qué tiendas empezarías?"</blockquote>
+<p>Termina con esa <strong>pregunta de elección</strong>, no con "¿te interesa?".</p>
+<p><strong>Si dice que sí:</strong> anota las tiendas, el nombre y el WhatsApp de la persona de contacto, y acuerda la fecha. Dile que hoy le envías la cotización por correo.</p>
+<p><strong>Si dice "lo pienso" o "lo hablo con alguien":</strong></p>
+<blockquote>"Claro. ¿Qué necesitarías ver para decidir? ¿Y con quién lo hablarías? Si quieres, lo presento yo mismo; ¿qué día les sirve la próxima semana?"</blockquote>
+<p>Sal <strong>con una fecha</strong>, aunque no sea un sí.</p>
+<h2>Paso 9 · Al salir</h2>
+<ul>
+<li>Deja la cotización impresa. Las muestras <strong>se las puedes dejar</strong> si él quiere mostrárselas a alguien (es la mejor publicidad), o llévatelas si las necesitas.</li>
+<li><strong>El mismo día</strong>, por WhatsApp o correo: gracias, un resumen corto de lo que hablaron (con sus palabras: "me dijiste que Junín te preocupa"), la cotización en PDF y el próximo paso con fecha.</li>
+</ul>
+<hr/>
+<h2>Respuestas rápidas a las preguntas más probables</h2>
+<ul>
+<li><strong>"¿Esto no lo hace un QR normal?"</strong> "Un QR normal no se puede cambiar sin reimprimir ni mide nada. Este cambia en un clic en todas las tiendas y te dice qué tienda funciona."</li>
+<li><strong>"Los empleados no lo van a ofrecer."</strong> "Por eso el panel muestra tienda por tienda: si una no lo usa, se ve el mismo día y te llega una alerta."</li>
+<li><strong>"¿Las reseñas son reales?"</strong> "Sí, de clientes reales. No compramos ni filtramos reseñas: Google lo prohíbe y eso protege tu ficha."</li>
+<li><strong>"¿Qué pasa si dejamos de pagar?"</strong> "Los habladores siguen llevando a su destino; solo dejas de ver el panel. Nunca quedan rotos en la tienda."</li>
+<li><strong>"¿Qué datos guardan de los clientes?"</strong> "Ninguno personal: no pedimos nombre, cédula ni teléfono. Solo la tienda, el punto y la hora."</li>
+<li><strong>"¿Cuánto se demora?"</strong> "8 días hábiles desde que apruebas. Tu equipo no hace nada técnico."</li>
+<li><strong>"Hagámoslo gratis, somos familia."</strong> "Justamente porque somos familia quiero que salga bien: un piloto pagado nos compromete a los dos a medirlo en serio. Y si no funciona, no pagas las mensualidades."</li>
+</ul>
+<h2>Lo que NO debes hacer</h2>
+<ul>
+<li>No prometer un número exacto de reseñas.</li>
+<li>No hacer pasar los datos de la demo por reales.</li>
+<li>No inventar descuentos en el momento.</li>
+<li>No ofrecer como listo lo que falta (los avisos por WhatsApp todavía no están activos).</li>
+<li>No llenar el silencio después del precio.</li>
+</ul>
+<p><strong>La frase para memorizar:</strong> "Kit de $249.900 por tienda, $34.900 al mes, primer mes sin costo y con garantía. Te sugiero empezar con 6 a 8 tiendas."</p>
+
+</body>
+</html>

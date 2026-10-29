@@ -70,6 +70,12 @@
 
 ## Reunión con Hogar y Moda (jueves 29 de octubre, en la mañana)
 
+- Para el día: cotización simple por sede (`cotizaciones/hogar-y-moda/cotizacion/
+  Cotizacion-NFCloud-Hogar-y-Moda.pdf`: kit $249.900, plataforma $34.900/mes,
+  tarjetas $40.000 o 10 por $350.000, escala por volumen) y guion con las
+  muestras que lleva (`documentos/GUION-REUNION-PASO-A-PASO.md`). El número de
+  sedes se sugiere de palabra (6 a 8). Refrescar la demo solo con
+  `scripts\demo-produccion.ps1 -Continuar` (sin borrar los puntos grabados).
 - Plan completo: `documentos/REUNION-HOGAR-Y-MODA.md` (también en HTML y PDF):
   meta, checklist, guion minuto a minuto, demo, precios, objeciones y cierre.
 - Arreglado el 27 de octubre (`7c9cf64`): el resumen tomaba los destinos como

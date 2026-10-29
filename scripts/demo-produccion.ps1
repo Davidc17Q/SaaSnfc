@@ -1,6 +1,9 @@
 # Genera los datos de demostración de Hogar y Moda en la base de PRODUCCIÓN.
 # Pide la URL pública de Postgres sin mostrarla ni guardarla en el historial.
 # Dónde está: Railway -> servicio Postgres -> Variables -> DATABASE_PUBLIC_URL.
+# -Continuar: solo agrega interacciones hasta hoy, sin borrar sedes ni puntos
+# (así las tarjetas y habladores ya grabados siguen funcionando).
+param([switch]$Continuar)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
@@ -28,7 +31,8 @@ if ($env:DATABASE_URL.Contains('railway.internal')) {
 $env:DB_SSL = 'true'
 $env:REDIS_URL = 'redis://127.0.0.1:1'
 try {
-  npm run demo -- --confirmar --produccion
+  if ($Continuar) { npm run demo -- --continuar --produccion }
+  else { npm run demo -- --confirmar --produccion }
 } finally {
   Remove-Item Env:DATABASE_URL, Env:DB_SSL, Env:REDIS_URL -ErrorAction SilentlyContinue
 }
