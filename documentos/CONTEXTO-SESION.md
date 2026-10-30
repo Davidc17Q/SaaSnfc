@@ -82,6 +82,32 @@
   alertas y "Destino principal" decía "Sin datos" desde que se añadió el mapa
   de calor. La demo ahora simula el origen NFC/QR.
 
+## RESULTADO DE LA REUNIÓN (30 de octubre de 2026) — LO MÁS IMPORTANTE
+
+- **Hogar y Moda aprobó NFCloud para sus 82 sedes** (sin piloto). Gerente
+  (primo), su hermano (gerencia) y la persona de mercadeo de acuerdo. David
+  quedó en un grupo de WhatsApp con mercadeo.
+- **Precios acordados:** instalación física $180.000 por sede (pagada en
+  cuotas) y plataforma **$10.000 por sede al mes** (David dijo "15–10 mil" y
+  eligieron 10 mil). Totales: instalación $14.760.000; $820.000 al mes.
+  Decisión: no renegociar los $10.000; proteger el margen dejando por escrito
+  qué incluye y qué se cobra aparte, precio fijo 12 meses y ajuste por IPC.
+- **Riesgos:** caja (materiales ≈ $71.600 por sede, ≈ $5,9 M en total, antes
+  de cobrar las cuotas) → instalar **por lotes** con cuota o anticipo por lote;
+  tiempo (~150 h) y sedes fuera de Medellín → kit enviado + instalación por el
+  personal con guía en video.
+- **Siguientes pasos:** anotar lo acordado; pedir en el grupo el Excel de
+  sedes (nombre, dirección, ciudad, encargado, WhatsApp de crédito y cartera,
+  enlace de ficha de Google) y la reunión de arranque; trabajar con mercadeo
+  las fichas de Google (ya lo están haciendo); enviar el **acuerdo escrito**
+  antes de comprar materiales; cotizar con el proveedor 82 + 82 habladores y
+  ~330 chips; separar la empresa de demo "Hogar y Moda" en producción de la
+  real; RUT, factura electrónica y retenciones con un contador; primer lote de
+  ~10 sedes en Medellín.
+- **Pendiente de elegir:** qué prepara Claude primero — el acuerdo escrito,
+  la plantilla de Excel para mercadeo, el cronograma por lotes o un generador
+  masivo de habladores (PDF de imprenta por sede, con sus QR, desde el Excel).
+
 ## Pendiente
 
 - Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo
