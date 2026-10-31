@@ -3188,13 +3188,42 @@ async function loadAdmin() {
           <td class="td font-medium">${escapeHtml(u.username)}</td>
           <td class="td text-slate-500">${escapeHtml(u.role)}</td>
           <td class="td">${escapeHtml(u.company_name || '—')}</td>
+          <td class="td text-right pw-cell">
+            <button class="btn-ghost text-xs pw-reset" data-id="${u.id}" data-user="${escapeHtml(u.username)}" style="border:1px solid var(--card-border)">Restablecer contraseña</button>
+          </td>
         </tr>`
           )
           .join('')
-      : '<tr><td class="td text-slate-500" colspan="3">Sin usuarios de cliente.</td></tr>';
+      : '<tr><td class="td text-slate-500" colspan="4">Sin usuarios de cliente.</td></tr>';
+    ubody.querySelectorAll('.pw-reset').forEach((b) => b.addEventListener('click', () => resetPassword(b)));
   } catch {
     /* ignore */
   }
+}
+
+// Genera una contraseña nueva y la muestra UNA vez en la fila, para copiarla.
+async function resetPassword(btn) {
+  const ok = await confirmDialog({
+    title: `Restablecer la contraseña de ${btn.dataset.user}`,
+    message: 'Se crea una contraseña nueva y la actual deja de funcionar. Solo la verás esta vez.',
+    confirmText: 'Restablecer',
+  });
+  if (!ok) return;
+  const res = await fetch(`/api/users/${btn.dataset.id}/reset-password`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return toast(data.error || 'No se pudo restablecer', false);
+  const cell = btn.closest('.pw-cell');
+  cell.innerHTML = `<span class="pw-new"><code>${escapeHtml(data.password)}</code>
+    <button class="btn-primary text-xs pw-copy" type="button">Copiar</button></span>`;
+  cell.querySelector('.pw-copy').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(data.password);
+      e.target.textContent = 'Copiada';
+    } catch {
+      toast('Selecciónala y cópiala a mano', false);
+    }
+  });
+  toast('Contraseña restablecida: cópiala ahora', true);
 }
 
 // ---------------------------------------------------------------------------

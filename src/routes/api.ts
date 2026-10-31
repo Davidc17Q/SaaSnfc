@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { randomInt } from 'crypto';
 import { pool, query } from '../db/pool';
 import { redis, dropDeviceCache } from '../db/redis';
 import type { DeviceCache } from '../types';
@@ -2188,6 +2189,25 @@ export async function apiRoutes(app: FastifyInstance) {
       }
     }
   );
+
+  // ---------- Usuarios: restablecer contraseña (solo superadmin) ----------
+  // Las contraseñas se guardan con hash y no se pueden leer: se genera una nueva,
+  // se devuelve UNA vez para que el superadmin se la entregue al cliente.
+  app.post<{ Params: { id: string } }>('/api/users/:id/reset-password', async (req, reply) => {
+    const s = getSession(req);
+    if (s?.role !== 'superadmin') {
+      return reply.code(403).send({ error: 'Solo el superadmin puede restablecer contraseñas.' });
+    }
+    // Sin caracteres que se confunden al dictarla o copiarla (0/O, 1/l/I).
+    const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const password = Array.from({ length: 12 }, () => alphabet[randomInt(alphabet.length)]).join('');
+    const r = await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING username`, [
+      hashPassword(password),
+      req.params.id,
+    ]);
+    if (r.rowCount === 0) return reply.code(404).send({ error: 'Usuario no encontrado.' });
+    return { ok: true, username: r.rows[0].username, password };
+  });
 
   // ---------- Usuarios: listar (solo superadmin) ----------
   app.get('/api/users', async (req) => {

@@ -2208,3 +2208,9 @@ html:not(.dark) .field-input:focus { background: var(--accent-soft); }
 .place-name { font-weight: 600; font-size: 0.9rem; }
 .place-addr, .place-meta { font-size: 0.78rem; color: var(--muted); }
 .comp-act .link-btn { font-size: 0.75rem; }
+
+/* Contraseña restablecida (Empresas y usuarios): se muestra una sola vez */
+.pw-new { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+.pw-new code { font-size: 0.85rem; font-weight: 600; padding: 0.2rem 0.45rem; border-radius: 6px; background: var(--accent-soft); color: var(--input-text); user-select: all; letter-spacing: 0.02em; }
+.pw-cell { white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
