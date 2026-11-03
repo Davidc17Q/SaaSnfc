@@ -67,7 +67,7 @@ export async function notifyLowSurvey(input: {
   const nota = `${avg.toLocaleString('es-CO', { maximumFractionDigits: 1 })} de ${input.scaleMax}`;
   const comment = input.comment ? input.comment.replace(/\s+/g, ' ').trim() : '';
   const short = comment.length > 140 ? comment.slice(0, 137) + '…' : comment;
-  const link = `${config.publicBaseUrl.replace(/\/$/, '')}/`;
+  const link = `${config.publicBaseUrl.replace(/\/$/, '')}/login`;
 
   for (const a of alerts) {
     if (!(await underCap(a.id))) continue;

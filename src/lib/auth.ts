@@ -231,6 +231,9 @@ export function registerAuthGuard(app: FastifyInstance) {
       url === '/api/logout' ||
       url === '/api/me' ||
       url === '/login' ||
+      // Landing comercial
+      url === '/empresas' ||
+      url.startsWith('/empresas/') ||
       url === '/login.html' ||
       url === '/login.js' ||
       url === '/styles.css' ||
@@ -262,6 +265,7 @@ export function registerAuthGuard(app: FastifyInstance) {
     if (url.startsWith('/api/')) {
       return reply.code(401).send({ error: 'No autenticado.' });
     }
-    return reply.redirect('/login');
+    // La raíz sin sesión es la entrada comercial; el resto del panel pide login.
+    return reply.redirect(url === '/' ? '/empresas/' : '/login');
   });
 }

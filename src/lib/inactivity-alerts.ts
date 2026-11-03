@@ -237,7 +237,7 @@ async function deliver(first: InactiveRow, list: InactiveRow[]): Promise<string[
 }
 
 function panelUrl(): string {
-  return `${config.publicBaseUrl.replace(/\/$/, '')}/`;
+  return `${config.publicBaseUrl.replace(/\/$/, '')}/login`;
 }
 
 function toLocations(rows: InactiveRow[]): InactiveLocation[] {

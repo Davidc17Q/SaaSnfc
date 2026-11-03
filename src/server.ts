@@ -8,12 +8,13 @@ import { redirectRoutes } from './routes/redirect';
 import { apiRoutes } from './routes/api';
 import { businessRoutes } from './routes/business';
 import { competitionRoutes } from './routes/competition';
-import { authRoutes, registerAuthGuard } from './lib/auth';
+import { authRoutes, getSession, registerAuthGuard } from './lib/auth';
 import { startReportScheduler } from './lib/scheduler';
 import { startPlanScheduler } from './lib/plans';
 import { applySchema } from './db/migrate';
 
 const PUBLIC_DIR = join(__dirname, '..', 'public');
+const LANDING_DIR = join(__dirname, '..', 'landing');
 
 // Versión de los archivos del panel: cambia en cada despliegue (commit de
 // Railway o, en local, la hora de arranque). Se añade como ?v= a los JS/CSS
@@ -57,14 +58,26 @@ async function main() {
   // Frontend estático (dashboard). Se registra antes para poder usar sendFile.
   // HTML, JS y CSS se revalidan siempre (no-cache + ETag): tras un despliegue
   // el navegador recibe lo nuevo; si nada cambió, la respuesta es un 304 ligero.
+  const setHeaders = (res: { setHeader(name: string, value: string): unknown }, path: string) => {
+    if (/\.(html|js|css)$/.test(path)) res.setHeader('Cache-Control', 'no-cache');
+  };
   await app.register(fastifyStatic, {
     root: PUBLIC_DIR,
     prefix: '/',
     index: false,
-    setHeaders: (res, path) => {
-      if (/\.(html|js|css)$/.test(path)) res.setHeader('Cache-Control', 'no-cache');
-    },
+    setHeaders,
   });
+
+  // Landing comercial (pública). Vive en /empresas/ porque sus rutas son
+  // relativas; quien entra a / sin sesión llega aquí (ver registerAuthGuard).
+  await app.register(fastifyStatic, {
+    root: LANDING_DIR,
+    prefix: '/empresas/',
+    index: ['index.html'],
+    decorateReply: false,
+    setHeaders,
+  });
+  app.get('/empresas', async (_req, reply) => reply.redirect(301, '/empresas/'));
 
   // Páginas con sus archivos versionados. En producción se arman una vez por
   // arranque; en desarrollo se releen en cada petición para ver los cambios.
@@ -76,7 +89,8 @@ async function main() {
   );
 
   // Página de login (pública)
-  app.get('/login', async (_req, reply) => {
+  app.get('/login', async (req, reply) => {
+    if (getSession(req)) return reply.redirect('/');
     return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('login'));
   });
 

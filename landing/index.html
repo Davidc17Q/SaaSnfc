@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NFCloud — Tus puntos físicos, medibles</title>
+<meta name="description" content="Tarjetas y habladores NFC con tu marca, y un panel que te muestra qué sede responde. Más reseñas, más contactos y destinos que cambias sin reimprimir." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="NFCloud — Tus puntos físicos, medibles" />
+<meta property="og:description" content="Tarjetas y habladores NFC con tu marca, y un panel que te muestra qué sede responde." />
+<meta property="og:url" content="https://nfcloudco.com/empresas/" />
+<meta property="og:image" content="https://nfcloudco.com/empresas/art/og.png" />
+<meta property="og:locale" content="es_CO" />
+<meta name="theme-color" content="#141312" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="landing.css" />
+<link rel="modulepreload" href="vendor/three.module.min.js" />
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+
+<canvas id="stage" aria-hidden="true"></canvas>
+
+<!-- Etiquetas que siguen a las columnas de la escena de datos -->
+<div class="pins" aria-hidden="true">
+  <div class="pin" id="pinBest"><b>Sede Centro</b><span>La más activa del mes</span></div>
+  <div class="pin pin-alert" id="pinWorst"><b>Sede Norte</b><span>Cayó 32 % esta semana</span></div>
+</div>
+
+<header class="nav" id="nav">
+  <a class="nav-brand" href="#inicio" aria-label="NFCloud, ir al inicio"><img src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" /></a>
+  <nav class="nav-links" aria-label="Secciones">
+    <a href="#como">Cómo funciona</a>
+    <a href="#formatos">Formatos</a>
+    <a href="#beneficios">Beneficios</a>
+    <a href="#casos">Casos</a>
+  </nav>
+  <a class="nav-login" href="/login">Entrar</a>
+  <a class="btn btn-primary btn-sm" href="#contacto">Pedir precios</a>
+</header>
+
+<main>
+
+  <section class="scene scene-hero" id="inicio" data-scene="0">
+    <div class="stick">
+      <div class="panel panel-hero">
+        <h1>
+          <span class="line"><span>Tus clientes contentos</span></span>
+          <span class="line"><span>se van en silencio.</span></span>
+          <span class="line line-accent"><span>Dales un toque para hablar.</span></span>
+        </h1>
+        <p class="lead">Tarjetas y habladores NFC con tu marca, y un panel que te muestra qué sede responde y cuál no.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="#contacto">Pedir precios</a>
+          <a class="btn btn-ghost" href="#como">Ver cómo funciona</a>
+        </div>
+      </div>
+      <p class="scroll-hint">Desliza para acercar el celular</p>
+    </div>
+  </section>
+
+  <section class="scene" id="como" data-scene="1">
+    <div class="stick">
+      <div class="panel">
+        <p class="kicker">Para tu cliente</p>
+        <h2>Un toque. Sin app, sin registro.</h2>
+        <p>Acerca el celular a la tarjeta y llega directo a donde tú quieres. Si su teléfono no lee NFC, escanea el código QR y llega al mismo lugar.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene scene-long" id="destinos" data-scene="2">
+    <div class="stick">
+      <div class="panel">
+        <p class="kicker">Para ti</p>
+        <h2>Un solo punto, el destino que necesites hoy.</h2>
+        <ul class="dest-list" id="destList">
+          <li class="active"><b>Reseñas en Google</b><span>Más calificaciones justo cuando el cliente sale contento.</span></li>
+          <li><b>WhatsApp</b><span>Pedidos, pagos o cartera sin hacer fila.</span></li>
+          <li><b>Instagram</b><span>Seguidores que ya conocen tu negocio.</span></li>
+          <li><b>Menú o catálogo</b><span>Siempre al día, sin volver a imprimir.</span></li>
+        </ul>
+        <p class="note">Lo cambias desde el panel, en una sede o en todas a la vez. La pieza impresa no se toca.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="formatos" data-scene="3">
+    <div class="stick stick-right">
+      <div class="panel">
+        <p class="kicker">Formatos</p>
+        <h2>Hecho para estar en tu mostrador.</h2>
+        <dl class="formats">
+          <div><dt>Hablador en acrílico</dt><dd>En caja, recepción o barra: varias acciones en una sola pieza.</dd></div>
+          <div><dt>Tarjeta NFC</dt><dd>Para mesas, asesores o para entregar a cada integrante del equipo.</dd></div>
+          <div><dt>Sticker</dt><dd>Se pega donde el cliente ya está mirando.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="disenos" data-scene="4">
+    <div class="stick">
+      <div class="panel">
+        <p class="kicker">Diseño</p>
+        <h2>Con tu marca, no con la nuestra.</h2>
+        <p>Cada pieza se diseña para tu negocio: tus colores, tu logo y una acción clara. Así se ven con la marca de nuestros clientes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="datos" data-scene="5">
+    <div class="stick">
+      <div class="panel">
+        <p class="kicker">Plataforma</p>
+        <h2>Toda tu cadena en una sola vista.</h2>
+        <p>Cada toque queda registrado por sede. Ves cuál crece, cuál cayó y qué hacer al respecto, sin armar reportes.</p>
+        <div class="kpis" id="kpis">
+          <div class="kpi"><span>Interacciones</span><b data-count="12482">0</b><em>▲ 18 % vs. mes anterior</em></div>
+          <div class="kpi"><span>Reseñas generadas</span><b data-count="1936">0</b><em>▲ 11 % vs. mes anterior</em></div>
+          <div class="kpi"><span>Contactos por WhatsApp</span><b data-count="3207">0</b><em>▲ 7 % vs. mes anterior</em></div>
+        </div>
+        <p class="note">Datos de ejemplo, últimos 30 días.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="solid">
+
+    <section class="block" id="beneficios">
+      <h2 class="block-title">Lo que cambia en tu negocio</h2>
+      <div class="rows">
+        <article class="row"><h3>Tu reputación deja de depender de los molestos</h3><p>Le pides la reseña al cliente en el momento en que está contento, con un solo toque.</p></article>
+        <article class="row"><h3>Rescatas al cliente insatisfecho</h3><p>Con la encuesta, una nota baja no se pierde: el cliente puede dejar su WhatsApp y te avisamos al instante.</p></article>
+        <article class="row"><h3>Sabes qué sede funciona y cuál no</h3><p>Ranking por sede, mejor y peor siempre a la vista, con el origen de cada interacción: NFC o QR.</p></article>
+        <article class="row"><h3>Nunca reimprimes por cambiar un enlace</h3><p>Promoción nueva, número nuevo o menú nuevo: cambias el destino y cada punto físico lo refleja.</p></article>
+        <article class="row"><h3>Te enteras sin tener que entrar</h3><p>Informe mensual en tu correo y aviso cuando una sede lleva días sin actividad.</p></article>
+      </div>
+    </section>
+
+    <section class="block" id="servicios">
+      <h2 class="block-title">Nos encargamos de todo</h2>
+      <ol class="steps">
+        <li><h3>Diseño</h3><p>Piezas con tu identidad y una acción clara para cada punto.</p></li>
+        <li><h3>Producción</h3><p>Tarjetas, habladores y stickers impresos, con el chip grabado y su QR.</p></li>
+        <li><h3>Instalación</h3><p>Instalamos en tus sedes, o te enviamos el kit con una guía para tu equipo.</p></li>
+        <li><h3>Plataforma</h3><p>Panel por sede, informes por correo, avisos y soporte directo.</p></li>
+      </ol>
+    </section>
+
+    <section class="block" id="casos">
+      <h2 class="block-title">Ya trabajan con NFCloud</h2>
+      <div class="cases">
+        <figure class="case case-a"><img src="art/caso-riovivo.webp" alt="Tarjetas NFC de RioVivo Spa" loading="lazy" width="1200" height="800" /><figcaption><b>RioVivo Spa</b><span>Hablador en recepción y tarjetas a reseñas, Instagram y WhatsApp.</span></figcaption></figure>
+        <figure class="case case-b"><img src="art/caso-lalico.webp" alt="Hablador en acrílico de La Lico sobre la barra" loading="lazy" width="1200" height="1655" /><figcaption><b>La Lico</b><span>Tres acciones en un solo hablador, con identidad nocturna propia.</span></figcaption></figure>
+      </div>
+    </section>
+
+    <section class="block" id="preguntas">
+      <h2 class="block-title">Preguntas frecuentes</h2>
+      <div class="faq">
+        <details><summary>¿El cliente tiene que instalar algo?</summary><p>No. Acerca el celular y se abre el destino. Si su teléfono no tiene NFC, usa el QR de la misma pieza.</p></details>
+        <details><summary>¿Y si quiero cambiar el destino más adelante?</summary><p>Lo cambias desde el panel cuando quieras. No hay que reimprimir ni volver a grabar el chip.</p></details>
+        <details><summary>¿Qué pasa si termino la prueba y no contrato?</summary><p>Tus tarjetas siguen funcionando y redirigiendo. Lo que se bloquea es el acceso al panel.</p></details>
+        <details><summary>¿Sirve si tengo una sola sede?</summary><p>Sí. Funciona desde un solo punto, y también para profesionales o instituciones.</p></details>
+        <details><summary>¿Cuánto cuesta?</summary><p>Depende del número de puntos y de los formatos. Cuéntanos tu caso y te enviamos los precios por WhatsApp.</p></details>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="contact" id="contacto" data-contact>
+    <div class="contact-inner">
+      <h2>Cuéntanos cuántos puntos tienes y te enviamos los precios.</h2>
+      <form id="leadForm" class="lead-form">
+        <label>Tu negocio<input name="negocio" required autocomplete="organization" placeholder="Nombre del negocio" /></label>
+        <div class="field-row">
+          <label>Sedes<input name="sedes" inputmode="numeric" placeholder="Ej.: 6" /></label>
+          <label>Te interesa
+            <select name="interes">
+              <option>Reseñas en Google</option>
+              <option>WhatsApp o pedidos</option>
+              <option>Tarjetas para mi equipo</option>
+              <option>Medir mis sedes</option>
+              <option>Aún no lo sé</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn btn-primary btn-full" type="submit">Pedir precios por WhatsApp</button>
+      </form>
+      <p class="contact-alt">O escríbenos: <a href="https://wa.me/573007240273">300 724 0273</a> · <a href="mailto:davidquinterogallego1@gmail.com">davidquinterogallego1@gmail.com</a></p>
+      <p class="qr-hint">Esta tarjeta funciona: escanéala con tu celular y abre nuestro WhatsApp.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <img src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" loading="lazy" />
+  <span>Medellín, Colombia</span>
+  <a href="/login">Entrar al panel</a>
+</footer>
+
+<script src="vendor/qrcode.min.js"></script>
+<script type="module" src="landing.js"></script>
+</body>
+</html>
