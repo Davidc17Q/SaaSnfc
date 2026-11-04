@@ -323,6 +323,90 @@ function studioEnvironment(renderer) {
   return env;
 }
 
+/* ---------- Fondo: color por escena, ondas NFC, luz y grano en un solo shader ---------- */
+const hex = (h) => new THREE.Color().setHex(h, THREE.LinearSRGBColorSpace); // el shader trabaja directo en sRGB
+const BG_KEYS = [
+  { t: 0, core: 0x2f6bff, edge: 0x0e2f9e, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .3, light: 0 },
+  { t: 1, core: 0x2459e6, edge: 0x0b2a8a, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .28, light: 0 },
+  { t: 2, core: 0x173fae, edge: 0x081d63, ring: 0xdfe9ff, ringA: .11, lamp: 0x4f7fe8, lampA: .24, light: 0 },
+  { t: 3, core: 0xfdfaf4, edge: 0xe7e0d3, ring: 0x2563eb, ringA: .2, lamp: 0xffffff, lampA: .1, light: 1 },
+  { t: 4, core: 0xfefcf8, edge: 0xebe5da, ring: 0x2563eb, ringA: .2, lamp: 0xffffff, lampA: .1, light: 1 },
+  { t: 5, core: 0x2b2824, edge: 0x141312, ring: 0x6d9bff, ringA: .1, lamp: 0x4a6fb5, lampA: .2, light: 0 },
+  { t: 6, core: 0xf4f0e8, edge: 0xf4f0e8, ring: 0x2563eb, ringA: 0, lamp: 0xffffff, lampA: 0, light: 1 },
+  { t: 6.1, core: 0x2f6bff, edge: 0x0e2f9e, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .3, light: 0 },
+  { t: 7, core: 0x2f6bff, edge: 0x0e2f9e, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .3, light: 0 },
+].map((k) => ({ ...k, core: hex(k.core), edge: hex(k.edge), ring: hex(k.ring), lamp: hex(k.lamp) }));
+const SHADOWS = 7;
+
+function makeBackground() {
+  const uniforms = {
+    uHalf: { value: new THREE.Vector2(4, 2.4) },
+    uCore: { value: new THREE.Color() },
+    uEdge: { value: new THREE.Color() },
+    uRing: { value: new THREE.Color() },
+    uLamp: { value: new THREE.Color() },
+    uRingA: { value: 0 },
+    uLampA: { value: 0 },
+    uFocus: { value: new THREE.Vector2() },
+    uMouse: { value: new THREE.Vector2() },
+    uPhase: { value: 0 },
+    uPulse: { value: 0 },
+    uPulseR: { value: 0 },
+    uSeed: { value: 0 },
+    uS: { value: Array.from({ length: SHADOWS }, () => new THREE.Vector4(0, 0, 1, 1)) },
+    uSA: { value: new Array(SHADOWS).fill(0) },
+  };
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1., 1.); }',
+    fragmentShader: `
+      precision highp float;
+      varying vec2 vUv;
+      uniform vec2 uHalf, uFocus, uMouse;
+      uniform vec3 uCore, uEdge, uRing, uLamp;
+      uniform float uRingA, uLampA, uPhase, uPulse, uPulseR, uSeed;
+      uniform vec4 uS[${SHADOWS}];
+      uniform float uSA[${SHADOWS}];
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        vec2 p = (vUv * 2. - 1.) * uHalf;
+        float d = length(p - uFocus);
+        float r = max(uHalf.x, uHalf.y) * 1.2;
+        vec3 col = mix(uCore, uEdge, smoothstep(0., 1., clamp(d / r, 0., 1.)));
+
+        // Ondas NFC: anillos finos alrededor del objeto, con un frente que late al tocar
+        float x = (d - uPhase) / .62;
+        float line = 1. - smoothstep(0., fwidth(x) * 1.25, abs(fract(x) - .5));
+        float env = smoothstep(r * 1.15, .9, d) * smoothstep(.15, 1.1, d);
+        float wave = exp(-pow((d - uPulseR) * 1.5, 2.)) * uPulse;
+        col = mix(col, uRing, clamp(uRingA * env * line * (1. + wave * 3.2), 0., 1.));
+        col += uRing * wave * env * .05;
+
+        // Luz que sigue al mouse
+        vec2 m = p - uMouse;
+        col += uLamp * uLampA * exp(-dot(m, m) / 2.6);
+
+        // Sombra suave de cada objeto sobre el fondo
+        float s = 0.;
+        for (int i = 0; i < ${SHADOWS}; i++) {
+          s += uSA[i] * smoothstep(1.5, .15, length((p - uS[i].xy) / max(uS[i].zw, vec2(.01))));
+        }
+        col *= 1. - .34 * min(s, 1.);
+
+        // Grano fino: da textura y evita bandas en el degradado
+        col += (hash(gl_FragCoord.xy + uSeed) - .5) * .032;
+        gl_FragColor = vec4(col, 1.);
+      }`,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = -10;
+  return { mesh, uniforms };
+}
+
 /* ---------- Arranque ---------- */
 function load(src) {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -338,12 +422,11 @@ async function main() {
   const canvas = document.getElementById('stage');
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   } catch {
     document.body.classList.add('no3d');
     return;
   }
-  renderer.setClearColor(0, 0);
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;
   renderer.shadowMap.enabled = true;
@@ -368,6 +451,10 @@ async function main() {
   key.shadow.bias = -.0004;
   key.shadow.normalBias = .012;
   scene.add(key);
+  const fill = new THREE.HemisphereLight(0xffffff, 0x000000, .4);
+  scene.add(fill);
+  const bg = makeBackground();
+  scene.add(bg.mesh);
 
   /* Tarjeta protagonista */
   const hero = heroFaces(logo);
@@ -382,7 +469,7 @@ async function main() {
   // Ondas NFC que salen del ícono de la tarjeta
   const ringGeo = new THREE.RingGeometry(.975, 1, 96);
   const rings = [0, 1, 2].map(() => {
-    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x7fa8ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xdfe9ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
     m.position.set(1.0, .6, .04);
     card.add(m);
     return m;
@@ -468,6 +555,7 @@ async function main() {
   const deck = [
     makeCard(artMat('art/card-riovivo.webp'), cardBack, whiteEdge),
     makeCard(artMat('art/card-lalico.webp'), new THREE.MeshStandardMaterial({ color: 0x050605, roughness: .5 }), darkEdge),
+    makeCard(artMat('art/card-inplux.webp'), new THREE.MeshStandardMaterial({ color: 0x0b0e13, roughness: .5 }), darkEdge),
   ];
   deck.forEach((d) => root.add(d));
 
@@ -504,15 +592,30 @@ async function main() {
   grid.add(bars);
   root.add(grid);
 
+  // Objeto, media medida de su sombra y si se aplana al girar
+  const shadowed = [
+    { o: card, rx: 1.95, ry: 1.3, turn: true },
+    { o: phone, rx: .95, ry: 1.75, turn: false },
+    { o: stand, rx: 1.5, ry: 1.9, turn: false },
+    { o: stickerWrap, rx: .72, ry: .72, turn: false },
+    { o: deck[0], rx: 1.95, ry: 1.3, turn: false },
+    { o: deck[1], rx: 1.95, ry: 1.3, turn: false },
+    { o: deck[2], rx: 1.95, ry: 1.3, turn: false },
+  ];
+
   /* ---------- Poses por escena ---------- */
   const OFF = { p: [0, -8, 0], r: [0, 0, 0], s: 0 };
-  let tracks = [];
+  let tracks = [], focusKeys = [];
   let wide = true, W = 4, H = 2.41, sx = 0, sy = 0, k = 1;
   function buildTracks() {
     const P = (x, y, z = 0) => [x, y, z];
     const offR = W + 2.6;
     const ox = wide ? 1 : .42; // en vertical hay menos ancho: los objetos se separan menos
     const heroS = wide ? k * .96 : k * 1.02;
+    focusKeys = [
+      [sx, sy], [sx, sy - .1 * k], [sx + .3 * k * ox, sy], [-sx + .1 * k, sy + .16 * k],
+      [sx * .92, sy], [wide ? sx * .9 : 0, wide ? 0 : sy - .1], [sx, sy], [sx, wide ? 0 : sy],
+    ];
     tracks = [
       { o: card, keys: [
         { p: P(sx, sy), r: [-.14, 0, .06], s: heroS },
@@ -546,13 +649,13 @@ async function main() {
         OFF, OFF, OFF,
       ] },
       ...deck.map((o, i) => {
-        const col = i % 2 ? 1 : -1;
+        const col = i === 2 ? 0 : i ? 1 : -1;
         const pose = wide
-          ? { p: P(sx * .92 + col * .9 * k, sy - col * .42 * k, i ? .35 : -.25), r: [-.1 * col, -.2 * col + .08, .035], s: k * .52 }
-          : { p: P(sx + col * .05, sy - .12 + (.5 - i) * 1.3 * k, i * .28 - .4), r: [-.3, .2, .06], s: k * .78 };
+          ? { p: P(sx * .92 + col * .9 * k, sy + [.5, .3, -.62][i] * k, [-.3, 0, .35][i]), r: [-.1, -.2 * col + .08, .035], s: k * .5 }
+          : { p: P(sx + col * .05, sy - .1 + (1 - i) * 1.1 * k, i * .2 - .4), r: [-.28, .18, .05], s: k * .5 };
         return { o, keys: [
           OFF, OFF, OFF,
-          { p: P(sx + (i - .5) * 1.1, -6.5, -1.5), r: [-1, -.4 + i * .6, .4], s: k * .8 },
+          { p: P(sx + (i - 1) * 1.1, -6.5, -1.5), r: [-1, -.4 + i * .6, .4], s: k * .8 },
           pose,
           { p: P(sx, sy, -.5), r: [-.62, .42, .16], s: 0 },
           OFF, OFF,
@@ -580,7 +683,7 @@ async function main() {
     i: Number(sec.dataset.scene), sec, panel: sec.querySelector('.panel'),
   }));
   const qrHint = document.querySelector('.qr-hint');
-  let stops = [];
+  let stops = [], solidTop = 0, contactTop = 0;
   function buildStops() {
     const vh = innerHeight;
     const max = document.documentElement.scrollHeight - vh;
@@ -588,6 +691,7 @@ async function main() {
     stops = panels.map(({ i, sec }) => [i === 0 ? 0 : top(sec) + (sec.offsetHeight - vh) / 2, i]);
     const contact = document.getElementById('contacto');
     const solid = document.querySelector('.solid');
+    solidTop = top(solid); contactTop = top(contact);
     stops.push([top(solid), 6], [top(contact) - vh, 6], [Math.min(max, top(contact) + (contact.offsetHeight - vh) / 2), 7]);
   }
   function scrollToT(y) {
@@ -610,6 +714,7 @@ async function main() {
     camera.updateProjectionMatrix();
     H = Math.tan(THREE.MathUtils.degToRad(15)) * camera.position.z;
     W = H * camera.aspect;
+    bg.uniforms.uHalf.value.set(W, H);
     if (wide) {
       k = Math.min(1.08, W / 3.7);
       sx = W * .52; sy = 0;
@@ -622,9 +727,10 @@ async function main() {
   }
 
   /* ---------- Interacción ---------- */
-  let mx = 0, my = 0, smx = 0, smy = 0;
+  let mx = 0, my = 0, smx = 0, smy = 0, lamp = 0, lampOn = 0;
   addEventListener('pointermove', (e) => {
     if (e.pointerType === 'touch') return;
+    lampOn = 1;
     mx = e.clientX / innerWidth * 2 - 1;
     my = e.clientY / innerHeight * 2 - 1;
   }, { passive: true });
@@ -668,6 +774,73 @@ async function main() {
     el.style.transform = `translate(${x}px,${y}px)`;
   }
 
+  /* ---------- Fondo y tema según t ---------- */
+  const navEl = document.getElementById('nav');
+  const scrim = document.getElementById('scrim');
+  const acrylicDark = new THREE.Color(0x6f6a62), acrylicLight = new THREE.Color(0xffffff);
+  let navTheme = 'theme-blue', scrimColor = '';
+  function updateNav(t) {
+    const y = scrollY + 60;
+    const overContact = y >= contactTop, overSolid = y >= solidTop && !overContact;
+    const theme = overContact ? 'theme-blue' : overSolid || (t >= 2.5 && t < 4.5) || t >= 5.5 ? 'theme-light' : t < 2.5 ? 'theme-blue' : 'theme-dark';
+    if (theme !== navTheme) {
+      navEl.classList.replace(navTheme, theme);
+      navTheme = theme;
+    }
+    navEl.classList.toggle('on-solid', overSolid);
+  }
+  function updateBackground(t, time, dt, toque) {
+    const u = bg.uniforms;
+    let i = 0;
+    while (i < BG_KEYS.length - 2 && t > BG_KEYS[i + 1].t) i++;
+    const A = BG_KEYS[i], B = BG_KEYS[i + 1];
+    const f = smoother(clamp((t - A.t) / (B.t - A.t)));
+    u.uCore.value.copy(A.core).lerp(B.core, f);
+    u.uEdge.value.copy(A.edge).lerp(B.edge, f);
+    u.uRing.value.copy(A.ring).lerp(B.ring, f);
+    u.uLamp.value.copy(A.lamp).lerp(B.lamp, f);
+    u.uRingA.value = lerp(A.ringA, B.ringA, f);
+    lamp += (lampOn - lamp) * (1 - Math.exp(-dt * 3));
+    u.uLampA.value = lerp(A.lampA, B.lampA, f) * lamp;
+    const light = lerp(A.light, B.light, f);
+
+    const ka = clamp(Math.floor(t), 0, 7), kb = clamp(ka + 1, 0, 7), kf = smoother(clamp(t - ka));
+    u.uFocus.value.set(lerp(focusKeys[ka][0], focusKeys[kb][0], kf), lerp(focusKeys[ka][1], focusKeys[kb][1], kf));
+    u.uMouse.value.set(smx * W, -smy * H);
+
+    // Las ondas se abren al bajar y laten solas; el frente fuerte sale al tocar la tarjeta
+    u.uPhase.value = t * .55 + (REDUCED ? 0 : time * .07);
+    const ph = REDUCED ? .5 : (time * .42) % 1;
+    u.uPulseR.value = .3 + ph * 6;
+    u.uPulse.value = Math.max(toque, (1 - sstep(.1, .4, t)) * .35) * (1 - ph);
+    u.uSeed.value = REDUCED ? 0 : Math.floor(time * 12) % 97;
+
+    // Sombras
+    shadowed.forEach((sh, n) => {
+      const on = sh.o.visible && t < 5.6;
+      const s = on ? sh.o.scale.x : 0;
+      const narrow = sh.turn ? Math.max(.22, Math.abs(Math.cos(sh.o.rotation.y))) : 1;
+      u.uS.value[n].set(sh.o.position.x + .16 * s, sh.o.position.y - .3 * s, sh.rx * s * narrow, sh.ry * s);
+      u.uSA.value[n] = on ? clamp(s / .25) : 0;
+    });
+
+    // Las luces 3D acompañan al fondo
+    fill.color.copy(u.uCore.value);
+    fill.groundColor.copy(u.uEdge.value);
+    fill.intensity = lerp(.25, 1.05, light); // en azul la tarjeta sigue negra; en hueso el blanco no se agrisa
+    acrylicEdge.color.copy(acrylicLight).lerp(acrylicDark, light);
+    acrylic.opacity = lerp(.13, .09, light); // sobre hueso, más opaco lavaba el arte oscuro del hablador
+
+    if (!wide) {
+      const c = u.uEdge.value;
+      const css = `${Math.round(c.r * 255)} ${Math.round(c.g * 255)} ${Math.round(c.b * 255)}`;
+      if (css !== scrimColor) {
+        scrimColor = css;
+        scrim.style.setProperty('--c', css);
+      }
+    }
+  }
+
   /* ---------- Bucle ---------- */
   let tNow = 0, last = performance.now(), intro = 0, quality = innerWidth < 760 ? 1.75 : 2, slow = 0, frames = 0;
   renderer.setPixelRatio(Math.min(devicePixelRatio, quality));
@@ -697,6 +870,7 @@ async function main() {
       p.panel.style.visibility = op < .01 ? 'hidden' : 'visible';
     }
     if (qrHint) qrHint.style.opacity = sstep(6.8, 7, t);
+    updateNav(t);
 
     // Con la página sólida encima no hay nada que dibujar
     if (t === 6) return;
@@ -789,6 +963,7 @@ async function main() {
     const cnt = smoother(clamp((t - 4.55) / .4));
     counters.forEach((c) => { c.el.textContent = fmt.format(Math.round(c.v * cnt)); });
 
+    updateBackground(t, time, dt, toque);
     renderer.render(scene, camera);
 
     // Etiquetas (después de render: matrices al día)

@@ -108,6 +108,17 @@
   la plantilla de Excel para mercadeo, el cronograma por lotes o un generador
   masivo de habladores (PDF de imprenta por sede, con sus QR, desde el Excel).
 
+## Landing comercial (2 de noviembre de 2026)
+
+- `landing/` es la página pública con escena 3D (three.js en `landing/vendor`,
+  sin dependencia npm): `index.html`, `landing.css`, `landing.js`, artes en
+  `art/`. No muestra precios: el formulario abre WhatsApp. Se previsualiza con
+  la entrada `landing` de `.claude/launch.json` (puerto 4173).
+- Publicada en `/empresas/` (quien entra a `/` sin sesión llega ahí). Tiene QR y formulario a WhatsApp.
+- La landing es excepción de marketing a la regla "fondo carbón" de la skill de
+  diseño: su fondo cambia por escena (azul, hueso, carbón) en el shader de
+  `landing.js`; el panel sigue con su sistema sobrio.
+
 ## Pendiente
 
 - Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo

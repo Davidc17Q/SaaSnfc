@@ -11,7 +11,7 @@
 <meta property="og:url" content="https://nfcloudco.com/empresas/" />
 <meta property="og:image" content="https://nfcloudco.com/empresas/art/og.png" />
 <meta property="og:locale" content="es_CO" />
-<meta name="theme-color" content="#141312" />
+<meta name="theme-color" content="#0e2f9e" />
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23,6 +23,7 @@
 <body>
 
 <canvas id="stage" aria-hidden="true"></canvas>
+<div class="scrim" id="scrim" aria-hidden="true"></div>
 
 <!-- Etiquetas que siguen a las columnas de la escena de datos -->
 <div class="pins" aria-hidden="true">
@@ -30,8 +31,8 @@
   <div class="pin pin-alert" id="pinWorst"><b>Sede Norte</b><span>Cayó 32 % esta semana</span></div>
 </div>
 
-<header class="nav" id="nav">
-  <a class="nav-brand" href="#inicio" aria-label="NFCloud, ir al inicio"><img src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" /></a>
+<header class="nav theme-blue" id="nav">
+  <a class="nav-brand" href="#inicio" aria-label="NFCloud, ir al inicio"><img class="logo-white" src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" /><img class="logo-blue" src="art/nfcloud-azul.png" alt="NFCloud" width="624" height="186" /></a>
   <nav class="nav-links" aria-label="Secciones">
     <a href="#como">Cómo funciona</a>
     <a href="#formatos">Formatos</a>
@@ -44,7 +45,7 @@
 
 <main>
 
-  <section class="scene scene-hero" id="inicio" data-scene="0">
+  <section class="scene scene-hero theme-blue" id="inicio" data-scene="0">
     <div class="stick">
       <div class="panel panel-hero">
         <h1>
@@ -62,7 +63,7 @@
     </div>
   </section>
 
-  <section class="scene" id="como" data-scene="1">
+  <section class="scene theme-blue" id="como" data-scene="1">
     <div class="stick">
       <div class="panel">
         <p class="kicker">Para tu cliente</p>
@@ -72,7 +73,7 @@
     </div>
   </section>
 
-  <section class="scene scene-long" id="destinos" data-scene="2">
+  <section class="scene scene-long theme-blue" id="destinos" data-scene="2">
     <div class="stick">
       <div class="panel">
         <p class="kicker">Para ti</p>
@@ -88,7 +89,7 @@
     </div>
   </section>
 
-  <section class="scene" id="formatos" data-scene="3">
+  <section class="scene theme-light" id="formatos" data-scene="3">
     <div class="stick stick-right">
       <div class="panel">
         <p class="kicker">Formatos</p>
@@ -102,7 +103,7 @@
     </div>
   </section>
 
-  <section class="scene" id="disenos" data-scene="4">
+  <section class="scene theme-light" id="disenos" data-scene="4">
     <div class="stick">
       <div class="panel">
         <p class="kicker">Diseño</p>
@@ -112,7 +113,7 @@
     </div>
   </section>
 
-  <section class="scene" id="datos" data-scene="5">
+  <section class="scene theme-dark" id="datos" data-scene="5">
     <div class="stick">
       <div class="panel">
         <p class="kicker">Plataforma</p>
@@ -128,7 +129,7 @@
     </div>
   </section>
 
-  <div class="solid">
+  <div class="solid theme-light">
 
     <section class="block" id="beneficios">
       <h2 class="block-title">Lo que cambia en tu negocio</h2>
@@ -154,8 +155,9 @@
     <section class="block" id="casos">
       <h2 class="block-title">Ya trabajan con NFCloud</h2>
       <div class="cases">
-        <figure class="case case-a"><img src="art/caso-riovivo.webp" alt="Tarjetas NFC de RioVivo Spa" loading="lazy" width="1200" height="800" /><figcaption><b>RioVivo Spa</b><span>Hablador en recepción y tarjetas a reseñas, Instagram y WhatsApp.</span></figcaption></figure>
-        <figure class="case case-b"><img src="art/caso-lalico.webp" alt="Hablador en acrílico de La Lico sobre la barra" loading="lazy" width="1200" height="1655" /><figcaption><b>La Lico</b><span>Tres acciones en un solo hablador, con identidad nocturna propia.</span></figcaption></figure>
+        <figure class="case"><div class="case-logo logo-riovivo"><img src="art/logo-riovivo.webp" alt="Logo de RioVivo Spa" loading="lazy" width="314" height="357" /></div><figcaption><b>RioVivo Spa</b><span>Hablador en recepción y tarjetas a reseñas, Instagram y WhatsApp.</span></figcaption></figure>
+        <figure class="case"><div class="case-logo logo-lalico"><img src="art/logo-lalico.webp" alt="Logo de La Lico" loading="lazy" width="399" height="440" /></div><figcaption><b>La Lico</b><span>Tres acciones en un solo hablador, con identidad nocturna propia.</span></figcaption></figure>
+        <figure class="case"><div class="case-logo logo-inplux"><img src="art/logo-inplux.webp" alt="Logo de Inplux" loading="lazy" width="760" height="110" /></div><figcaption><b>Inplux</b><span>Tarjetas del equipo a doble cara, con NFC y QR, una por integrante.</span></figcaption></figure>
       </div>
     </section>
 
@@ -172,7 +174,7 @@
 
   </div>
 
-  <section class="contact" id="contacto" data-contact>
+  <section class="contact theme-blue" id="contacto" data-contact>
     <div class="contact-inner">
       <h2>Cuéntanos cuántos puntos tienes y te enviamos los precios.</h2>
       <form id="leadForm" class="lead-form">
@@ -198,7 +200,7 @@
 
 </main>
 
-<footer class="foot">
+<footer class="foot theme-blue">
   <img src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" loading="lazy" />
   <span>Medellín, Colombia</span>
   <a href="/login">Entrar al panel</a>
