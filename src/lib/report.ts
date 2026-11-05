@@ -212,7 +212,7 @@ function logoWhiteDataUri(): string | null {
   try {
     const fs = require('fs') as typeof import('fs');
     const path = require('path') as typeof import('path');
-    const file = path.join(__dirname, '..', '..', 'public', 'logo-icono-blanco.png');
+    const file = path.join(__dirname, '..', '..', 'public', 'logo-horizontal-blanco.png');
     _logoWhite = `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
   } catch {
     _logoWhite = null;
@@ -918,7 +918,7 @@ export function reportHtml(d: ReportData): string {
 <header class="cover">
   <div class="wrap">
     <div class="top">
-      <div class="brand">${logo ? `<img src="${logo}" alt="" />` : ''}NFCloud</div>
+      <div class="brand">${logo ? `<img src="${logo}" alt="NFCloud" />` : 'NFCloud'}</div>
       <div class="actions">
         <button class="btn" type="button" id="shareBtn">Copiar enlace</button>
         <button class="btn primary" type="button" onclick="window.print()">Descargar PDF</button>
