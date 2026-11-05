@@ -21,10 +21,12 @@ const LANDING_DIR = join(__dirname, '..', 'landing');
 // para que el navegador no use una copia vieja después de publicar cambios.
 const ASSET_VERSION = (process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now())).slice(0, 12);
 
-/** Lee una página HTML y versiona sus JS/CSS locales (/archivo.js -> /archivo.js?v=...). */
+/** Lee una página HTML y versiona sus JS/CSS e imágenes locales (/archivo.js -> /archivo.js?v=...). */
 function versionedPage(file: string): string {
   return readFileSync(join(PUBLIC_DIR, file), 'utf8').replace(
-    /(src|href)="\/([\w.-]+\.(?:js|css))"/g,
+    // Las imágenes también: si un navegador o Cloudflare guardó un fallo del
+    // momento del despliegue, la URL nueva lo deja atrás.
+    /(src|href)="\/([\w.-]+\.(?:js|css|png|svg))"/g,
     `$1="/$2?v=${ASSET_VERSION}"`
   );
 }
