@@ -736,7 +736,7 @@ export async function apiRoutes(app: FastifyInstance) {
           kind: 'never',
           locationId: r.id,
           title: `${r.name} sin interacciones registradas`,
-          detail: `${r.city} · nunca ha tenido actividad. Revisa si el soporte NFC/QR está instalado y leyendo.`,
+          detail: `${r.city} · nunca ha tenido actividad. Revisa si el punto NFC/QR está instalado y funcionando.`,
           metric: null,
         });
       } else if (hrs >= idleHours) {
@@ -748,7 +748,7 @@ export async function apiRoutes(app: FastifyInstance) {
           title: `${r.name} lleva ${days} día${days === 1 ? '' : 's'} sin interacciones`,
           detail: professional
             ? 'Nadie ha usado la tarjeta en ese tiempo: ofrécela en tus próximas reuniones.'
-            : `${r.city} · el soporte podría estar retirado, dañado o tapado.`,
+            : `${r.city} · el punto podría estar retirado, dañado o tapado.`,
           metric: `${days}d`,
         });
       }

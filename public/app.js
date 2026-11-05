@@ -58,9 +58,10 @@ function toast(msg, ok = true) {
   const t = $('#toast');
   const ico = ok ? icon('check-circle', { size: 16 }) : icon('alert-triangle', { size: 16 });
   t.innerHTML = `<span class="toast-inner">${ico}<span>${msg}</span></span>`;
-  t.style.background = ok ? accent() : token('--danger', '#dc2626');
+  t.style.background = ok ? token('--accent-fill') : token('--danger-fill');
   t.classList.remove('hidden');
-  setTimeout(() => t.classList.add('hidden'), 2600);
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.add('hidden'), ok ? 2600 : 5000);
 }
 
 // Modal de confirmación con estética propia (reemplaza el confirm() nativo).
@@ -131,6 +132,34 @@ function accentA(alpha) {
   const hex = accent().replace('#', '');
   const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Base común de los gráficos: la tipografía de la marca, cifras en es-CO y una
+// entrada corta (en datos, la animación informa el cambio; no debe entretener).
+if (window.Chart) {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.locale = 'es-CO';
+  Chart.defaults.animation.duration = reduce ? 0 : 240;
+  Chart.defaults.animation.easing = 'easeOutQuart';
+  // Cada gráfico se anuncia con el título de su tarjeta.
+  Chart.register({
+    id: 'nfcA11y',
+    afterInit(chart) {
+      const cv = chart.canvas;
+      const box = cv.closest('.card');
+      const title = box && box.querySelector('h2, h3');
+      cv.setAttribute('role', 'img');
+      cv.setAttribute('aria-label', title ? `Gráfico: ${title.textContent.trim()}` : 'Gráfico');
+    },
+  });
+  // Si la fuente llega después del primer dibujo, se redibuja con ella.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      Object.values(Chart.instances || {}).forEach((c) => c.update('none'));
+    });
+  }
 }
 
 /**
@@ -290,7 +319,10 @@ function setupNav() {
       $(`#view-${v}`).classList.toggle('hidden', v !== target);
     });
     document.querySelectorAll('.nav-link').forEach((l) => {
-      l.classList.toggle('active', l.getAttribute('href') === `#${target}`);
+      const on = l.getAttribute('href') === `#${target}`;
+      l.classList.toggle('active', on);
+      if (on) l.setAttribute('aria-current', 'page');
+      else l.removeAttribute('aria-current');
     });
     // Título de página dinámico
     const t = $('#pageTitle');
@@ -384,6 +416,7 @@ function setupLocationView() {
     populateCompareSelectors();
     const a = $('#compareA');
     if (a) a.value = locView.id;
+    runCompare().catch(() => {});
   });
   window.addEventListener('popstate', () => {
     const m = location.hash.match(/^#sede\/([\w-]+)$/);
@@ -441,7 +474,7 @@ function locationInsights(s) {
     out.push({ level: 'critical', text: 'La sede no ha registrado interacciones desde que se instaló. Revisa que los puntos estén a la vista y leyendo.' });
   } else if (h.hoursSince >= 48) {
     const d = Math.floor(h.hoursSince / 24);
-    out.push({ level: 'critical', text: `Lleva ${d} días sin interacciones: el soporte podría estar retirado, tapado o dañado.` });
+    out.push({ level: 'critical', text: `Lleva ${d} días sin interacciones: el punto podría estar retirado, tapado o dañado.` });
   } else if (h.dropPct !== null) {
     out.push({ level: 'warning', text: `Cayó ${h.dropPct} % esta semana (${fmt(h.week)} interacciones frente a ${fmt(h.weekPrev)}).` });
   }
@@ -571,7 +604,7 @@ function renderSourceSplit(box, src) {
   if (!box || !src) return;
   const known = src.nfc + src.qr;
   const legacy = src.unknown
-    ? `<p class="src-note">${fmt(src.unknown)} interacciones de puntos grabados o impresos antes de esta medición no se pueden distinguir.</p>`
+    ? `<p class="src-note">${src.unknown === 1 ? '1 interacción de un punto grabado o impreso' : `${fmt(src.unknown)} interacciones de puntos grabados o impresos`} antes de esta medición no se ${src.unknown === 1 ? 'puede' : 'pueden'} distinguir.</p>`
     : '';
   if (!known) {
     box.innerHTML = `<p class="text-sm text-slate-500">Aún no hay datos para distinguir. Los QR descargados del panel y los chips grabados con el enlace de NFC empiezan a medirlo desde su primer uso.</p>${legacy}`;
@@ -613,9 +646,9 @@ function renderLocationTrend(s) {
           borderColor: accent(),
           backgroundColor: accentA(0.12),
           fill: true,
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
-          borderWidth: 2.5,
+          borderWidth: 2,
         },
         {
           label: 'Promedio por sede',
@@ -623,7 +656,7 @@ function renderLocationTrend(s) {
           borderColor: token('--neutral-state', '#94a3b8'),
           borderDash: [5, 4],
           fill: false,
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
           borderWidth: 1.5,
         },
@@ -635,8 +668,8 @@ function renderLocationTrend(s) {
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: cleanTooltip((items) => items[0].label) },
       scales: {
-        x: { grid: { color: gridColor() }, ticks: { color: tickColor(), maxTicksLimit: 8, callback: (v, i) => fmtShortDay(data[i]?.day) } },
-        y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
+        x: { grid: { display: false }, ticks: { color: tickColor(), maxTicksLimit: 8, callback: (v, i) => fmtShortDay(data[i]?.day) } },
+        y: { border: { display: false }, grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
   });
@@ -735,9 +768,59 @@ function closeSidebar() {
 }
 
 // ---------------------------------------------------------------------------
+// Modales: comportamiento común
+// ---------------------------------------------------------------------------
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])';
+function setupModals() {
+  const skip = $('#skipLink');
+  if (skip) {
+    skip.addEventListener('click', (e) => {
+      e.preventDefault();
+      $('#mainContent').focus();
+    });
+  }
+  document.querySelectorAll('.fixed.inset-0.z-50').forEach((modal) => {
+    const title = modal.querySelector('h2, h3');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    if (title) {
+      if (!title.id) title.id = `${modal.id}Title`;
+      modal.setAttribute('aria-labelledby', title.id);
+    }
+    let opener = null;
+    new MutationObserver(() => {
+      const open = modal.classList.contains('flex') && !modal.classList.contains('hidden');
+      if (open && !opener) {
+        opener = document.activeElement;
+        const panel = modal.firstElementChild;
+        const first = panel && [...panel.querySelectorAll(FOCUSABLE)].find((el) => !el.id.startsWith('close') && el.offsetParent);
+        if (first && !modal.contains(document.activeElement)) first.focus();
+      } else if (!open && opener) {
+        if (document.contains(opener) && opener.focus) opener.focus();
+        opener = null;
+      }
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    modal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.id !== 'confirmModal') {
+        const closer = modal.querySelector('[id^="close"], [id^="cancel"]');
+        if (closer) closer.click();
+      }
+      if (e.key !== 'Tab') return;
+      const items = [...modal.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Tema claro/oscuro
 // ---------------------------------------------------------------------------
 function setupTheme() {
+  setupModals();
   const btn = $('#themeToggle');
   const saved = localStorage.getItem('theme');
   if (saved === 'light') document.documentElement.classList.remove('dark');
@@ -761,6 +844,8 @@ function setupTheme() {
 // ---------------------------------------------------------------------------
 // Porcentaje con máximo 1 decimal en formato es-CO (12,4 %).
 const pctFmt = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(n);
+// Decimales fijos en es-CO (4,24).
+const fmtDec = (n, d = 1) => new Intl.NumberFormat('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
 
 // Texto del periodo activo ("Últimos 30 días", "2026-09-01 → 2026-09-30"...).
 function periodLabel() {
@@ -1038,10 +1123,10 @@ async function renderTrend() {
     badge.classList.remove('hidden', 'variation-up', 'variation-down', 'variation-flat');
     if (v > 0) {
       badge.classList.add('variation-up');
-      badge.innerHTML = `${icon('trending-up', { size: 14 })} +${v}% vs. periodo anterior`;
+      badge.innerHTML = `${icon('trending-up', { size: 14 })} +${pctFmt(v)} % vs. periodo anterior`;
     } else if (v < 0) {
       badge.classList.add('variation-down');
-      badge.innerHTML = `${icon('trending-down', { size: 14 })} ${v}% vs. periodo anterior`;
+      badge.innerHTML = `${icon('trending-down', { size: 14 })} ${pctFmt(v)} % vs. periodo anterior`;
     } else {
       badge.classList.add('variation-flat');
       badge.innerHTML = `${icon('minus', { size: 14 })} 0% vs. periodo anterior`;
@@ -1081,9 +1166,9 @@ async function renderTrend() {
           borderColor: accent(),
           backgroundColor: trendFill,
           fill: true,
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
-          borderWidth: 2.5,
+          borderWidth: 2,
         },
         {
           label: 'Promedio por sede',
@@ -1092,7 +1177,7 @@ async function renderTrend() {
           borderColor: token('--neutral-state', '#94a3b8'),
           borderDash: [5, 4],
           fill: false,
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
           borderWidth: 1.5,
         },
@@ -1108,10 +1193,10 @@ async function renderTrend() {
       },
       scales: {
         x: {
-          grid: { color: gridColor() },
+          grid: { display: false },
           ticks: { color: tickColor(), maxRotation: 0, autoSkipPadding: 12, callback: (v, i) => fmtShortDay(data[i]?.day) },
         },
-        y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
+        y: { border: { display: false }, grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
     plugins: [campaignBandsPlugin],
@@ -1176,7 +1261,7 @@ async function renderTop() {
       scales: {
         // El valor va escrito al final de cada barra: el eje X sobra.
         x: { display: false, beginAtZero: true },
-        y: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor(), font: { weight: '600' } } },
+        y: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor(), font: { weight: '500' } } },
       },
     },
   });
@@ -1241,7 +1326,7 @@ function renderOs(k) {
   // Leyenda personalizada: nombre | cantidad | porcentaje
   $('#osLegend').innerHTML = segments
     .map((s) => {
-      const pct = total > 0 ? ((s.value / total) * 100).toFixed(1) : '0.0';
+      const pct = total > 0 ? fmtDec((s.value / total) * 100) : '0,0';
       return `
       <div class="os-legend-item">
         <span class="os-legend-name">
@@ -1358,7 +1443,7 @@ async function renderHourly() {
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: tickColor(), maxRotation: 0, autoSkip: true } },
-        y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
+        y: { border: { display: false }, grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
     plugins: [shiftBandsPlugin],
@@ -1402,7 +1487,10 @@ const CHANNEL_COLORS = {
 };
 // Los colores de canal son de marca de terceros (reconocimiento inmediato del
 // destino) → se conservan. El fallback usa el neutro del sistema.
-const channelColor = (c) => CHANNEL_COLORS[c] || token('--neutral-state', '#94a3b8');
+const channelColor = (c) => {
+  if (c === 'TikTok' && isDark()) return '#e7e5e4'; // su negro de marca no se ve sobre carbón
+  return CHANNEL_COLORS[c] || token('--neutral-state', '#94a3b8');
+};
 
 async function renderChannels() {
   const data = await api(`/api/channels${qs()}`);
@@ -1444,8 +1532,7 @@ async function renderChannels() {
           label: 'Interacciones',
           data: data.map((d) => d.scans),
           backgroundColor: grads,
-          borderRadius: 10,
-          borderSkipped: false,
+          borderRadius: 4,
           barThickness: 18,
           maxBarThickness: 22,
           hoverBackgroundColor: data.map((d) => channelColor(d.channel)),
@@ -1461,7 +1548,7 @@ async function renderChannels() {
         legend: { display: false },
         tooltip: cleanTooltip((items) => {
           const c = data[items[0].dataIndex];
-          const pct = total > 0 ? ((c.scans / total) * 100).toFixed(1) : '0.0';
+          const pct = total > 0 ? fmtDec((c.scans / total) * 100) : '0,0';
           return `${c.channel} · ${pct}%`;
         }),
       },
@@ -1475,7 +1562,7 @@ async function renderChannels() {
         y: {
           grid: { display: false, drawBorder: false },
           border: { display: false },
-          ticks: { color: tickColor(), font: { weight: '600' } },
+          ticks: { color: tickColor(), font: { weight: '500' } },
         },
       },
     },
@@ -1487,7 +1574,7 @@ async function renderChannels() {
     legend.innerHTML = data.length
       ? data
           .map((d) => {
-            const pct = total > 0 ? ((d.scans / total) * 100).toFixed(1) : '0.0';
+            const pct = total > 0 ? fmtDec((d.scans / total) * 100) : '0,0';
             return `
         <div class="os-legend-item">
           <span class="os-legend-name">
@@ -1521,7 +1608,7 @@ async function loadLocations() {
   const cq = state.companyId ? `?companyId=${encodeURIComponent(state.companyId)}` : '';
   state.locations = await api(`/api/locations${cq}`);
   const cnt = $('#locCount');
-  if (cnt) cnt.textContent = fmt(state.locations.length);
+  if (cnt) cnt.textContent = `${fmt(state.locations.length)} ${state.locations.length === 1 ? 'sede activa' : 'sedes activas'}`;
   renderComboOptions('');
 }
 
@@ -1620,15 +1707,15 @@ function renderLocationsTable(filter = '') {
       (l) => `
       <tr class="data-card">
         <td class="td td-title font-medium" data-label="Sede"><button type="button" class="link-btn loc-open-btn" data-id="${l.id}">${escapeHtml(nice(l.name))}</button>${
-          showCompany && l.companyName
+          showCompany && l.companyName && l.companyName !== l.brand
             ? `<br><span class="text-xs text-slate-500">${escapeHtml(l.companyName)}</span>`
             : ''
         }</td>
         <td class="td text-slate-500" data-label="Marca">${escapeHtml(l.brand)}</td>
         <td class="td" data-label="Ciudad">${escapeHtml(l.city)}</td>
-        <td class="td" data-label="Estado">${statusBadge(l.status)}</td>
+        <td class="td" data-label="Estado">${statusBadge(l.status, true)}</td>
         <td class="td text-right" data-label="Puntos NFC">${fmt(l.nfcPoints)}</td>
-        <td class="td text-right font-semibold" data-label="Total Clics">${fmt(l.totalClicks)}</td>
+        <td class="td text-right font-semibold" data-label="Interacciones">${fmt(l.totalClicks)}</td>
         <td class="td td-actions text-right">
           <span class="row-actions">
             <button class="icon-btn loc-rep-btn" data-id="${l.id}" title="Reputación de Google" aria-label="Ver reputación de ${escapeHtml(l.name)}">${icon('star', { size: 15 })}</button>
@@ -1728,7 +1815,7 @@ async function loadReputation() {
     sum.innerHTML = `
       <div class="rep-kpi">
         <div class="rep-kpi-stars">${starRating(s.rating)}</div>
-        <div class="rep-kpi-value">${s.rating.toFixed(1)}</div>
+        <div class="rep-kpi-value">${fmtDec(s.rating)}</div>
         <div class="rep-kpi-label">Nota actual</div>
       </div>
       <div class="rep-kpi">
@@ -1759,7 +1846,7 @@ async function loadReputation() {
             borderColor: accent(),
             backgroundColor: accentA(0.12),
             fill: true,
-            tension: 0.35,
+            cubicInterpolationMode: 'monotone',
             yAxisID: 'y',
             pointRadius: 3,
           },
@@ -1768,7 +1855,7 @@ async function loadReputation() {
             data: snaps.map((s) => s.rating),
             borderColor: token('--warn', '#f59e0b'),
             backgroundColor: 'transparent',
-            tension: 0.35,
+            cubicInterpolationMode: 'monotone',
             yAxisID: 'y1',
             pointRadius: 3,
           },
@@ -1805,7 +1892,7 @@ async function loadReputation() {
   if (state.role === 'superadmin') {
     const hist = $('#repHistory');
     hist.innerHTML = snaps.length
-      ? `<h4 class="font-semibold text-sm mt-4 mb-2">Mediciones registradas</h4>` +
+      ? `<h3 class="font-semibold text-sm mt-4 mb-2">Mediciones registradas</h3>` +
         snaps
           .slice()
           .reverse()
@@ -1813,7 +1900,7 @@ async function loadReputation() {
             (s) => `
           <div class="rep-hist-row">
             <span>${s.measuredOn}</span>
-            <span>${s.rating.toFixed(1)} ★</span>
+            <span>${fmtDec(s.rating)} ★</span>
             <span>${fmt(s.reviewCount)} reseñas</span>
             <button class="icon-btn danger rep-del-btn" data-id="${s.id}" title="Eliminar medición" aria-label="Eliminar medición del ${s.measuredOn}">${icon('trash', { size: 14 })}</button>
           </div>`
@@ -1835,12 +1922,12 @@ async function saveReputation() {
 
   if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
     msg.textContent = 'La nota debe estar entre 0 y 5.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   if (!Number.isInteger(reviewCount) || reviewCount < 0) {
     msg.textContent = 'El número de reseñas debe ser un entero ≥ 0.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -1852,7 +1939,7 @@ async function saveReputation() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'Error al guardar.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   $('#repRating').value = '';
@@ -1912,7 +1999,7 @@ async function saveEditLocation() {
   const msg = $('#editLocMsg');
   if (!body.name || !body.city) {
     msg.textContent = 'Nombre y ciudad son obligatorios.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   const res = await fetch(`/api/locations/${editingLocationId}`, {
@@ -1923,7 +2010,7 @@ async function saveEditLocation() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'Error al guardar.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   // Meta propia de la sede (vacía = la común); solo si cambió.
@@ -1938,7 +2025,7 @@ async function saveEditLocation() {
     if (!gr.ok) {
       const err = await gr.json().catch(() => ({}));
       msg.textContent = err.error || 'No se pudo guardar la meta.';
-      msg.style.color = '#dc2626';
+      msg.style.color = 'var(--danger)';
       return;
     }
   }
@@ -2056,9 +2143,9 @@ function renderDevicesTable(filter = '') {
             <span class="text-xs text-slate-500" style="margin-left:1.5rem">${escapeHtml(g.city)}</span>
           </td>
           <td class="td text-slate-500" data-label="Punto">${g.devices.length} puntos NFC</td>
-          <td class="td text-slate-400 text-xs" data-label="Target URL">—</td>
-          <td class="td" data-label="Estado">—</td>
-          <td class="td td-actions text-right text-xs text-slate-400">Desplegar</td>
+          <td class="td td-group-empty"></td>
+          <td class="td td-group-empty"></td>
+          <td class="td td-actions text-right text-xs text-slate-400">${open ? 'Ocultar' : 'Ver puntos'}</td>
         </tr>`;
       if (open) {
         html += g.devices.map((d) => deviceRow(d, true)).join('');
@@ -2174,7 +2261,7 @@ async function applyBulk() {
   try {
     new URL(target_url);
   } catch {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'URL inválida.';
     return;
   }
@@ -2194,7 +2281,7 @@ async function applyBulk() {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = err.error || 'Error al aplicar el cambio.';
     return;
   }
@@ -2293,10 +2380,10 @@ function downloadQr() {
   a.click();
 }
 
-function statusBadge(status) {
+function statusBadge(status, fem = false) {
   return status === 'active'
-    ? '<span class="badge-active"><span class="dot"></span> activo</span>'
-    : '<span class="badge-inactive"><span class="dot"></span> inactivo</span>';
+    ? `<span class="badge-active"><span class="dot"></span> Activ${fem ? "a" : "o"}</span>`
+    : `<span class="badge-inactive"><span class="dot"></span> Inactiv${fem ? "a" : "o"}</span>`;
 }
 
 // Nombres guardados en MAYÚSCULAS ("PUNTO DE VENTA LA 49") se muestran en
@@ -2376,10 +2463,6 @@ function renderActiveFilters() {
     chips.push({ key: 'Sede', label: name, type: 'location' });
   }
   if (state.channel) chips.push({ key: 'Canal', label: state.channel, type: 'channel' });
-  if (state.from || state.to) {
-    const label = `${state.from ? fmtShortDay(state.from) : '…'} → ${state.to ? fmtShortDay(state.to) : '…'}`;
-    chips.push({ key: 'Fechas', label, type: 'dates' });
-  }
 
   if (!inAnalyticsView || chips.length === 0) {
     bar.classList.add('hidden');
@@ -2389,7 +2472,7 @@ function renderActiveFilters() {
 
   bar.classList.remove('hidden');
   bar.innerHTML =
-    `<span class="af-label">Filtros activos</span>` +
+    `<span class="af-label">Filtrando por</span>` +
     chips
       .map(
         (c) => `
@@ -2399,7 +2482,7 @@ function renderActiveFilters() {
       </span>`
       )
       .join('') +
-    `<button class="af-clear" id="clearAllFilters">Limpiar todo</button>`;
+    `<button class="af-clear" id="clearAllFilters">Quitar filtros</button>`;
 
   bar.querySelectorAll('.chip-x').forEach((btn) =>
     btn.addEventListener('click', () => clearFilter(btn.dataset.type))
@@ -2451,12 +2534,12 @@ async function loadSurvey() {
   // KPIs
   $('#svTotal').textContent = fmt(data.total || 0);
   $('#svAvg').textContent = data.globalAvg !== null && data.globalAvg !== undefined
-    ? data.globalAvg.toFixed(2)
+    ? fmtDec(data.globalAvg, 2)
     : '—';
   $('#svBest').textContent = data.best ? data.best.label : '—';
-  $('#svBestVal').textContent = data.best ? `Promedio ${data.best.avg.toFixed(2)}` : '—';
+  $('#svBestVal').textContent = data.best ? `Promedio ${fmtDec(data.best.avg, 2)}` : '—';
   $('#svWorst').textContent = data.worst ? data.worst.label : '—';
-  $('#svWorstVal').textContent = data.worst ? `Promedio ${data.worst.avg.toFixed(2)}` : '—';
+  $('#svWorstVal').textContent = data.worst ? `Promedio ${fmtDec(data.worst.avg, 2)}` : '—';
 
   // Gráfico de barras MONOCROMO azul: promedio por aspecto.
   const aspects = data.aspects || [];
@@ -2479,13 +2562,14 @@ async function loadSurvey() {
             data: aspects.map((a) => a.avg),
             backgroundColor: accentA(0.78),
             hoverBackgroundColor: accent(),
-            borderColor: accent(),
-            borderWidth: 1,
-            borderRadius: 6,
+            borderRadius: 4,
+            maxBarThickness: 22,
+            categoryPercentage: 0.7,
           },
         ],
       },
       options: {
+        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -2493,13 +2577,14 @@ async function loadSurvey() {
           tooltip: cleanTooltip((items) => aspects[items[0].dataIndex].label),
         },
         scales: {
-          x: { grid: { display: false }, ticks: { color: tickColor() } },
-          y: {
+          x: {
+            border: { display: false },
             grid: { color: gridColor() },
-            ticks: { color: tickColor() },
+            ticks: { color: tickColor(), stepSize: 1 },
             beginAtZero: true,
-            suggestedMax: 5,
+            max: 5,
           },
+          y: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor(), font: { weight: '500' } } },
         },
       },
     });
@@ -2522,7 +2607,7 @@ async function loadSurvey() {
             borderColor: accent(),
             backgroundColor: accentA(0.12),
             fill: true,
-            tension: 0.35,
+            cubicInterpolationMode: 'monotone',
             pointRadius: 3,
           },
         ],
@@ -2672,12 +2757,12 @@ async function saveTemplate() {
 
   if (!name) {
     msg.textContent = 'El nombre es obligatorio.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   if (!aspects.length) {
     msg.textContent = 'Añade al menos un aspecto.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -2695,7 +2780,7 @@ async function saveTemplate() {
       const company_id = $('#tplCompany').value;
       if (!company_id) {
         msg.textContent = 'Selecciona la empresa de la plantilla.';
-        msg.style.color = '#dc2626';
+        msg.style.color = 'var(--danger)';
         return;
       }
       payload.company_id = company_id;
@@ -2711,7 +2796,7 @@ async function saveTemplate() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'Error al guardar.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -2833,7 +2918,7 @@ async function saveEdit() {
     const survey_template_id = $('#editSurveyTemplate').value;
     if (!survey_template_id) {
       msg.textContent = 'Elige una plantilla de encuesta.';
-      msg.style.color = '#dc2626';
+      msg.style.color = 'var(--danger)';
       return;
     }
     // No se envía target_url: queda intacta en la BD al pasar a encuesta.
@@ -2844,7 +2929,7 @@ async function saveEdit() {
       new URL(target_url);
     } catch {
       msg.textContent = 'URL inválida.';
-      msg.style.color = '#dc2626';
+      msg.style.color = 'var(--danger)';
       return;
     }
     payload = { mode: 'redirect', target_url, status, channel: $('#editChannel').value };
@@ -2859,7 +2944,7 @@ async function saveEdit() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'Error al guardar.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -2983,8 +3068,8 @@ function renderRankList(sel, items, kind) {
     .map((it, i) => {
       // El líder (posición 1 del bloque de líderes) lleva trofeo; el resto, su número.
       const badgeInner =
-        kind === 'leader' && i === 0 ? icon('trophy', { size: 15 }) : `${i + 1}`;
-      const badgeCls = kind === 'leader' && i === 0 ? 'rank-badge rank-badge-gold' : 'rank-badge';
+        `${i + 1}`;
+      const badgeCls = 'rank-badge';
       return `
       <button type="button" class="rank-row rank-link" data-id="${it.id}" aria-label="Ver ficha de ${escapeHtml(it.name)}">
         <div class="rank-left">
@@ -3014,6 +3099,7 @@ function populateCompareSelectors(force = false) {
     if (state.locations.length > 1) {
       a.selectedIndex = 0;
       bSel.selectedIndex = 1;
+      runCompare().catch(() => {});
     }
   }
 }
@@ -3032,8 +3118,8 @@ async function runCompare() {
   if (state.to) params.set('to', state.to);
   const res = await api(`/api/compare?${params.toString()}`);
 
-  const nameA = res.a.location ? res.a.location.name : 'Sede A';
-  const nameB = res.b.location ? res.b.location.name : 'Sede B';
+  const nameA = res.a.location ? nice(res.a.location.name) : 'Sede A';
+  const nameB = res.b.location ? nice(res.b.location.name) : 'Sede B';
   $('#compareLabelA').textContent = nameA;
   $('#compareLabelB').textContent = nameB;
   $('#compareTotalA').textContent = `${fmt(res.a.totals)} interacciones`;
@@ -3051,19 +3137,19 @@ async function runCompare() {
           data: res.a.data,
           borderColor: accent(),
           backgroundColor: accentA(0.1),
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
-          borderWidth: 2.5,
+          borderWidth: 2,
           fill: false,
         },
         {
           label: nameB,
           data: res.b.data,
-          borderColor: token('--ok', '#22c55e'),
+          borderColor: token('--neutral-state', '#94a3b8'),
           backgroundColor: 'rgba(34,197,94,0.12)',
-          tension: 0.35,
+          cubicInterpolationMode: 'monotone',
           pointRadius: 0,
-          borderWidth: 2.5,
+          borderWidth: 2,
           fill: false,
         },
       ],
@@ -3073,8 +3159,8 @@ async function runCompare() {
       interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: false }, tooltip: cleanTooltip() },
       scales: {
-        x: { grid: { color: gridColor() }, ticks: { color: tickColor() } },
-        y: { grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
+        x: { grid: { display: false }, ticks: { color: tickColor() } },
+        y: { border: { display: false }, grid: { color: gridColor() }, ticks: { color: tickColor() }, beginAtZero: true },
       },
     },
   });
@@ -3377,12 +3463,12 @@ function setupChangePassword() {
       const confirmv = $('#pwConfirm').value;
       const msg = $('#pwMsg');
       if (next.length < 6) {
-        msg.style.color = '#dc2626';
+        msg.style.color = 'var(--danger)';
         msg.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
         return;
       }
       if (next !== confirmv) {
-        msg.style.color = '#dc2626';
+        msg.style.color = 'var(--danger)';
         msg.textContent = 'Las contraseñas nuevas no coinciden.';
         return;
       }
@@ -3394,7 +3480,7 @@ function setupChangePassword() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        msg.style.color = '#dc2626';
+        msg.style.color = 'var(--danger)';
         msg.textContent = err.error || 'No se pudo cambiar la contraseña.';
         return;
       }
@@ -3419,7 +3505,7 @@ async function saveCompany() {
   const name = $('#companyName').value.trim();
   const msg = $('#companyMsg');
   if (!name) {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'El nombre es obligatorio.';
     return;
   }
@@ -3431,7 +3517,7 @@ async function saveCompany() {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = err.error || 'Error al crear la empresa.';
     return;
   }
@@ -3464,12 +3550,12 @@ async function saveUser() {
   const password = $('#userPassword').value;
   const msg = $('#userMsg');
   if (!company_id) {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'Selecciona una empresa.';
     return;
   }
   if (!username || password.length < 6) {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'Usuario y contraseña (mín. 6 caracteres) requeridos.';
     return;
   }
@@ -3481,7 +3567,7 @@ async function saveUser() {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = err.error || 'Error al crear el usuario.';
     return;
   }
@@ -3595,10 +3681,9 @@ async function loadHealth() {
   try {
     const h = await api('/api/health');
     const badge = $('#healthBadge');
-    const color = h.db && h.cache ? 'bg-emerald-500' : h.db ? 'bg-amber-500' : 'bg-rose-500';
-    badge.innerHTML = `<span class="w-2 h-2 rounded-full ${color}"></span> DB ${
-      h.db ? 'OK' : 'off'
-    } · Redis ${h.cache ? 'OK' : 'off'}`;
+    const tone = h.db && h.cache ? 'ok' : h.db ? 'warn' : 'bad';
+    const text = { ok: 'Sistema en línea', warn: 'Funcionando con lentitud', bad: 'Sin conexión con los datos' }[tone];
+    badge.innerHTML = `<span class="status-dot ${tone}"></span> ${text}`;
   } catch {
     /* ignore */
   }
@@ -4864,7 +4949,7 @@ async function saveLocation() {
 
   if (!name || !city) {
     msg.textContent = 'Nombre y ciudad son obligatorios.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -4874,7 +4959,7 @@ async function saveLocation() {
     const company_id = $('#locCompany') ? $('#locCompany').value : '';
     if (!company_id) {
       msg.textContent = 'Selecciona la empresa a la que pertenece la sede.';
-      msg.style.color = '#dc2626';
+      msg.style.color = 'var(--danger)';
       return;
     }
     payload.company_id = company_id;
@@ -4889,7 +4974,7 @@ async function saveLocation() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'Error al crear la sede.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -5011,19 +5096,19 @@ async function saveDevice() {
 
   if (!location_id) {
     msg.textContent = 'Selecciona una sede.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   if (!label) {
     msg.textContent = 'La etiqueta del punto es obligatoria.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
   try {
     new URL(target_url);
   } catch {
-    msg.textContent = 'Target URL inválida.';
-    msg.style.color = '#dc2626';
+    msg.textContent = 'El enlace de destino no es válido.';
+    msg.style.color = 'var(--danger)';
     return;
   }
 
@@ -5035,7 +5120,7 @@ async function saveDevice() {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     msg.textContent = err.error || 'No se pudo crear el punto NFC.';
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     return;
   }
 

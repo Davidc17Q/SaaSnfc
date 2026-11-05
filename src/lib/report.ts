@@ -299,7 +299,7 @@ export function reportRecommendations(d: ReportData): Recommendation[] {
           ? {
               level: 'crit',
               title: 'Revisa que los puntos de calificación estén visibles.',
-              why: 'No se registró ninguna interacción en el periodo. Verifica que cada punto de atención tenga su soporte a la vista y que el personal invite a calificar.',
+              why: 'No se registró ninguna interacción en el periodo. Verifica que cada punto de atención tenga su punto a la vista y que el personal invite a calificar.',
             }
           : {
               level: 'crit',
@@ -631,7 +631,7 @@ export function reportHtml(d: ReportData): string {
     const anyRating = ranking.some((r) => r.rating !== null);
     const rows = ranking.map((r) => ({
       name: r.name,
-      short: prefix ? r.name.slice(prefix.length) : r.name,
+      short: prefix ? r.name.slice(prefix.length).replace(/^\p{Ll}/u, (c) => c.toLocaleUpperCase('es')) : r.name,
       city: r.city,
       scans: r.scans,
       delta: r.prev > 0 ? Math.round(((r.scans - r.prev) / r.prev) * 1000) / 10 : null,
@@ -753,11 +753,11 @@ export function reportHtml(d: ReportData): string {
 
   const chaptersHtml = chapters
     .map(
-      (c, i) => `<section class="chapter" id="${c.id}"><p class="ch-num">Capítulo ${i + 1}</p><h2 class="ch-title">${c.title}</h2>${c.html}</section>`
+      (c, i) => `<section class="chapter" id="${c.id}"><h2 class="ch-title">${c.title}</h2>${c.html}</section>`
     )
     .join('');
   const nav = chapters
-    .map((c, i) => `<a href="#${c.id}"${i === 0 ? ' class="active"' : ''}><span>${i + 1}</span>${c.title.replace('Tu mes en cifras', 'Resumen').replace(/^Lo que opinan tus /, 'Tus ').replace('Qué hacer el próximo mes', 'Qué hacer')}</a>`)
+    .map((c, i) => `<a href="#${c.id}"${i === 0 ? ' class="active"' : ''}>${c.title.replace('Tu mes en cifras', 'Resumen').replace(/^Lo que opinan tus /, 'Tus ').replace('Qué hacer el próximo mes', 'Qué hacer')}</a>`)
     .join('');
 
   const alcance = d.locationName
@@ -784,7 +784,7 @@ export function reportHtml(d: ReportData): string {
     --ok:#15803d; --ok-soft:rgba(22,163,74,.12);
     --warn:#b45309; --warn-soft:rgba(217,119,6,.12);
     --danger:#b91c1c; --danger-soft:rgba(220,38,38,.10);
-    --ink:#1c1917; --muted:#78716c; --line:#e7e5e4; --line-soft:#f0efed;
+    --ink:#1c1917; --muted:#6f6a65; --line:#e7e5e4; --line-soft:#f0efed;
     --card:#ffffff; --bg:#f5f4f2; --navy:#0b1f4d;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -792,7 +792,6 @@ export function reportHtml(d: ReportData): string {
   body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-text-size-adjust:100%}
   .wrap{max-width:980px;margin:0 auto;padding:0 20px}
   .cover{background:var(--navy);color:#fff;padding:32px 0 42px;position:relative;overflow:hidden}
-  .cover::after{content:'';position:absolute;inset:auto -10% -60% -10%;height:120%;background:radial-gradient(60% 60% at 70% 0%,rgba(96,165,250,.35),transparent 70%);pointer-events:none}
   .cover .top{display:flex;justify-content:space-between;align-items:center;gap:12px;position:relative;z-index:1}
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
   .brand img{height:30px;width:auto}
@@ -800,8 +799,8 @@ export function reportHtml(d: ReportData): string {
   .btn{appearance:none;border:1px solid rgba(255,255,255,.28);background:transparent;color:#fff;padding:8px 14px;border-radius:10px;font:600 13px/1.2 inherit;font-family:inherit;cursor:pointer}
   .btn.primary{background:#fff;color:var(--navy);border-color:#fff}
   .btn:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
-  .eyebrow{margin-top:34px;font-size:13px;font-weight:600;color:#93c5fd;position:relative;z-index:1}
-  .cover h1{font-size:clamp(25px,4.2vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;max-width:780px;margin-top:8px;position:relative;z-index:1;text-wrap:balance}
+  .eyebrow{margin-top:14px;font-size:13px;font-weight:500;color:#c7d2fe;position:relative;z-index:1}
+  .cover h1{font-size:clamp(25px,4.2vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;max-width:780px;margin-top:36px;position:relative;z-index:1;text-wrap:balance}
   .cover h1 em{font-style:normal;color:#e0e7ff}
   .cover h1 em.up{color:#86efac} .cover h1 em.down{color:#fca5a5}
   .cover .sub{color:#c7d2fe;margin-top:12px;position:relative;z-index:1}
@@ -809,9 +808,7 @@ export function reportHtml(d: ReportData): string {
   .chapters .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
   .chapters a{flex:none;padding:12px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent}
   .chapters a.active{color:var(--ink);border-bottom-color:var(--accent)}
-  .chapters a span{color:var(--accent);margin-right:6px}
   section.chapter{padding:42px 0 6px;scroll-margin-top:48px}
-  .ch-num{font-size:12px;font-weight:700;color:var(--accent)}
   .ch-title{font-size:24px;font-weight:800;letter-spacing:-.01em;margin-top:2px}
   .ch-lead{color:var(--muted);margin-top:4px;max-width:640px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 1px 2px rgba(28,25,23,.04),0 4px 12px rgba(28,25,23,.03);margin-top:16px;min-width:0}
@@ -819,10 +816,9 @@ export function reportHtml(d: ReportData): string {
   .card .desc{font-size:13px;color:var(--muted);margin-top:2px}
   .card.empty{border-style:dashed;box-shadow:none}
   .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
-  .since{margin-top:20px;border-radius:16px;padding:16px 20px;background:var(--line-soft)}
-  .since.up{background:var(--ok-soft)} .since.down{background:var(--danger-soft)}
-  .since-k{font-size:12px;font-weight:700}
-  .since.up .since-k{color:var(--ok)} .since.down .since-k{color:var(--danger)} .since.flat .since-k{color:var(--muted)}
+  .since{display:flex;flex-direction:column;margin-top:20px;border-radius:16px;padding:16px 20px;background:var(--card);border:1px solid var(--line)}
+  .since.down{background:var(--danger-soft);border-color:transparent}
+  .since-k{order:3;font-size:12px;font-weight:500;color:var(--muted);margin-top:4px}
   .since-main{font-size:17px;font-weight:700;line-height:1.35;margin-top:4px;text-wrap:pretty}
   .since-sub{font-size:13px;color:var(--muted);margin-top:4px}
   .kpis.n3{grid-template-columns:repeat(3,minmax(0,1fr))} .kpis.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -861,10 +857,9 @@ export function reportHtml(d: ReportData): string {
   .rank .pos{width:28px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
   .rank .store{font-weight:600}
   .rank .city{display:block;font-size:12px;color:var(--muted)}
-  .rank tr.flag td{background:var(--danger-soft)}
-  .pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--danger-soft);color:var(--danger);margin-left:6px;white-space:nowrap}
+  .pill{font-size:12px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--danger-soft);color:var(--danger);margin-left:6px;white-space:nowrap}
   .more{margin-top:10px;background:none;border:none;font:600 13px inherit;font-family:inherit;color:var(--accent);cursor:pointer;padding:4px 0}
-  .heat{display:grid;gap:3px;margin-top:14px;font-size:11px}
+  .heat{display:grid;gap:3px;margin-top:14px;font-size:12px}
   .heat .h{color:var(--muted);text-align:center}
   .heat .d{color:var(--muted);display:flex;align-items:center;font-weight:600}
   .heat .c{aspect-ratio:1.6/1;border-radius:4px}
@@ -881,7 +876,7 @@ export function reportHtml(d: ReportData): string {
   .bda > div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;min-width:0}
   .bda .bar{width:100%;flex:none;border-radius:4px 4px 0 0;background:#d6d3d1}
   .bda .bar.on{background:var(--accent)}
-  .bda span{font-size:11px;color:var(--muted);white-space:nowrap}
+  .bda span{font-size:12px;color:var(--muted);white-space:nowrap}
   .aspects{margin-top:12px;display:flex;flex-direction:column;gap:12px}
   .asp-row{display:grid;grid-template-columns:180px 1fr 44px;gap:12px;align-items:center;font-size:14px}
   .asp-track{height:10px;border-radius:5px;background:var(--line-soft);overflow:hidden}
@@ -903,7 +898,7 @@ export function reportHtml(d: ReportData): string {
     .kpi .val{font-size:24px}
     .asp-row{grid-template-columns:120px 1fr 40px}
     .dest-row{grid-template-columns:110px 1fr 48px}
-    .heat{gap:2px;font-size:10px}
+    .heat{gap:2px;font-size:11px}
     .actions .btn:not(.primary){display:none}
     table.rank{min-width:0}
     .rank .sparkcol{display:none}
@@ -929,9 +924,9 @@ export function reportHtml(d: ReportData): string {
         <button class="btn primary" type="button" onclick="window.print()">Descargar PDF</button>
       </div>
     </div>
-    <p class="eyebrow">Informe de ${esc(d.periodLabel.toLowerCase())} · ${esc(d.companyName)} · ${alcance}</p>
     <h1>${headline}</h1>
     ${subline ? `<p class="sub">${subline}</p>` : ''}
+    <p class="eyebrow">Informe de ${esc(d.periodLabel.toLowerCase())} · ${esc(d.companyName)} · ${alcance}</p>
   </div>
 </header>
 <nav class="chapters" aria-label="Capítulos del informe"><div class="wrap">${nav}</div></nav>
@@ -974,8 +969,8 @@ export function reportHtml(d: ReportData): string {
           var r=rows.findIndex(function(e){return L+6>e+6;}); if(r<0) r=rows.length; rows[r]=L+6+g.measureText(t).width; g.fillText(t,L+6,a.top+14+r*14);}
       }); g.restore();
     }};
-    var ds=[{label:'${esc(month)}',data:cur,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:0,pointHoverRadius:4}];
-    if(${hasPrev ? 'true' : 'false'}) ds.push({label:'${esc(prevMonth.charAt(0).toUpperCase() + prevMonth.slice(1))}',data:prv,borderColor:'#a8a29e',borderWidth:1.5,borderDash:[4,4],fill:false,tension:.3,pointRadius:0,pointHoverRadius:3});
+    var ds=[{label:'${esc(month)}',data:cur,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',fill:true,cubicInterpolationMode:'monotone',borderWidth:2,pointRadius:0,pointHoverRadius:4}];
+    if(${hasPrev ? 'true' : 'false'}) ds.push({label:'${esc(prevMonth.charAt(0).toUpperCase() + prevMonth.slice(1))}',data:prv,borderColor:'#a8a29e',borderWidth:1.5,borderDash:[4,4],fill:false,cubicInterpolationMode:'monotone',pointRadius:0,pointHoverRadius:3});
     var chart=new Chart(el,{type:'line',data:{labels:labels,datasets:ds},plugins:[bands],
       options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
         plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1917',padding:10,usePointStyle:true,

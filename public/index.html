@@ -2,8 +2,10 @@
 <html lang="es" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NFCloud · Analítica NFC B2B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>NFCloud</title>
+  <meta name="theme-color" content="#141312" />
+  <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.remove('dark')}catch(e){}</script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -17,6 +19,7 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans antialiased">
+  <a class="skip-link" id="skipLink" href="#mainContent">Ir al contenido</a>
 
   <!-- Layout: sidebar fija + contenido con scroll propio -->
   <div class="app-shell">
@@ -27,8 +30,8 @@
           <p class="brand-name leading-tight">NFCloud</p>
         </div>
       </div>
-      <nav class="sidebar-nav">
-        <a href="#dashboard" class="nav-link active"><span data-icon="bar-chart-3"></span> Resumen</a>
+      <nav class="sidebar-nav" aria-label="Secciones del panel">
+        <a href="#dashboard" class="nav-link active" aria-current="page"><span data-icon="bar-chart-3"></span> Resumen</a>
         <a href="#executive" class="nav-link"><span data-icon="target"></span> Comparar sedes</a>
         <a href="#operations" class="nav-link"><span data-icon="stethoscope"></span> Salud de puntos</a>
         <a href="#survey" class="nav-link"><span data-icon="star"></span> Calificación</a>
@@ -46,7 +49,7 @@
           </div>
         </div>
         <div id="healthBadge" class="text-xs text-slate-500 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-slate-400"></span> Comprobando…
+          <span class="status-dot"></span> Comprobando…
         </div>
       </div>
     </aside>
@@ -55,7 +58,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Contenido principal -->
-    <main class="app-main">
+    <main class="app-main" id="mainContent" tabindex="-1">
       <!-- Plan: aviso de prueba gratis (días restantes) -->
       <div id="trialBanner" class="trial-banner hidden" role="status"></div>
       <header class="app-header">
@@ -63,7 +66,7 @@
           <button id="sidebarToggle" class="btn-ghost sidebar-toggle" title="Menú" aria-label="Abrir menú de navegación"><span data-icon="menu"></span></button>
           <div class="min-w-0">
             <h1 class="text-xl font-bold" id="pageTitle">Resumen</h1>
-            <p class="text-sm text-slate-500 truncate"><span id="locCount">—</span> sedes activas</p>
+            <p class="text-sm text-slate-500 truncate"><span id="locCount">—</span></p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap header-tools">
@@ -74,11 +77,11 @@
           <!-- Filtros de analítica: solo aplican en vistas de reportes, no en gestión -->
           <div id="analyticsFilters" class="flex items-center gap-2 flex-wrap">
             <div class="combo" id="locationCombo">
-              <input type="search" id="locationSearch" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input type="search" id="locationSearch" aria-label="Buscar sede" name="nfc-location-search" class="input text-sm" placeholder="Todas las sedes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <input type="hidden" id="locationFilter" value="" />
               <div id="locationOptions" class="combo-list hidden"></div>
             </div>
-            <select id="channelFilter" class="input text-sm" title="Filtrar por destino">
+            <select id="channelFilter" aria-label="Filtrar por destino" class="input text-sm" title="Filtrar por destino">
               <option value="">Todos los destinos</option>
             </select>
             <!-- Selector de rango con atajos (reemplaza las dos cajas de fecha) -->
@@ -96,16 +99,16 @@
                 <div class="range-custom">
                   <span class="range-custom-title">Personalizado</span>
                   <div class="range-custom-row">
-                    <input type="date" id="fromDate" class="input text-xs" />
+                    <input type="date" id="fromDate" aria-label="Fecha inicial" class="input text-xs" />
                     <span class="text-slate-400" data-icon="arrow-right"></span>
-                    <input type="date" id="toDate" class="input text-xs" />
+                    <input type="date" id="toDate" aria-label="Fecha final" class="input text-xs" />
                   </div>
                   <button type="button" id="applyFilters" class="btn-primary text-xs w-full">Aplicar rango</button>
                 </div>
               </div>
             </div>
           </div>
-          <select id="companyFilter" class="input text-sm hidden" title="Empresa">
+          <select id="companyFilter" aria-label="Filtrar por empresa" class="input text-sm hidden" title="Empresa">
             <option value="">Todas las empresas</option>
           </select>
           </div>
@@ -138,22 +141,6 @@
             <p id="insightUpdated" class="insight-updated"></p>
             <button id="insightToggle" type="button" class="insight-toggle hidden" aria-expanded="false" aria-controls="insightRows">Ver más</button>
           </div>
-        </div>
-
-        <!-- Alertas accionables: lo que el dueño debe atender hoy -->
-        <div id="alertsPanel" class="alerts-panel hidden">
-          <div class="alerts-head">
-            <h3 class="alerts-title">Requieren atención <span id="alertsCount" class="alerts-count">0</span></h3>
-            <button id="alertsToggle" class="btn-ghost text-xs" aria-label="Mostrar u ocultar alertas">Ocultar</button>
-          </div>
-          <div id="alertsList" class="alerts-list"></div>
-        </div>
-
-        <!-- Desde que empezaste: el valor acumulado en una frase -->
-        <div id="sinceStrip" class="since-strip hidden" aria-live="polite">
-          <p id="sinceTitle" class="since-k"></p>
-          <p id="sinceMain" class="since-main"></p>
-          <p id="sinceDetail" class="since-sub"></p>
         </div>
 
         <!-- KPI cards -->
@@ -190,13 +177,29 @@
           <div id="valueBreakdown" class="value-breakdown"></div>
         </div>
 
+        <!-- Alertas accionables: lo que el dueño debe atender hoy -->
+        <div id="alertsPanel" class="alerts-panel hidden">
+          <div class="alerts-head">
+            <h2 class="alerts-title">Requieren atención <span id="alertsCount" class="alerts-count">0</span></h2>
+            <button id="alertsToggle" class="btn-ghost text-xs" aria-label="Mostrar u ocultar alertas">Ocultar</button>
+          </div>
+          <div id="alertsList" class="alerts-list"></div>
+        </div>
+
+        <!-- Desde que empezaste: el valor acumulado en una frase -->
+        <div id="sinceStrip" class="since-strip hidden" aria-live="polite">
+          <p id="sinceMain" class="since-main"></p>
+          <p id="sinceDetail" class="since-sub"></p>
+          <p id="sinceTitle" class="since-k"></p>
+        </div>
+
         <!-- Charts -->
         <!-- Fila principal: tendencia (contexto temporal) + horas pico (accionable) -->
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 charts-row-top">
           <div class="card xl:col-span-2">
             <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <div class="flex items-center gap-3">
-                <h3 class="font-semibold">Tendencia de interacciones</h3>
+                <h2 class="font-semibold">Tendencia de interacciones</h2>
                 <span id="trendVariation" class="variation-badge hidden"></span>
               </div>
               <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
@@ -212,7 +215,7 @@
           </div>
           <div class="card">
             <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 class="font-semibold">Interacciones por hora del día</h3>
+              <h2 class="font-semibold">Interacciones por hora del día</h2>
               <div class="flex items-center gap-3 text-xs text-slate-500 shift-legend">
                 <span class="shift-band-chip band-manana" data-icon="sun" data-icon-size="12" aria-hidden="true"></span> Mañana
                 <span class="shift-band-chip band-tarde" data-icon="sunset" data-icon-size="12" aria-hidden="true"></span> Tarde
@@ -229,7 +232,7 @@
         <div class="card">
           <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
             <div>
-              <h3 class="font-semibold">Cuándo interactúan tus clientes</h3>
+              <h2 class="font-semibold">Cuándo interactúan tus clientes</h2>
               <p id="heatInsight" class="text-sm text-muted"></p>
             </div>
             <span class="text-xs text-muted">Día de la semana y hora</span>
@@ -240,7 +243,7 @@
         <!-- Comparar sedes es el valor central para cadenas -->
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 class="font-semibold">Sedes con más interacciones</h3>
+            <h2 class="font-semibold">Sedes con más interacciones</h2>
             <span class="flex items-center gap-3">
               <span class="text-xs text-muted">Top 10 del periodo</span>
               <a id="exportLocations" class="btn-ghost text-xs" style="border:1px solid var(--card-border)" href="#" download>Descargar todas (Excel)</a>
@@ -251,7 +254,7 @@
 
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 class="font-semibold">Interacciones por destino</h3>
+            <h2 class="font-semibold">Interacciones por destino</h2>
             <span class="text-xs text-muted">A dónde llevaron los puntos NFC/QR</span>
           </div>
           <div class="channel-layout">
@@ -264,7 +267,7 @@
 
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 class="font-semibold">Cómo llegan los clientes</h3>
+            <h2 class="font-semibold">Cómo llegan los clientes</h2>
             <span class="text-xs text-muted">Tocando el chip NFC o escaneando el QR</span>
           </div>
           <div id="sourceSplit"></div>
@@ -295,7 +298,7 @@
         <div id="impactCard" class="card impact-card">
           <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
             <div>
-              <h3 class="font-semibold">Impacto en reputación de Google</h3>
+              <h2 class="font-semibold">Impacto en reputación de Google</h2>
               <p id="impactSince" class="text-sm text-muted">Desde la primera medición de cada sede</p>
             </div>
           </div>
@@ -306,7 +309,7 @@
         <div id="goalsCard" class="card hidden">
           <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
             <div>
-              <h3 class="font-semibold">Metas del mes</h3>
+              <h2 class="font-semibold">Metas del mes</h2>
               <p id="goalsSub" class="text-sm text-muted"></p>
             </div>
             <p id="goalsSummary" class="text-sm font-semibold"></p>
@@ -318,7 +321,7 @@
         <div class="card">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 class="font-semibold">Brecha entre sedes</h3>
+              <h2 class="font-semibold">Brecha entre sedes</h2>
               <p class="text-sm text-slate-500">Diferencia entre la sede líder y la de menor rendimiento en el periodo</p>
             </div>
             <div class="text-right">
@@ -332,7 +335,7 @@
         <div id="compSummaryCard" class="card hidden">
           <div class="flex items-start justify-between flex-wrap gap-2 mb-4">
             <div>
-              <h3 class="font-semibold">Frente a la competencia en Google</h3>
+              <h2 class="font-semibold">Frente a la competencia en Google</h2>
               <p class="text-sm text-muted">Tu calificación contra la del mejor competidor de cada sede</p>
             </div>
             <p id="compSummary" class="text-sm font-semibold"></p>
@@ -343,13 +346,13 @@
         <!-- Top 3 vs Bottom 3 -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div class="card">
-            <h3 class="font-semibold mb-1">Sedes líderes</h3>
+            <h2 class="font-semibold mb-1">Sedes líderes</h2>
             <p class="text-xs text-slate-500 mb-4">Top 3 sedes con mayor volumen</p>
             <div id="leadersList" class="space-y-2"></div>
           </div>
           <div class="card">
-            <h3 class="font-semibold mb-1">Sedes a revisar</h3>
-            <p class="text-xs text-slate-500 mb-4">3 sedes con menor volumen — posible soporte retirado o dañado</p>
+            <h2 class="font-semibold mb-1">Sedes a revisar</h2>
+            <p class="text-xs text-slate-500 mb-4">3 sedes con menor volumen — posible punto retirado o dañado</p>
             <div id="laggardsList" class="space-y-2"></div>
           </div>
         </div>
@@ -357,17 +360,17 @@
         <!-- Comparación A/B -->
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <h3 class="font-semibold">Comparación directa A / B</h3>
+            <h2 class="font-semibold">Comparación directa</h2>
             <div class="flex items-center gap-2 flex-wrap compare-controls">
-              <select id="compareA" class="input text-sm"></select>
+              <select id="compareA" aria-label="Primera sede a comparar" class="input text-sm"></select>
               <span class="text-slate-400 text-sm">vs</span>
-              <select id="compareB" class="input text-sm"></select>
+              <select id="compareB" aria-label="Segunda sede a comparar" class="input text-sm"></select>
               <button id="compareBtn" class="btn-primary text-sm">Comparar</button>
             </div>
           </div>
           <div class="flex items-center gap-4 text-xs text-slate-500 mb-3">
             <span><span class="legend-dot legend-accent"></span> <span id="compareLabelA">Sede A</span> · <b id="compareTotalA">—</b></span>
-            <span><span class="legend-dot legend-ok"></span> <span id="compareLabelB">Sede B</span> · <b id="compareTotalB">—</b></span>
+            <span><span class="legend-dot legend-neutral"></span> <span id="compareLabelB">Sede B</span> · <b id="compareTotalB">—</b></span>
           </div>
           <canvas id="compareChart" height="110"></canvas>
         </div>
@@ -380,7 +383,7 @@
           <div class="card">
             <p class="kpi-label section-title-icon"><span class="txt-emerald" data-icon="check-circle"></span> Activas</p>
             <p id="opActive" class="kpi-value">—</p>
-            <p class="text-xs text-slate-500 mt-1">Escaneos en las últimas 24h</p>
+            <p class="text-xs text-slate-500 mt-1">Con interacciones en las últimas 24 h</p>
           </div>
           <div class="card">
             <p class="kpi-label section-title-icon"><span class="txt-amber" data-icon="circle"></span> Bajo flujo</p>
@@ -390,19 +393,19 @@
           <div class="card">
             <p class="kpi-label section-title-icon"><span class="txt-rose" data-icon="alert-triangle"></span> Alerta / Inactivas</p>
             <p id="opAlert" class="kpi-value">—</p>
-            <p class="text-xs text-slate-500 mt-1">Más de 48h sin actividad</p>
+            <p class="text-xs text-slate-500 mt-1">Más de 48 h sin actividad</p>
           </div>
         </div>
 
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h3 class="font-semibold">Estado de soportes NFC por sede</h3>
-              <p class="text-xs text-slate-500">Detecta soportes retirados o dañados por inactividad</p>
+              <h2 class="font-semibold">Estado de los puntos por sede</h2>
+              <p class="text-xs text-slate-500">Detecta puntos retirados o dañados por falta de actividad</p>
             </div>
             <div class="flex items-center gap-2">
-              <input id="opSearch" type="search" name="nfc-op-search" placeholder="Buscar sede…" class="input text-sm w-56" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
-              <select id="opFilter" class="input text-sm">
+              <input id="opSearch" aria-label="Buscar sede" type="search" name="nfc-op-search" placeholder="Buscar sede…" class="input text-sm w-56" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <select id="opFilter" aria-label="Filtrar por estado" class="input text-sm">
                 <option value="">Todos</option>
                 <option value="active">Activas</option>
                 <option value="low">Bajo flujo</option>
@@ -442,19 +445,19 @@
           </div>
           <div class="card">
             <p class="kpi-label">Mejor aspecto</p>
-            <p id="svBest" class="kpi-value text-2xl truncate">—</p>
+            <p id="svBest" class="kpi-value kpi-value-text">—</p>
             <p id="svBestVal" class="text-xs text-slate-500 mt-1">—</p>
           </div>
           <div class="card">
             <p class="kpi-label">Aspecto a mejorar</p>
-            <p id="svWorst" class="kpi-value text-2xl truncate">—</p>
+            <p id="svWorst" class="kpi-value kpi-value-text">—</p>
             <p id="svWorstVal" class="text-xs text-slate-500 mt-1">—</p>
           </div>
         </div>
 
         <!-- Promedio por aspecto -->
         <div class="card">
-          <h3 class="font-semibold mb-1">Promedio por aspecto</h3>
+          <h2 class="font-semibold mb-1">Promedio por aspecto</h2>
           <p class="text-xs text-slate-500 mb-4">Nota media de cada aspecto en el periodo</p>
           <div class="survey-chart-wrap">
             <canvas id="svAspectsChart"></canvas>
@@ -464,7 +467,7 @@
 
         <!-- Evolución mensual (si hay serie) -->
         <div id="svTrendCard" class="card hidden">
-          <h3 class="font-semibold mb-1">Evolución mensual</h3>
+          <h2 class="font-semibold mb-1">Evolución mensual</h2>
           <p class="text-xs text-slate-500 mb-4">Promedio global por mes</p>
           <div class="survey-chart-wrap">
             <canvas id="svTrendChart"></canvas>
@@ -475,7 +478,7 @@
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h3 class="font-semibold">Plantillas de encuesta</h3>
+              <h2 class="font-semibold">Plantillas de encuesta</h2>
               <p class="text-xs text-slate-500">Define los aspectos que calificará cada punto en modo medición</p>
             </div>
             <button id="newTemplateBtn" class="btn-primary text-sm">+ Nueva plantilla</button>
@@ -488,9 +491,9 @@
       <section id="view-locations" class="p-6 hidden">
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-            <h3 class="font-semibold">Sedes</h3>
+            <h2 class="font-semibold">Sedes</h2>
             <div class="table-toolbar">
-              <input id="locSearch" type="search" name="nfc-loc-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input id="locSearch" aria-label="Filtrar sedes" type="search" name="nfc-loc-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="newLocationBtn" class="btn-primary text-sm">+ Nueva sede</button>
             </div>
           </div>
@@ -503,7 +506,7 @@
                   <th class="th">Ciudad</th>
                   <th class="th">Estado</th>
                   <th class="th text-right">Puntos NFC</th>
-                  <th class="th text-right">Total Clics</th>
+                  <th class="th text-right">Interacciones</th>
                   <th class="th text-right">Acciones</th>
                 </tr>
               </thead>
@@ -517,9 +520,9 @@
       <section id="view-devices" class="p-6 hidden">
         <div class="card overflow-hidden p-0">
           <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-            <h3 class="font-semibold">Puntos NFC</h3>
+            <h2 class="font-semibold">Puntos NFC</h2>
             <div class="table-toolbar">
-              <input id="devSearch" type="search" name="nfc-dev-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
+              <input id="devSearch" aria-label="Filtrar puntos NFC" type="search" name="nfc-dev-search" placeholder="Filtrar esta lista…" class="input text-sm w-64" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore />
               <button id="bulkBtn" class="btn-ghost text-sm section-title-icon" style="border:1px solid var(--card-border)"><span data-icon="target"></span> Cambio masivo</button>
               <button id="newDeviceBtn" class="btn-primary text-sm">+ Nuevo punto NFC</button>
             </div>
@@ -592,7 +595,7 @@
 
         <div class="card">
           <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
-            <h3 class="font-semibold">Tendencia de interacciones</h3>
+            <h2 class="font-semibold">Tendencia de interacciones</h2>
             <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
               <span class="legend-dot legend-accent"></span> Esta sede
               <span class="legend-dot legend-neutral"></span> Promedio por sede de la cadena
@@ -603,7 +606,7 @@
 
         <div class="card">
           <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-            <h3 class="font-semibold">Puntos NFC de la sede</h3>
+            <h2 class="font-semibold">Puntos NFC de la sede</h2>
             <span id="locDevCount" class="text-xs text-slate-500"></span>
           </div>
           <div id="locDevices" class="loc-devices"></div>
@@ -611,7 +614,7 @@
 
         <div class="card">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h3 class="font-semibold">Cómo llegan los clientes</h3>
+            <h2 class="font-semibold">Cómo llegan los clientes</h2>
             <span class="text-xs text-muted">Tocando el chip NFC o escaneando el QR</span>
           </div>
           <div id="locSourceSplit"></div>
@@ -621,7 +624,7 @@
         <div id="compCard" class="card hidden">
           <div class="flex items-start justify-between mb-4 flex-wrap gap-2">
             <div>
-              <h3 class="font-semibold">Tú frente a tu competencia</h3>
+              <h2 class="font-semibold">Tú frente a tu competencia</h2>
               <p id="compSub" class="text-sm text-muted">Calificación y reseñas en Google</p>
             </div>
             <span class="flex items-center gap-2">
@@ -634,11 +637,11 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div class="card">
-            <h3 class="font-semibold mb-3">Reputación en Google</h3>
+            <h2 class="font-semibold mb-3">Reputación en Google</h2>
             <div id="locReputation"></div>
           </div>
           <div class="card">
-            <h3 class="font-semibold mb-3">Calificación de los clientes</h3>
+            <h2 class="font-semibold mb-3">Calificación de los clientes</h2>
             <div id="locSurvey"></div>
           </div>
         </div>
@@ -652,21 +655,21 @@
       <!-- Informes (Función 2) -->
       <section id="view-reports" class="p-6 space-y-6 hidden">
         <div class="card">
-          <h3 class="font-semibold mb-1">Informe mensual</h3>
+          <h2 class="font-semibold mb-1">Informe mensual</h2>
           <p class="text-sm text-slate-500 mb-4">Resumen del mes por empresa y sede, listo para imprimir o guardar como PDF.</p>
           <div class="flex flex-wrap items-end gap-3">
             <div id="repCompanyWrap" class="hidden">
-              <label class="kpi-label block mb-1">Empresa</label>
+              <label for="repCompany" class="kpi-label block mb-1">Empresa</label>
               <select id="repCompany" class="input text-sm"></select>
             </div>
             <div>
-              <label class="kpi-label block mb-1">Sede</label>
+              <label for="repLocation" class="kpi-label block mb-1">Sede</label>
               <select id="repLocation" class="input text-sm">
                 <option value="">Todas las sedes</option>
               </select>
             </div>
             <div>
-              <label class="kpi-label block mb-1">Mes</label>
+              <label for="repMonth" class="kpi-label block mb-1">Mes</label>
               <input id="repMonth" type="month" class="input text-sm" />
             </div>
             <button id="repGenerate" class="btn-primary text-sm section-title-icon"><span data-icon="file-text"></span> Generar informe</button>
@@ -678,18 +681,18 @@
 
         <!-- Envío por correo (Fase B) -->
         <div class="card">
-          <h3 class="font-semibold mb-1">Enviar por correo</h3>
+          <h2 class="font-semibold mb-1">Enviar por correo</h2>
           <p class="text-sm text-slate-500 mb-4">Envía el informe a un gerente ahora, o prográmalo cada semana o mes. Usa la empresa, sede y mes seleccionados arriba.</p>
           <div id="repMailDisabled" class="hidden" style="color:var(--warn);font-size:13px;margin-bottom:12px">
             El envío por correo no está configurado en el servidor (faltan variables SMTP). Puedes seguir descargando el PDF.
           </div>
           <div class="flex flex-wrap items-end gap-3">
             <div class="flex-1 min-w-[220px]">
-              <label class="kpi-label block mb-1">Correo del destinatario</label>
+              <label for="repEmail" class="kpi-label block mb-1">Correo del destinatario</label>
               <input id="repEmail" type="email" class="input text-sm w-full" placeholder="gerente@empresa.com" autocomplete="off" />
             </div>
             <div>
-              <label class="kpi-label block mb-1">Frecuencia</label>
+              <label for="repFrequency" class="kpi-label block mb-1">Frecuencia</label>
               <select id="repFrequency" class="input text-sm">
                 <option value="monthly">Mensual · el mes que acaba de cerrar</option>
                 <option value="weekly">Semanal · lo que va del mes en curso</option>
@@ -703,7 +706,7 @@
 
         <!-- Valor de cada interacción y metas -->
         <div class="card" id="businessCard">
-          <h3 class="font-semibold mb-1">Valor y metas</h3>
+          <h2 class="font-semibold mb-1">Valor y metas</h2>
           <p class="text-sm text-slate-500 mb-4">Opcional. Di cuánto vale para tu negocio cada interacción y el panel estimará el dinero que generan tus puntos; con una meta mensual, cada sede se mide contra ella.</p>
           <p id="businessNoCompany" class="text-sm text-muted hidden">Elige una empresa arriba para configurar sus valores y metas.</p>
           <div id="businessForm">
@@ -726,7 +729,7 @@
 
         <!-- Avisos de sede inactiva -->
         <div class="card">
-          <h3 class="font-semibold mb-1">Avisos de sede sin actividad</h3>
+          <h2 class="font-semibold mb-1">Avisos de sede sin actividad</h2>
           <p class="text-sm text-slate-500 mb-4">Si una sede pasa el tiempo elegido sin interacciones, avisamos al responsable por correo, por WhatsApp o por ambos, con las sedes afectadas. Si WhatsApp no llega, va por SMS.</p>
           <div class="flex flex-wrap items-end gap-3">
             <div class="flex-1 min-w-[200px]">
@@ -767,16 +770,16 @@
         <div class="card">
           <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h3 class="font-semibold">Copia de seguridad de datos</h3>
+              <h2 class="font-semibold">Copia de seguridad de datos</h2>
               <p class="text-sm text-slate-500">Descarga un respaldo (JSON) con empresas, sedes, puntos NFC e interacciones.</p>
             </div>
             <a id="backupBtn" href="/api/export" class="btn-primary text-sm section-title-icon"><span data-icon="download"></span> Descargar respaldo</a>
           </div>
         </div>
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4">
           <div class="card overflow-hidden p-0">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-              <h3 class="font-semibold">Empresas</h3>
+              <h2 class="font-semibold">Empresas</h2>
               <button id="newCompanyBtn" class="btn-primary text-sm">+ Nueva empresa</button>
             </div>
             <div class="overflow-x-auto">
@@ -798,7 +801,7 @@
 
           <div class="card overflow-hidden p-0">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-              <h3 class="font-semibold">Usuarios de cliente</h3>
+              <h2 class="font-semibold">Usuarios de cliente</h2>
               <button id="newUserBtn" class="btn-primary text-sm">+ Nuevo usuario</button>
             </div>
             <div class="overflow-x-auto">
@@ -824,10 +827,10 @@
   <div id="companyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Nueva empresa</h3>
+        <h2 class="font-semibold text-lg">Nueva empresa</h2>
         <button id="closeCompanyModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
-      <label class="block text-sm font-medium mb-1">Nombre de la empresa</label>
+      <label for="companyName" class="block text-sm font-medium mb-1">Nombre de la empresa</label>
       <input id="companyName" type="text" class="input w-full" placeholder="Ej: Hogar y Moda" />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelCompany" class="btn-ghost">Cancelar</button>
@@ -841,14 +844,14 @@
   <div id="userModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Nuevo usuario de cliente</h3>
+        <h2 class="font-semibold text-lg">Nuevo usuario de cliente</h2>
         <button id="closeUserModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
-      <label class="block text-sm font-medium mb-1">Empresa</label>
+      <label for="userCompany" class="block text-sm font-medium mb-1">Empresa</label>
       <select id="userCompany" class="input w-full text-sm"></select>
-      <label class="block text-sm font-medium mb-1 mt-3">Usuario</label>
+      <label for="userUsername" class="block text-sm font-medium mb-1 mt-3">Usuario</label>
       <input id="userUsername" type="text" class="input w-full" placeholder="Ej: hogarymoda" autocomplete="off" data-lpignore="true" data-1p-ignore />
-      <label class="block text-sm font-medium mb-1 mt-3">Contraseña</label>
+      <label for="userPassword" class="block text-sm font-medium mb-1 mt-3">Contraseña</label>
       <input id="userPassword" type="text" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="off" data-lpignore="true" data-1p-ignore />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelUser" class="btn-ghost">Cancelar</button>
@@ -862,15 +865,15 @@
   <div id="changePwModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Cambiar contraseña</h3>
+        <h2 class="font-semibold text-lg">Cambiar contraseña</h2>
         <button id="closeChangePw" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <form autocomplete="off" onsubmit="return false">
-      <label class="block text-sm font-medium mb-1">Contraseña actual</label>
+      <label for="pwCurrent" class="block text-sm font-medium mb-1">Contraseña actual</label>
       <input id="pwCurrent" type="password" class="input w-full" autocomplete="current-password" />
-      <label class="block text-sm font-medium mb-1 mt-3">Nueva contraseña</label>
+      <label for="pwNext" class="block text-sm font-medium mb-1 mt-3">Nueva contraseña</label>
       <input id="pwNext" type="password" class="input w-full" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
-      <label class="block text-sm font-medium mb-1 mt-3">Repetir nueva contraseña</label>
+      <label for="pwConfirm" class="block text-sm font-medium mb-1 mt-3">Repetir nueva contraseña</label>
       <input id="pwConfirm" type="password" class="input w-full" autocomplete="new-password" />
       </form>
       <div class="flex justify-end gap-2 mt-6">
@@ -885,7 +888,7 @@
   <div id="qrModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-sm" style="text-align:center">
       <div class="flex items-center justify-between mb-4" style="text-align:left">
-        <h3 class="font-semibold text-lg">Código QR</h3>
+        <h2 class="font-semibold text-lg">Código QR</h2>
         <button id="closeQrModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="qrLabel" class="text-sm text-slate-500 mb-3"></p>
@@ -913,14 +916,14 @@
   <div id="bulkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Cambio masivo de destino</h3>
+        <h2 class="font-semibold text-lg">Cambio masivo de destino</h2>
         <button id="closeBulkModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p class="text-sm text-slate-500" style="margin-bottom:1rem">
         Cambia el destino de varios puntos NFC a la vez. Ideal para lanzar una campaña sin tocar las tarjetas.
       </p>
 
-      <label class="block text-sm font-medium mb-1">Alcance</label>
+      <label for="bulkScope" class="block text-sm font-medium mb-1">Alcance</label>
       <select id="bulkScope" class="input w-full text-sm">
         <option value="all">Todas las sedes</option>
         <option value="brand">Por marca / cadena</option>
@@ -928,15 +931,15 @@
       </select>
 
       <div id="bulkBrandWrap" class="hidden" style="margin-top:0.75rem">
-        <label class="block text-sm font-medium mb-1">Marca</label>
+        <label for="bulkBrand" class="block text-sm font-medium mb-1">Marca</label>
         <select id="bulkBrand" class="input w-full text-sm"></select>
       </div>
       <div id="bulkLocationWrap" class="hidden" style="margin-top:0.75rem">
-        <label class="block text-sm font-medium mb-1">Sede</label>
+        <label for="bulkLocation" class="block text-sm font-medium mb-1">Sede</label>
         <select id="bulkLocation" class="input w-full text-sm"></select>
       </div>
 
-      <label class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
+      <label for="bulkUrl" class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
       <input id="bulkUrl" type="url" class="input w-full" placeholder="https://…" />
 
       <div class="bulk-preview" id="bulkPreview">Se actualizarán <b id="bulkCount">—</b> puntos NFC.</div>
@@ -948,7 +951,7 @@
       <p id="bulkMsg" class="text-sm mt-3"></p>
 
       <div style="margin-top:1.25rem;border-top:1px solid var(--card-border);padding-top:1rem">
-        <h4 class="font-semibold text-sm" style="margin-bottom:0.5rem">Historial de cambios masivos</h4>
+        <h3 class="font-semibold text-sm" style="margin-bottom:0.5rem">Historial de cambios masivos</h3>
         <div id="bulkHistory" class="bulk-history"></div>
       </div>
     </div>
@@ -958,14 +961,14 @@
   <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Editar destino NFC</h3>
+        <h2 class="font-semibold text-lg">Editar destino NFC</h2>
         <button id="closeModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="editDeviceLabel" class="text-sm text-slate-500 mb-1"></p>
       <p id="editRedirectUrl" class="text-xs text-slate-400 mb-4 font-mono break-all"></p>
 
       <!-- Objetivo del punto: redirección o medición (excluyentes) -->
-      <label class="block text-sm font-medium mb-1">Objetivo del punto</label>
+      <p class="block text-sm font-medium mb-1">Objetivo del punto</p>
       <div class="flex gap-2 mb-3" role="radiogroup" aria-label="Objetivo del punto">
         <button type="button" id="editModeRedirect" class="mode-opt" data-mode="redirect">Redirección</button>
         <button type="button" id="editModeSurvey" class="mode-opt" data-mode="survey">Medición (encuesta)</button>
@@ -973,7 +976,7 @@
 
       <!-- Rama Redirección -->
       <div id="editRedirectWrap">
-        <label class="block text-sm font-medium mb-1">Enlace de destino</label>
+        <label for="editTargetUrl" class="block text-sm font-medium mb-1">Enlace de destino</label>
         <input id="editTargetUrl" type="url" class="input w-full" placeholder="https://…" />
         <label class="block text-sm font-medium mb-1 mt-3" for="editChannel">Tipo de destino</label>
         <select id="editChannel" class="input w-full text-sm"></select>
@@ -982,13 +985,13 @@
 
       <!-- Rama Medición (encuesta) -->
       <div id="editSurveyWrap" class="hidden">
-        <label class="block text-sm font-medium mb-1">Plantilla de encuesta</label>
+        <label for="editSurveyTemplate" class="block text-sm font-medium mb-1">Plantilla de encuesta</label>
         <select id="editSurveyTemplate" class="input w-full text-sm"></select>
         <p class="text-xs text-slate-500 mt-1">El punto mostrará esta encuesta en vez de redirigir.</p>
       </div>
 
       <div class="flex items-center gap-2 mt-3">
-        <label class="text-sm font-medium">Estado</label>
+        <label for="editStatus" class="text-sm font-medium">Estado</label>
         <select id="editStatus" class="input text-sm">
           <option value="active">Activo</option>
           <option value="inactive">Inactivo</option>
@@ -1006,17 +1009,17 @@
   <div id="templateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 id="templateModalTitle" class="font-semibold text-lg">Nueva plantilla</h3>
+        <h2 id="templateModalTitle" class="font-semibold text-lg">Nueva plantilla</h2>
         <button id="closeTemplateModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <div id="tplCompanyWrap" class="hidden">
-        <label class="block text-sm font-medium mb-1">Empresa</label>
+        <label for="tplCompany" class="block text-sm font-medium mb-1">Empresa</label>
         <select id="tplCompany" class="input w-full text-sm"></select>
       </div>
-      <label class="block text-sm font-medium mb-1 mt-3">Nombre de la plantilla</label>
+      <label for="tplName" class="block text-sm font-medium mb-1 mt-3">Nombre de la plantilla</label>
       <input id="tplName" type="text" class="input w-full" placeholder="Ej: Satisfacción del servicio" />
       <div class="flex items-center justify-between mt-4 mb-1">
-        <label class="block text-sm font-medium">Aspectos a calificar</label>
+        <p class="block text-sm font-medium">Aspectos a calificar</p>
         <button type="button" id="tplAddAspect" class="btn-ghost text-sm">+ Añadir aspecto</button>
       </div>
       <div id="tplAspects" class="space-y-2"></div>
@@ -1035,18 +1038,18 @@
   <div id="locationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Nueva sede</h3>
+        <h2 class="font-semibold text-lg">Nueva sede</h2>
         <button id="closeLocationModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <div id="locCompanyWrap" class="hidden">
-        <label class="block text-sm font-medium mb-1">Empresa</label>
+        <label for="locCompany" class="block text-sm font-medium mb-1">Empresa</label>
         <select id="locCompany" class="input w-full text-sm"></select>
       </div>
-      <label class="block text-sm font-medium mb-1 mt-3">Nombre de la sede</label>
+      <label for="locName" class="block text-sm font-medium mb-1 mt-3">Nombre de la sede</label>
       <input id="locName" type="text" class="input w-full" placeholder="Ej: Lalico - Centro" />
-      <label class="block text-sm font-medium mb-1 mt-3">Marca / cadena <span class="text-muted">(opcional, solo descriptiva)</span></label>
+      <label for="locBrand" class="block text-sm font-medium mb-1 mt-3">Marca / cadena <span class="text-muted">(opcional, solo descriptiva)</span></label>
       <input id="locBrand" type="text" class="input w-full" placeholder="Ej: Lalico (opcional)" />
-      <label class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
+      <label for="locCity" class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
       <input id="locCity" type="text" class="input w-full" placeholder="Ej: Medellín" />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelLocation" class="btn-ghost">Cancelar</button>
@@ -1060,19 +1063,19 @@
   <div id="editLocationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Editar sede</h3>
+        <h2 class="font-semibold text-lg">Editar sede</h2>
         <button id="closeEditLocation" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
-      <label class="block text-sm font-medium mb-1">Nombre de la sede</label>
+      <label for="editLocName" class="block text-sm font-medium mb-1">Nombre de la sede</label>
       <input id="editLocName" type="text" class="input w-full" />
-      <label class="block text-sm font-medium mb-1 mt-3">Marca / cadena <span class="text-muted">(opcional, solo descriptiva)</span></label>
+      <label for="editLocBrand" class="block text-sm font-medium mb-1 mt-3">Marca / cadena <span class="text-muted">(opcional, solo descriptiva)</span></label>
       <input id="editLocBrand" type="text" class="input w-full" />
-      <label class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
+      <label for="editLocCity" class="block text-sm font-medium mb-1 mt-3">Ciudad</label>
       <input id="editLocCity" type="text" class="input w-full" />
       <label class="block text-sm font-medium mb-1 mt-3" for="editLocGoal">Meta mensual propia <span class="text-muted">(opcional; vacía = la meta común)</span></label>
       <input id="editLocGoal" type="number" min="1" step="1" class="input w-full" placeholder="Usa la meta común de la empresa" />
       <div class="flex items-center gap-2 mt-3">
-        <label class="text-sm font-medium">Estado</label>
+        <label for="editLocStatus" class="text-sm font-medium">Estado</label>
         <select id="editLocStatus" class="input text-sm">
           <option value="active">Activa</option>
           <option value="inactive">Inactiva</option>
@@ -1093,12 +1096,12 @@
   <div id="placeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-2">
-        <h3 id="placeModalTitle" class="font-semibold text-lg">Buscar en Google</h3>
+        <h2 id="placeModalTitle" class="font-semibold text-lg">Buscar en Google</h2>
         <button id="closePlaceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="placeModalHint" class="text-sm text-muted mb-3"></p>
       <form id="placeSearchForm" class="flex gap-2">
-        <input id="placeQuery" type="search" class="input w-full text-sm" placeholder="Ej. Almacén Éxito La Playa Medellín" autocomplete="off" />
+        <input id="placeQuery" aria-label="Buscar negocio en Google" type="search" class="input w-full text-sm" placeholder="Ej. Almacén Éxito La Playa Medellín" autocomplete="off" />
         <button type="submit" class="btn-primary text-sm">Buscar</button>
       </form>
       <div id="placeResults" class="place-results mt-3"></div>
@@ -1109,18 +1112,18 @@
   <div id="deviceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-lg">Nuevo punto NFC</h3>
+        <h2 class="font-semibold text-lg">Nuevo punto NFC</h2>
         <button id="closeDeviceModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
-      <label class="block text-sm font-medium mb-1">Sede</label>
+      <label for="devLocationSearch" class="block text-sm font-medium mb-1">Sede</label>
       <div class="combo" id="devLocationCombo">
         <input type="search" id="devLocationSearch" class="input w-full text-sm" placeholder="Escribe para buscar una sede…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore role="combobox" aria-expanded="false" aria-autocomplete="list" aria-label="Buscar y seleccionar sede" />
         <input type="hidden" id="devLocation" value="" />
         <div id="devLocationOptions" class="combo-list hidden"></div>
       </div>
-      <label class="block text-sm font-medium mb-1 mt-3">Etiqueta del punto</label>
+      <label for="devLabel" class="block text-sm font-medium mb-1 mt-3">Etiqueta del punto</label>
       <input id="devLabel" type="text" class="input w-full" placeholder="Ej: Entrada principal" />
-      <label class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
+      <label for="devTarget" class="block text-sm font-medium mb-1 mt-3">Enlace de destino</label>
       <input id="devTarget" type="url" class="input w-full" placeholder="https://…" />
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancelDevice" class="btn-ghost">Cancelar</button>
@@ -1140,7 +1143,7 @@
   <div id="reputationModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full max-w-2xl">
       <div class="flex items-center justify-between mb-1">
-        <h3 class="font-semibold text-lg">Reputación de Google</h3>
+        <h2 class="font-semibold text-lg">Reputación de Google</h2>
         <button id="closeReputation" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p id="repLocName" class="text-sm text-slate-500 mb-4">—</p>
@@ -1156,19 +1159,19 @@
 
       <!-- Formulario de registro (SOLO superadmin) -->
       <div id="repForm" class="rep-form hidden">
-        <h4 class="font-semibold text-sm mb-2">Registrar medición</h4>
+        <h3 class="font-semibold text-sm mb-2">Registrar medición</h3>
         <p class="text-xs text-slate-500 mb-3">Mira el Google del negocio y anota su nota y total de reseñas de hoy.</p>
         <div class="rep-form-grid">
           <div>
-            <label class="block text-xs font-medium mb-1">Nota (0–5)</label>
+            <label for="repRating" class="block text-xs font-medium mb-1">Nota (0–5)</label>
             <input id="repRating" type="number" step="0.1" min="0" max="5" class="input w-full text-sm" placeholder="4.2" />
           </div>
           <div>
-            <label class="block text-xs font-medium mb-1">Nº de reseñas</label>
+            <label for="repCount" class="block text-xs font-medium mb-1">Nº de reseñas</label>
             <input id="repCount" type="number" step="1" min="0" class="input w-full text-sm" placeholder="29" />
           </div>
           <div>
-            <label class="block text-xs font-medium mb-1">Fecha</label>
+            <label for="repDate" class="block text-xs font-medium mb-1">Fecha</label>
             <input id="repDate" type="date" class="input w-full text-sm" />
           </div>
           <div class="rep-form-submit">
@@ -1188,7 +1191,7 @@
   <div id="campaignModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="campaignTitle">
     <div class="card w-full max-w-lg campaign-modal">
       <div class="flex items-center justify-between mb-1">
-        <h3 id="campaignTitle" class="font-semibold text-lg">Campañas</h3>
+        <h2 id="campaignTitle" class="font-semibold text-lg">Campañas</h2>
         <button id="closeCampaignModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
       </div>
       <p class="text-sm text-muted mb-4">Marca tus promociones y eventos. Aparecen como una franja en la tendencia y medimos cuánto movieron las interacciones frente a los días previos.</p>
@@ -1196,7 +1199,7 @@
       <div id="campaignList" class="campaign-list"></div>
 
       <form id="campaignForm" class="campaign-form" autocomplete="off">
-        <h4 id="campaignFormTitle" class="font-semibold text-sm mb-2">Nueva campaña</h4>
+        <h3 id="campaignFormTitle" class="font-semibold text-sm mb-2">Nueva campaña</h3>
         <div class="campaign-form-grid">
           <div class="campaign-field-wide">
             <label for="campaignName" class="block text-xs font-medium mb-1">Nombre</label>
@@ -1228,7 +1231,7 @@
     <div class="card w-full max-w-md">
       <div class="flex items-center gap-3 mb-3">
         <span class="confirm-icon" data-icon="alert-triangle"></span>
-        <h3 id="confirmTitle" class="font-semibold text-lg">Confirmar acción</h3>
+        <h2 id="confirmTitle" class="font-semibold text-lg">Confirmar acción</h2>
       </div>
       <p id="confirmMessage" class="text-sm text-slate-500" style="line-height:1.5"></p>
       <div class="flex justify-end gap-2 mt-6">
@@ -1238,7 +1241,7 @@
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-lg bg-slate-900 text-white text-sm shadow-lg"></div>
+  <div id="toast" role="status" aria-live="polite" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-lg text-white text-sm"></div>
 
   <script src="/app.js"></script>
 </body>

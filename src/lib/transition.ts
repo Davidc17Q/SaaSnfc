@@ -126,7 +126,7 @@ ${origin ? `<link rel="preconnect" href="${esc(origin)}" />` : ''}
     -webkit-font-smoothing:antialiased;
   }
   /* Halo de fondo: azul de marca y, al llegar al destino, su color. */
-  .halo{position:fixed;inset:0;pointer-events:none;opacity:.55;transition:opacity .5s ease}
+  .halo{position:fixed;inset:0;pointer-events:none;opacity:.3;transition:opacity .5s ease}
   .halo::before,.halo::after{content:"";position:absolute;left:50%;top:42%;width:120vmax;height:120vmax;
     transform:translate(-50%,-50%);transition:opacity .6s ease}
   .halo::before{background:radial-gradient(closest-side,rgba(37,99,235,.28),transparent 70%)}
@@ -143,18 +143,18 @@ ${origin ? `<link rel="preconnect" href="${esc(origin)}" />` : ''}
   @keyframes onda{0%{transform:scale(.85);opacity:.9}100%{transform:scale(1.9);opacity:0}}
   .ok .onda{border-color:color-mix(in srgb,var(--c) 70%,transparent);animation-iteration-count:1}
   .capa{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:32px;
-    transition:opacity .35s ease,transform .45s cubic-bezier(.3,1.4,.5,1)}
-  .capa-logo{background:linear-gradient(145deg,#3b82f6,#1d4ed8);box-shadow:0 18px 50px rgba(37,99,235,.45),inset 0 1px 0 rgba(255,255,255,.18)}
+    transition:opacity .3s ease,transform .4s cubic-bezier(.23,1,.32,1)}
+  .capa-logo{background:#1d4ed8;box-shadow:0 18px 40px -12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18)}
   .capa-logo img,.capa-logo svg{width:52px;height:52px;object-fit:contain}
-  .capa-dest{background:var(--c);color:#fff;opacity:0;transform:scale(.5) rotate(-8deg);
-    box-shadow:0 18px 50px color-mix(in srgb,var(--c) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.25)}
+  .capa-dest{background:var(--c);color:#fff;opacity:0;transform:scale(.9);
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.25)}
   .capa-dest svg{width:50px;height:50px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .ok .capa-logo{opacity:0;transform:scale(.6)}
-  .ok .capa-dest{opacity:1;transform:scale(1) rotate(0)}
+  .ok .capa-logo{opacity:0;transform:scale(.92)}
+  .ok .capa-dest{opacity:1;transform:scale(1)}
   /* Insignia de "listo" sobre el ícono del destino. */
   .listo{position:absolute;right:-6px;bottom:-6px;width:34px;height:34px;border-radius:50%;background:#fff;
     display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35);
-    opacity:0;transform:scale(.3);transition:opacity .25s ease .2s,transform .4s cubic-bezier(.3,1.6,.5,1) .2s}
+    opacity:0;transform:scale(.8);transition:opacity .2s ease .15s,transform .3s cubic-bezier(.23,1,.32,1) .15s}
   .listo svg{width:18px;height:18px;fill:none;stroke:#16a34a;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
   .ok .listo{opacity:1;transform:scale(1)}
   .texto{min-height:52px}
@@ -171,7 +171,7 @@ ${origin ? `<link rel="preconnect" href="${esc(origin)}" />` : ''}
   @keyframes llena{to{transform:scaleX(1)}}
   .manual{margin-top:22px;font-size:13px;color:var(--texto2);text-decoration:none;opacity:0;transition:opacity .3s}
   .manual.ver{opacity:1}
-  .pie{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:11px;color:#57534e;letter-spacing:.06em}
+  .pie{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:12px;color:#57534e;letter-spacing:.06em}
   @media(prefers-reduced-motion:reduce){
     .onda{display:none}.capa,.listo,.halo::before,.halo::after{transition:none}
     .barra i{animation:none;transform:none}.negocio{animation:none;opacity:1;transform:none}

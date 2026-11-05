@@ -119,6 +119,20 @@
   diseño: su fondo cambia por escena (azul, hueso, carbón) en el shader de
   `landing.js`; el panel sigue con su sistema sobrio.
 
+## Revisión estética del panel (5 de noviembre de 2026)
+
+- Skills nuevas en `.claude/skills/`: `impeccable` y 14 de Emil Kowalski (las web;
+  no se instalaron `animate-expo`, `write-swift` ni `ask-sonner`).
+  `nfcloud-design` sigue mandando y ya incluye movimiento y acabado.
+- Panel, login y encuesta pulidos: controles con la fuente de la marca, gráficos
+  con Plus Jakarta y curvas `monotone`, KPIs antes que alertas, modales accesibles
+  (`setupModals()`), móvil con objetivos de 44 px y barra de una sola fila.
+- Auditoría con Impeccable en toda la plataforma: títulos, etiquetas, gráficos
+  accesibles e informe, correo, redirección y landing depurados. Nombres de sede
+  normalizados también en el servidor (`src/lib/names.ts`). El detector solo deja
+  avisos de la fuente (decisión de marca) y falsos positivos de la landing.
+- Sin revisar a fondo: correos de avisos y lectura con lector de pantalla real.
+
 ## Pendiente
 
 - Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo

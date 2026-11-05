@@ -11,6 +11,7 @@
  * nadie. Las empresas en plan Básico no reciben avisos (son parte del panel).
  */
 import { pool, query } from '../db/pool';
+import { niceName } from './names';
 import { config } from '../config';
 import { isMailEnabled, sendHtmlMail } from './mailer';
 import { isMessagingEnabled, sendAlertMessage } from './messaging';
@@ -125,14 +126,14 @@ export function inactivityMailHtml(d: {
   const n = d.locations.length;
   const lead =
     n === 1
-      ? `La sede <b>${esc(d.locations[0].name)}</b> lleva más de ${thresholdLabel(d.thresholdHours)} sin que ningún cliente use sus puntos NFC.`
+      ? `La sede <b>${esc(niceName(d.locations[0].name))}</b> lleva más de ${thresholdLabel(d.thresholdHours)} sin que ningún cliente use sus puntos NFC.`
       : `<b>${n} sedes</b> llevan más de ${thresholdLabel(d.thresholdHours)} sin que ningún cliente use sus puntos NFC.`;
   const rows = d.locations
     .map(
       (l) => `<tr>
         <td width="4" bgcolor="${DANGER}" style="background:${DANGER};font-size:0;line-height:0">&nbsp;</td>
         <td style="padding:12px 14px;border-bottom:1px solid ${LINE}">
-          <div style="font:700 15px ${FONT};color:${INK}">${esc(l.name)}<span style="font-weight:400;color:${MUTED}"> · ${esc(l.city)}</span></div>
+          <div style="font:700 15px ${FONT};color:${INK}">${esc(niceName(l.name))}<span style="font-weight:400;color:${MUTED}"> · ${esc(l.city)}</span></div>
           <div style="font:400 13px ${FONT};color:${MUTED};margin-top:2px">${esc(sinceLabel(l.lastScan))}</div>
         </td>
       </tr>`

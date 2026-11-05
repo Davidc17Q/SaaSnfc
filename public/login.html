@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ingresar · NFCloud</title>
+  <meta name="theme-color" content="#141312" />
+  <script>try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.remove('dark')}catch(e){}</script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -19,27 +21,29 @@
 
     <!-- Hero / Branding -->
     <aside class="login-hero">
-      <div class="login-hero-glow"></div>
+      <svg class="login-hero-waves" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M30 34a24 24 0 0 1 0 32" /><path d="M42 24a38 38 0 0 1 0 52" /><path d="M54 14a52 52 0 0 1 0 72" /><path d="M66 4a66 66 0 0 1 0 92" />
+      </svg>
       <div class="login-hero-content">
         <div class="login-brand">
           <img src="/logo-texto-blanco.png" alt="NFCloud" class="login-logo-full" />
         </div>
-        <h1 class="login-hero-title">Controla y mide tus puntos de interacción física en tiempo real</h1>
+        <h1 class="login-hero-title">Cada punto físico de tu negocio, medido y bajo control</h1>
         <p class="login-hero-desc">
-          Redirección dinámica y analítica para tus dispositivos NFC. Cambia destinos al instante,
-          mide cada escaneo y detecta soportes inactivos, todo desde un solo panel.
+          Cambia el destino de tus puntos NFC y QR sin reimprimir, mira cómo se mueve cada sede
+          y recibe un aviso cuando algo deja de funcionar.
         </p>
         <ul class="login-hero-features">
-          <li><span data-icon="activity" data-icon-size="16"></span> Analítica en tiempo real por sede</li>
-          <li><span data-icon="target" data-icon-size="16"></span> Redirección dinámica sin reimprimir</li>
-          <li><span data-icon="stethoscope" data-icon-size="16"></span> Alertas de soportes inactivos</li>
+          <li>Interacciones por sede y por destino</li>
+          <li>Destinos editables al instante</li>
+          <li>Avisos de puntos sin actividad</li>
         </ul>
       </div>
     </aside>
 
     <!-- Formulario -->
     <main class="login-form-side">
-      <div class="login-card">
+      <form id="loginForm" class="login-card" novalidate>
         <!-- Marca compacta visible en móvil -->
         <div class="login-brand login-brand-mobile">
           <img src="/logo-texto-oscuro.png" alt="NFCloud" class="login-logo-full login-logo-full-dark" />
@@ -47,19 +51,19 @@
         </div>
 
         <h2 class="text-xl font-bold" style="margin-bottom:0.25rem">Iniciar sesión</h2>
-        <p class="text-sm text-slate-500" style="margin-bottom:1.5rem">Accede al panel de control</p>
+        <p class="text-sm text-slate-500" style="margin-bottom:1.5rem">Entra a tu panel de NFCloud</p>
 
-        <label class="block text-sm font-medium mb-1">Usuario</label>
+        <label for="user" class="block text-sm font-medium mb-1">Usuario</label>
         <div class="field">
           <span class="field-icon" data-icon="user"></span>
-          <input id="user" type="text" class="field-input" autocomplete="username" placeholder="Tu usuario" />
+          <input id="user" type="text" class="field-input" autocomplete="username" placeholder="Tu usuario" autofocus />
         </div>
 
-        <label class="block text-sm font-medium mb-1 mt-4">Contraseña</label>
+        <label for="password" class="block text-sm font-medium mb-1 mt-4">Contraseña</label>
         <div class="field">
           <span class="field-icon" data-icon="lock"></span>
           <input id="password" type="password" class="field-input" autocomplete="current-password" placeholder="Tu contraseña" />
-          <button type="button" id="togglePw" class="field-toggle" title="Mostrar u ocultar" data-icon="eye"></button>
+          <button type="button" id="togglePw" class="field-toggle" title="Mostrar u ocultar" aria-label="Mostrar u ocultar la contraseña" data-icon="eye"></button>
         </div>
 
         <label class="remember">
@@ -68,9 +72,9 @@
           <span class="text-sm">Recordar mi sesión</span>
         </label>
 
-        <button id="loginBtn" class="btn-login">Ingresar</button>
-        <p id="loginMsg" class="text-sm" style="margin-top:0.85rem;min-height:1.2rem"></p>
-      </div>
+        <button id="loginBtn" type="submit" class="btn-login">Ingresar</button>
+        <p id="loginMsg" role="alert" class="text-sm" style="margin-top:0.85rem;min-height:1.2rem"></p>
+      </form>
     </main>
 
   </div>

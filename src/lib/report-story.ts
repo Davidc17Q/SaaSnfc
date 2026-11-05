@@ -7,6 +7,7 @@
  * oculta o adapta el capítulo correspondiente.
  */
 import { query } from '../db/pool';
+import { niceName } from './names';
 import { campaignUplift } from './campaign-effect';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
@@ -153,8 +154,8 @@ export async function buildStory(s: StoryScope): Promise<StoryData> {
     const earlier = series.slice(0, -3);
     const earlierAvg = earlier.length ? earlier.reduce((a, b) => a + b, 0) / earlier.length : 0;
     return {
-      name: r.name,
-      city: r.sub,
+      name: niceName(r.name),
+      city: units === 'stores' ? r.sub : niceName(r.sub),
       scans: parseInt(r.curr, 10),
       prev: parseInt(r.prev, 10),
       series,

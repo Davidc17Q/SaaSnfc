@@ -155,7 +155,7 @@ export function reportMailHtml(d: ReportData, o: ReportMailOptions): string {
       <img src="${img}" width="600" alt="NFCloud" style="display:block;width:100%;max-width:600px;height:auto;border:0;color:#ffffff;font:700 22px ${FONT};line-height:1.4" />
     </td></tr>
     <tr><td class="pad" bgcolor="${NAVY}" align="center" style="background:${NAVY};padding:4px 32px 36px">
-      <div style="font:700 12px ${FONT};letter-spacing:.14em;text-transform:uppercase;color:#93c5fd">Tu informe de ${esc(d.periodLabel)}</div>
+      <div style="font:600 14px ${FONT};color:#c7d2fe">Tu informe de ${esc(d.periodLabel.toLowerCase())}</div>
       <div style="font:500 14px ${FONT};color:#c7d2fe;margin-top:6px">${esc(d.companyName)} · ${alcance}</div>
       <div class="hero-num" style="font:800 60px/1.05 ${FONT};color:#ffffff;margin-top:18px;letter-spacing:-.02em">${fmt(k.totalScans)}</div>
       <div style="font:500 15px ${FONT};color:#dbeafe;margin-top:6px">interacciones con tus puntos NFC</div>

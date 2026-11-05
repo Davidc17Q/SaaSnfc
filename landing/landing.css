@@ -177,7 +177,6 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
   animation: fade 1s 1.2s both;
 }
 
-.kicker { color: var(--accent-text); font-weight: 600; font-size: 15px; margin-bottom: 14px; }
 .panel h2 { font-size: clamp(32px, 3.6vw, 58px); font-weight: 800; line-height: 1.07; letter-spacing: -.035em; }
 .panel h2 + p { font-size: clamp(16px, 1.25vw, 19px); color: var(--muted); margin-top: 20px; }
 .note { font-size: 14px; color: var(--muted); margin-top: 20px; }
@@ -277,6 +276,15 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
   padding: 14px;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
+.lead-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237b756d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
 .lead-form input::placeholder { color: #7b756d; }
 .lead-form input:focus, .lead-form select:focus { outline: none; border-color: var(--accent-text); box-shadow: 0 0 0 3px var(--accent-ring); }
 .field-row { display: grid; grid-template-columns: minmax(0, .6fr) minmax(0, 1fr); gap: 14px; }
@@ -328,7 +336,7 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
   .formats div { padding: 8px 0; }
   .kpis { padding-top: 12px; gap: 10px; }
   .kpi span { font-size: 12px; }
-  .kpi em { font-size: 11px; }
+  .kpi em { font-size: 12px; }
   .note { margin-top: 10px; font-size: 13px; }
   .contact { min-height: 0; background: var(--blue-bg); }
   .contact-inner { width: 100%; max-width: 640px; }

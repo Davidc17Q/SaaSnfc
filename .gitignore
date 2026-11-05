@@ -9,3 +9,6 @@ npm-debug.log*
 
 # Cotizaciones de clientes (precios y datos personales): no van al repositorio
 cotizaciones/*/
+
+# Permisos locales de Claude Code
+.claude/settings.local.json

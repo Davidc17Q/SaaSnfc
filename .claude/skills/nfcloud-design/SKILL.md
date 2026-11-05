@@ -9,6 +9,12 @@ Objetivo de marca: que se vea **caro, confiable y bien desarrollado** para
 gerentes y directivos de cadenas. Premium = disciplina y restricción, no efectos
 vistosos. El dato es la estrella. Referencias: Linear, Stripe, Vercel.
 
+**Esta skill manda sobre cualquier otra en lo visual.** Las demás aportan oficio:
+`impeccable` (auditar, pulir, jerarquía, estados, copy; el panel es modo *Operate*:
+precisión y restricción, no expresión) y las de Emil Kowalski (`emil-design-eng`,
+`animate`, `review-animations`, `remove-animations`, `break-ui`, `mobile-native`).
+Si una regla suya choca con una de aquí, gana esta y se dice en el resumen.
+
 Para gráficos, carga también la skill `dataviz` (marcas, color, tooltips,
 anti-patrones) y aplica sus reglas con los tokens de este proyecto.
 
@@ -39,24 +45,49 @@ con el mayor peso visual.
 **Prohibido:** glassmorphism, blur sobre contenido, vidrios translúcidos;
 degradados vistosos/multicolor como decoración; barras de gráfico multicolor
 arbitrarias (las series de un solo sentido van en **monocromo azul con
-opacidades**, `accentA()` en `app.js`); animaciones que salten (microinteracciones
-sobrias, ~150-180ms).
+opacidades**, `accentA()` en `app.js`); texto con degradado; sombras de color o
+halos; `will-change` permanente.
 
 Gráficos (Chart.js, `public/app.js`): colores desde tokens vía `token()`,
 `accent()`, `accentA(alpha)`; nunca hex. Barras/áreas de una serie en monocromo
 azul. Dónut monocromo azul + neutro. Canales (WhatsApp, Instagram…) conservan su
 color de marca de terceros porque son INFORMACIÓN, no decoración. Tooltips: fondo
-carbón cálido, `usePointStyle`.
+carbón cálido, `usePointStyle`. La base común (fuente, `es-CO`, animación de 240 ms)
+está en `Chart.defaults`; no la repitas por gráfico. Líneas con
+`cubicInterpolationMode: 'monotone'`: una curva no puede inventar picos que el dato
+no tiene. Sin rejilla vertical; radio de barra 4. Una segunda serie de comparación
+es neutra, nunca verde (verde significa "bien").
 
-Componentes: **Cards** con bordes suaves + sombra en capas + aire (no borde duro).
-**Botones**: primario `--accent`, destructivo `--danger`. **Iconos**: Lucide
-(`public/icons.js`), no cambiar de set. Reutiliza patrones existentes (`.card`,
-`.input`, `.btn-primary`, `.btn-ghost`, `toast()`, `confirmDialog()`,
-`upsertChart`/`destroyChart`).
+Componentes: **Cards** con borde suave + `--shadow-card` + aire. Nada de tarjetas
+dentro de tarjetas: las filas internas se separan con espacio. **Botones**: relleno
+`--accent-fill` y destructivo `--danger-fill` (nunca `--accent`/`--danger`, que en
+oscuro no dan contraste con texto blanco). Menús y modales: `--shadow-pop`.
+**Iconos**: Lucide (`public/icons.js`), no cambiar de set. Reutiliza patrones
+existentes (`.card`, `.input`, `.btn-primary`, `.btn-ghost`, `toast()`,
+`confirmDialog()`, `upsertChart`/`destroyChart`). Todo modal `.fixed.inset-0.z-50`
+recibe rol, foco, Esc y trampa de Tab desde `setupModals()`; necesita un botón
+`close*` o `cancel*`.
 
-Accesibilidad: contraste legible de texto sobre superficies; `aria-label` en
-botones de solo-ícono; foco visible por teclado (`:focus-visible` con `--accent`);
-respetar `prefers-reduced-motion`.
+Movimiento (tokens `--ease-out`, `--dur-press` 120 ms, `--dur-ui` 160 ms,
+`--dur-overlay` 200 ms):
+- Antes de animar: ¿con qué frecuencia se ve? Navegación, filtros y lo que se usa
+  decenas de veces al día no se anima, solo cambia de color. Modales, menús y avisos
+  sí, con entrada corta.
+- Presionar responde: `scale(0.97)` en `:active`. Entradas con `@starting-style`,
+  desde `opacity: 0` y a lo sumo `scale(0.98)`; nunca desde `scale(0)` ni `ease-in`.
+- Propiedades exactas en `transition` (nunca `all`); solo `transform` y `opacity`
+  para moverse. Las tarjetas no se elevan al pasar el cursor.
+- Con `prefers-reduced-motion`, se quita el desplazamiento y queda el fundido.
+
+Acabado (lo que el navegador trae por defecto también es diseño): controles con
+`font: inherit`, `select.input` con flecha propia, `color-scheme` por tema, barras de
+desplazamiento y `::selection` con tokens, `:focus-visible` uniforme, `tabular-nums`
+en columnas. En táctil (`pointer: coarse`): objetivos de 44 px, campos de 16 px para
+que iOS no haga zoom y sin hover pegado. Altura con `dvh`, no solo `vh`.
+
+Accesibilidad: texto ≥ 4,5:1 sobre su superficie (también en claro con `--muted`);
+`aria-label` en botones de solo-ícono; cada campo con su `label for`;
+`role="status"`/`alert` en avisos y errores.
 
 ## Diseño que vende (directivos de cadenas)
 
@@ -98,9 +129,11 @@ en este orden: **¿cómo vamos? → ¿qué cambió? → ¿qué hago?**
 ## Que no parezca hecho por IA
 
 - Sin adornos de plantilla: nada de halos/glow en puntos de leyenda, íconos
-  dentro de cuadritos de color, franjas de color en el borde izquierdo de
-  tarjetas (excepto las filas de alerta, donde marcan la gravedad) ni emojis
-  en la interfaz.
+  dentro de cuadritos de color, franjas de color en un borde de tarjetas o filas
+  (la gravedad de una alerta la dice su insignia), trofeos dorados, rótulos sobre
+  los títulos ni emojis en la interfaz.
+- Nada técnico a la vista del cliente: "Sistema en línea", no "DB OK · Redis OK".
+- Decimales siempre en es-CO (`fmtDec()`): "4,24", nunca "4.24".
 - Íconos solo donde ayudan a actuar (navegación, botones, estados). Los títulos
   de sección van sin ícono.
 - Etiquetas en tipo oración ("Sedes con actividad"), no en MAYÚSCULAS con

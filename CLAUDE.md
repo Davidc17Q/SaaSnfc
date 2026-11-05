@@ -85,6 +85,11 @@ Archivos clave:
 
 ## Diseño UI/UX
 
+Skills instaladas en `.claude/skills/`: `impeccable` (auditar y pulir; su detector
+se corre con `.claude/skills/impeccable/scripts/impeccable detect`) y las de Emil
+Kowalski (`emil-design-eng`, `animate`, `review-animations`, `remove-animations`,
+`break-ui`, `mobile-native`…). Aportan oficio; **`nfcloud-design` manda** si chocan.
+
 Antes de tocar cualquier interfaz, gráfico o el informe mensual, **carga la
 skill `nfcloud-design`** (`.claude/skills/nfcloud-design/SKILL.md`): contiene el
 sistema visual (tokens, color, tipografía, componentes) y las reglas de diseño

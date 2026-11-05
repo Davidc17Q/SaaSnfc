@@ -22,7 +22,7 @@ async function doLogin() {
   msg.textContent = '';
 
   if (!user || !password) {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'Ingresa usuario y contraseña.';
     return;
   }
@@ -40,7 +40,7 @@ async function doLogin() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      msg.style.color = '#dc2626';
+      msg.style.color = 'var(--danger)';
       msg.textContent = err.error || 'No se pudo iniciar sesión.';
       btn.disabled = false;
       btn.textContent = 'Ingresar';
@@ -49,14 +49,14 @@ async function doLogin() {
     // Éxito: ir al panel
     window.location.href = '/';
   } catch {
-    msg.style.color = '#dc2626';
+    msg.style.color = 'var(--danger)';
     msg.textContent = 'Error de conexión.';
     btn.disabled = false;
     btn.textContent = 'Ingresar';
   }
 }
 
-$('#loginBtn').addEventListener('click', doLogin);
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') doLogin();
+$('#loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  doLogin();
 });

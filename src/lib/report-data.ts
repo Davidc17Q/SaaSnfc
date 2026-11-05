@@ -9,6 +9,7 @@
  * scan_events / survey_* acotadas al mes y al alcance (empresa + sede opcional).
  */
 import { query } from '../db/pool';
+import { niceName } from './names';
 import type { ReportData } from './report';
 import { campaignUplift } from './campaign-effect';
 import { buildStory } from './report-story';
@@ -76,7 +77,7 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
   let locationName: string | null = null;
   if (scope.locationId) {
     const l = await query<{ name: string }>(`SELECT name FROM locations WHERE id = $1`, [scope.locationId]);
-    locationName = l[0]?.name || null;
+    locationName = l[0]?.name ? niceName(l[0].name) : null;
   }
 
   const totalRow = await query<{ total: string }>(
@@ -281,13 +282,13 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
       prevPeriodLabel: `${MESES[prevDate.getMonth()]} ${prevDate.getFullYear()}`,
       inProgressDays,
       topLocation: topLoc[0]
-        ? { name: topLoc[0].name, city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
+        ? { name: niceName(topLoc[0].name), city: topLoc[0].city, scans: parseInt(topLoc[0].scans, 10) }
         : null,
       peakHour: peak[0] ? parseInt(peak[0].hour, 10) : null,
     },
     trend: trend.map((t) => ({ day: t.day, scans: parseInt(t.scans, 10) })),
     topLocations: topLocations.map((l) => ({
-      name: l.name,
+      name: niceName(l.name),
       city: l.city,
       scans: parseInt(l.scans, 10),
     })),

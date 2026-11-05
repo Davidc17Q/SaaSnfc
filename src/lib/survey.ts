@@ -90,7 +90,7 @@ export function surveyHtml(opts: {
     /* Carbón cálido (no azul noche). Azul de marca solo para la acción primaria. */
     --fondo:#141312; --tarjeta:#1c1a18; --borde:#322e2b;
     --texto:#fafaf9; --texto2:#a8a29e;
-    --azul:#3b82f6; --azul-hover:#60a5fa;
+    --azul:#2563eb; --azul-hover:#1d4ed8;
     --estrella:#fbbf24; --estrella-off:#4b4642;
   }
   html,body{height:100%}
@@ -113,11 +113,11 @@ export function surveyHtml(opts: {
   .aspect:first-child{padding-top:0}
   .aspect:last-child{border-bottom:none}
   .aspect-label{font-size:15px; font-weight:600; margin-bottom:10px}
-  .stars{display:flex; gap:6px}
-  .star{background:none; border:none; padding:4px; cursor:pointer; line-height:0; border-radius:8px}
+  .stars{display:flex; gap:0; margin-inline:-7px}
+  .star{background:none; border:none; padding:7px; cursor:pointer; line-height:0; border-radius:8px; -webkit-tap-highlight-color:transparent; touch-action:manipulation}
   .star svg{width:30px; height:30px; fill:var(--estrella-off); transition:fill .12s ease, transform .12s ease}
   .star.on svg{fill:var(--estrella)}
-  .star:hover svg{transform:scale(1.08)}
+  @media(hover:hover){.star:hover svg{transform:scale(1.08)}}
   .star:focus-visible{outline:2px solid var(--azul); outline-offset:2px}
   .coment{margin-top:18px}
   .coment label{display:block; font-size:14px; font-weight:600; margin-bottom:8px}
