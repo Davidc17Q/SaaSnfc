@@ -2,6 +2,8 @@
 
 > Léelo al empezar. Las reglas permanentes del proyecto están en `CLAUDE.md` y
 > el sistema de diseño en la skill `nfcloud-design`; aquí solo va el estado.
+>
+> **Lo más reciente:** sección "HOGAR Y MODA: ESTADO AL 6 DE NOVIEMBRE DE 2026".
 
 ## Estado (25 de octubre de 2026)
 
@@ -104,9 +106,85 @@
   ~330 chips; separar la empresa de demo "Hogar y Moda" en producción de la
   real; RUT, factura electrónica y retenciones con un contador; primer lote de
   ~10 sedes en Medellín.
-- **Pendiente de elegir:** qué prepara Claude primero — el acuerdo escrito,
-  la plantilla de Excel para mercadeo, el cronograma por lotes o un generador
-  masivo de habladores (PDF de imprenta por sede, con sus QR, desde el Excel).
+
+## HOGAR Y MODA: ESTADO AL 6 DE NOVIEMBRE DE 2026 (lo más reciente)
+
+Todo el material está en `cotizaciones/hogar-y-moda/` (fuera de git).
+
+**Sedes (`sedes/`).** La empresa pasó `DIRECCIONES TIENDAS 2026.xlsx` (hoja XX,
+81 sedes; la 82 es **Junín Motos**, sin dirección oficial). `HyM-control-sedes.xlsx`
+(interno: cruce con Google, lotes, fichas sobrantes, preguntas; no compartir) y
+`Hogar-y-Moda-datos-por-sede.xlsx` (plantilla de contactos para mercadeo). La hoja
+`Hoja1` del Excel de la empresa trae un "contador" por almacén de 2024 sin
+explicar; no se usó.
+
+**Lotes:** 1 Centro (11), 2 resto de Medellín (14), 3 Valle de Aburrá (11),
+4 Oriente (10), 5 y 6 fuera del Valle de Aburrá (36, kit enviado con guía en video).
+
+**Fichas de Google.** Censo sin sesión (`documentos/CENSO-FICHAS-...`) y búsqueda
+con la sesión de David el 3 nov. Yeison (community manager) diligenció
+`Hogar-y-Moda-fichas-de-Google.xlsx` y con eso se armó
+`Hogar-y-Moda-plan-fichas.xlsx`: 15 sedes ya en su cuenta
+(`analisisecommercehym@gmail.com`, un Gmail: pedir que TI tenga acceso),
+2 sin verificar (Manrique; Supía suspendida), **51 en correos de una agencia**
+sin acceso, 9 sin ficha, 5 por aclarar. Google le deja pedir unas **3 fichas al
+día** (dato de Yeison): plan diario por lote y reseñas, del 9 nov al 2 dic. Hoja
+"Por aclarar" con 11 dudas; antes de imprimir: ¿Candelaria cerró? (Yeison: "ya no
+existe"), ¿Junín 3 es Junín o Playa?, dirección de Junín Motos, Barbosa cambió a
+Cra. 15 #15-53. Hallazgos: Junín Principal (2,7) tiene anuncio pagado; Cimitarra y
+Puerto Boyacá aparecen sin dueño. El montaje no espera a las fichas: el chip de
+reseñas sirve con el enlace de la ficha aunque no sea de la empresa, y se cambia
+desde el panel. Mapa público de tiendas de Yeison (My Maps, 1,4 M de vistas): no
+dice quién administra cada ficha.
+
+**Hablador elegido.** La gerencia eligió la opción B ("Marea Abierta", franja
+azul–verde). Versión vigente: `hablador/hablador-carta-b2.html` →
+`hablador/opciones/Hablador-carta-resenas-y-credito.png`: dos áreas grandes,
+**reseñas** (blanca) y **crédito** (verde suave, el gerente dice que es lo que más
+le interesa), y abajo "Canal de WhatsApp" (promociones: "Ofertas más destacadas en
+tu celular"). Título de mercadeo: "Tu opinión nos ayuda a mejorar" /
+"¿Cuéntanos cómo fue tu experiencia hoy?" (lo pidieron con signos de
+interrogación). Se quitó "¡Paga tu cuota sin hacer fila!" hasta que confirme el
+gerente. Sin media carta por ahora. Falta: aprobación final, logo en alta y PDF de
+imprenta por sede con los QR reales. Variantes anteriores: `hablador-carta.html`
+(opción A), `hablador-carta-b.html`, `hablador-carta-b-credito.html`.
+
+**Costos de materiales (cotizados por David).** Hablador acrílico carta $25.000
+(media carta $15.000), tarjeta o chip $1.767 (100+, 7 % de descuento, falta
+confirmar si ya incluido), póster en propalcote $5.000–$10.000 (cotizar como
+82 archivos distintos). Con 1 hablador carta y 3 chips por sede: ≈ $3,1 M en total
+(≈ $38.300 por sede). La instalación acordada sigue en $180.000 por sede.
+
+**Cronograma** (`cronograma/Cronograma-NFCloud-Hogar-y-Moda.pdf` y `.png`):
+montaje completo en noviembre. Diseño y configuración 9–10 nov; pedido de
+acrílicos e impresión el 11 nov (≈ 8 y ≈ 5 días); prueba en Junín Principal 19–20;
+lotes 1–3 y envío a sedes lejanas 23–27 nov; lote 4 el 30 nov; verificación 1–2
+dic. Fichas en paralelo. Muy justo: depende de aprobar el diseño el 10 nov.
+
+**Sigue pendiente:** el **acuerdo escrito** (alcance, cuotas por lote, quién hace
+y paga el trabajo de fichas, permiso para usar el nombre y los resultados, precio
+fijo 12 meses + IPC) antes de pagar materiales; separar la empresa demo
+"Hogar y Moda" de la real en producción; RUT y facturación con un contador.
+
+## Otros frentes (30 oct – 6 nov de 2026)
+
+- **Incubadora On Going:** postulación enviada. One pager y logos en
+  `documentos/incubadora/`.
+- **Croydon:** diagnóstico de fichas en Antioquia
+  (`cotizaciones/croydon/Diagnostico-Croydon-Antioquia.pdf`): 12 de 15 tiendas,
+  7 por debajo de 4,0. Es grande (~110 tiendas en el país; decide el área de
+  tiendas, Fabián Rubio). Otras candidatas revisadas: Baby Fresh, Óptica Santa
+  Lucía, Fruta Fresca (ropa), Parmessano; Euro, Il Forno, Supermú y Mattelsa ya
+  tienen buena reputación (para ellas el argumento es datos y sedes rezagadas).
+- **Ideas de producto** para cadenas grandes (no construidas): cupón con canje en
+  caja, base de clientes con autorización (Ley 1581), quejas por tema por sede,
+  campañas programadas, medición por vendedor o mesa, "¿no hay tu talla?".
+- **Heladería (prospecto):** hablador de 4 opciones a $220.000 (mínimo $190.000),
+  menú digital +$100.000 si hay que hacerlo, plan opcional $19.900/mes.
+- **Scripts para vaciar interacciones:** el de git es `src/db/vaciar-interacciones.ts`
+  (`scripts/vaciar-riovivo-produccion.ps1`). Hay uno paralelo sin commit,
+  `src/db/vaciar.ts` + `scripts/vaciar-produccion.ps1` (`npm run vaciar --
+  --empresa lico`): decidir con cuál quedarse.
 
 ## Landing comercial (2 de noviembre de 2026)
 
@@ -135,12 +213,9 @@
 
 ## Pendiente
 
-- Reunión con el gerente de Hogar y Moda (primo): antes, refrescar la demo
-  de producción (`--continuar`) para que no salgan alertas de días sin
-  interacciones, crear un usuario `company_admin` de Hogar y Moda y repasar
-  el guion (`documentos/PREPARACION-REUNIONES.md`, ya con la competencia real).
-  Configurar en la demo valores por destino y una meta para lucir las nuevas
-  secciones.
+- Hogar y Moda: ver la sección "Estado al 6 de noviembre" (acuerdo escrito,
+  aprobación del hablador, PDF de imprenta por sede, crear la empresa real y sus
+  82 sedes en producción, dudas de la hoja "Por aclarar").
 - Inplux como segmento **Profesional** (el profe ya está).
 - Crear la cuenta de Twilio y sus variables en Railway (guía arriba).
 - Al crear los puntos del piloto: QR descargados del panel (`?s=q`) y chips
