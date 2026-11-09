@@ -151,9 +151,9 @@ imprenta por sede con los QR reales. Variantes anteriores: `hablador-carta.html`
 
 **Costos de materiales (cotizados por David).** Hablador acrílico carta $25.000
 (media carta $15.000), tarjeta o chip $1.767 (100+, 7 % de descuento, falta
-confirmar si ya incluido), póster en propalcote $5.000–$10.000 (cotizar como
-82 archivos distintos). Con 1 hablador carta y 3 chips por sede: ≈ $3,1 M en total
-(≈ $38.300 por sede). La instalación acordada sigue en $180.000 por sede.
+confirmar si ya incluido), impresión de los 82 pósters en propalcote $200.000
+en total (9 nov). Con 1 hablador carta y 3 chips por sede: $2.684.682 en total
+($32.740 por sede). La instalación acordada sigue en $180.000 por sede.
 
 **Cronograma** (`cronograma/Cronograma-NFCloud-Hogar-y-Moda.pdf` y `.png`):
 montaje completo en noviembre. Diseño y configuración 9–10 nov; pedido de
