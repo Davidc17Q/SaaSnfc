@@ -34,10 +34,14 @@ Dos sistemas de color SEPARADOS:
    estado **NUNCA** se usa como decoración. Lo grave puede destacar; lo "bien"
    casi silencioso. El color aparece donde hay que **actuar**.
 
-Excepción: el **login** comparte el mundo de la landing (azul de marca con luz de
-un solo tono, ondas NFC y tarjetas reales de clientes; formulario sobre
-`--login-surface`, hueso en claro). Es la puerta desde la landing; el panel
-sigue sobrio.
+Excepción: **degradado con grano** (grainy gradient, estilo ElevenLabs), permitido
+solo en el **login** y en la **landing**, nunca en el panel ni en el informe. Reglas:
+manchas de luz difusa de casi negro (`#050608`) a azul de marca (`#0e2f9e` →
+`#2a63f0`), sin otros tonos; encima, ruido fino (SVG `feTurbulence` en un
+`::after`, `mix-blend-mode: soft-light`, opacidad ≈ 0,5) para dar textura y evitar
+bandas. Implementación de referencia: `.login-split > .login-hero` en
+`public/styles.css`. En el login lo acompañan solo las ondas NFC del logo; el
+formulario va sobre `--login-surface` (hueso en claro, carbón en oscuro).
 
 Neutros **cálidos** (stone/zinc), no slate azulado. Fondo oscuro = carbón cálido
 (`--app-bg`), no azul noche. Tokens: `--app-bg`, `--card-bg`, `--card-border`,

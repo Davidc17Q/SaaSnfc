@@ -1017,9 +1017,8 @@ thead.bg-slate-50 { background: var(--input-bg); }
   .login-split { grid-template-columns: 1.05fr 1fr; }
 }
 
-/* Panel izquierdo: el mismo azul de la landing, para que quien viene de ella
-   sienta que entra al mismo lugar. Luz de un solo tono (no degradado de
-   colores), ondas NFC del logo y las tarjetas reales de clientes. */
+/* Panel izquierdo: degradado con grano de casi negro a azul de marca (ver
+   ".login-split > .login-hero" al final del archivo) y ondas NFC del logo. */
 :root { --login-blue: #0e2f9e; --login-blue-light: #2a63f0; --login-surface: #f7f5f1; }
 .dark { --login-surface: var(--app-bg); }
 .login-hero {
@@ -1032,13 +1031,13 @@ thead.bg-slate-50 { background: var(--input-bg); }
 }
 .login-hero-rings {
   position: absolute;
-  right: -18%;
-  bottom: -22%;
-  width: 46rem;
+  right: -8rem;
+  bottom: -11rem;
+  width: 20rem;
   max-width: none;
   aspect-ratio: 1;
   color: #fff;
-  opacity: 0.14;
+  opacity: 0.2;
   pointer-events: none;
 }
 .login-hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; max-width: 34rem; }
@@ -1058,43 +1057,14 @@ thead.bg-slate-50 { background: var(--input-bg); }
   color: #d6e2ff;
   max-width: 27rem;
 }
-.login-deck {
-  position: relative;
-  height: 15rem;
-  margin-top: 2.5rem;
-}
-.login-deck img {
-  position: absolute;
-  width: 15.5rem;
-  height: auto;
-  border-radius: 0.9rem;
-  box-shadow: 0 18px 40px -14px rgba(3, 12, 48, 0.75), 0 2px 6px rgba(3, 12, 48, 0.35);
-}
-.login-deck img:nth-child(1) { left: 0; top: 2.4rem; transform: rotate(-7deg); }
-.login-deck img:nth-child(2) { left: 9.5rem; top: 0; transform: rotate(3deg); z-index: 2; }
-.login-deck img:nth-child(3) { left: 19rem; top: 3.2rem; transform: rotate(9deg); }
-.login-deck-note { margin-top: 1rem; font-size: 0.875rem; color: #d6e2ff; }
-/* Una sola entrada, al llegar: las tarjetas se asientan. El login se ve pocas
-   veces, así que este momento sí se permite. */
-@media (prefers-reduced-motion: no-preference) {
-  .login-deck img { animation: login-card-in 600ms var(--ease-out) both; }
-  .login-deck img:nth-child(2) { animation-delay: 70ms; }
-  .login-deck img:nth-child(3) { animation-delay: 140ms; }
-}
-@keyframes login-card-in {
-  from { opacity: 0; translate: 0 18px; }
-  to { opacity: 1; translate: 0 0; }
-}
-/* Móvil: franja azul compacta con marca y titular; las tarjetas quedan para
-   pantallas donde caben. */
-.login-hero .login-deck, .login-hero .login-deck-note, .login-hero .login-hero-desc { display: none; }
+/* Móvil: franja compacta con marca y titular. En pantallas grandes el texto
+   queda arriba y las ondas ocupan la esquina inferior, sin cruzarse. */
+.login-hero .login-hero-desc { display: none; }
 @media (min-width: 768px) {
-  .login-hero { align-items: center; padding: 3.5rem; }
-  .login-hero .login-deck, .login-hero .login-deck-note, .login-hero .login-hero-desc { display: block; }
-  .login-hero-title { margin-top: 2.5rem; }
-}
-@media (min-width: 768px) and (max-width: 1100px) {
-  .login-deck { transform: scale(0.78); transform-origin: left top; height: 12rem; }
+  .login-hero { align-items: flex-start; padding: 4.5rem 3.5rem; }
+  .login-hero .login-hero-desc { display: block; }
+  .login-hero-title { margin-top: 4rem; }
+  .login-hero-rings { right: -14rem; bottom: -18rem; width: 48rem; }
 }
 
 /* Panel derecho (formulario) */
@@ -2378,6 +2348,24 @@ input[type='date'].input, input[type='month'].input { cursor: pointer; }
 .app-main:focus { outline: none; }
 
 /* Login: más específico que ".dark aside" (que pinta de carbón la barra lateral). */
+/* Degradado con grano (estilo ElevenLabs): casi negro arriba a la izquierda que
+   se abre en azul de marca abajo a la derecha. Un solo tono, sin multicolor; el
+   grano le da textura de papel y evita las bandas del degradado. */
 .login-split > .login-hero {
-  background: radial-gradient(90% 75% at 78% 62%, var(--login-blue-light) 0%, var(--login-blue) 72%);
+  isolation: isolate;
+  background:
+    radial-gradient(70% 60% at 88% 92%, #2a63f0 0%, rgba(42, 99, 240, 0) 70%),
+    radial-gradient(55% 50% at 30% 105%, rgba(29, 78, 216, 0.75) 0%, rgba(29, 78, 216, 0) 70%),
+    radial-gradient(55% 50% at 80% 40%, rgba(23, 42, 110, 0.5) 0%, rgba(23, 42, 110, 0) 70%),
+    linear-gradient(160deg, #050608 0%, #080b18 40%, #0e2f9e 100%);
+}
+.login-split > .login-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.6 -0.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
