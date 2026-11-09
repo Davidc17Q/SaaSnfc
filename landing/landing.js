@@ -31,6 +31,103 @@ if (!REDUCED && 'IntersectionObserver' in window) {
   convos.forEach((c) => { c.classList.add('wait'); io.observe(c); });
 }
 
+/* ---------- Diseños hechos: una pieza sale con estela y entra la siguiente ---------- */
+const SHOW = [
+  { f: 'riovivo', kind: 'Tarjeta', name: 'RioVivo Spa' },
+  { f: 'gym', kind: 'Concepto', name: 'Gimnasio' },
+  { f: 'hab-lalico', kind: 'Hablador en acrílico', name: 'La Lico', tall: true },
+  { f: 'cafe', kind: 'Concepto', name: 'Cafetería' },
+  { f: 'inplux', kind: 'Tarjeta de equipo', name: 'Inplux' },
+  { f: 'libro', kind: 'Tarjeta de un libro', name: 'Docente universitario' },
+  { f: 'inmobiliaria', kind: 'Concepto', name: 'Inmobiliaria' },
+  { f: 'hab-riovivo', kind: 'Hablador en acrílico', name: 'RioVivo Spa', tall: true },
+  { f: 'docente', kind: 'Tarjeta profesional', name: 'Docente e investigadora' },
+  { f: 'lalico', kind: 'Tarjeta de reseñas', name: 'La Lico' },
+  { f: 'dental', kind: 'Concepto', name: 'Clínica odontológica' },
+];
+const showEl = document.getElementById('hechos');
+if (showEl) {
+  const frame = document.getElementById('showFrame');
+  const kindEl = document.getElementById('showKind'), nameEl = document.getElementById('showName');
+  const ticks = document.getElementById('showTicks');
+  const pauseBtn = document.getElementById('showPause');
+  const bgs = [...showEl.querySelectorAll('.show-bg-img')];
+  const HOLD = REDUCED ? 5200 : 3400;
+  ticks.innerHTML = SHOW.map(() => '<i></i>').join('');
+  const tickEls = [...ticks.children];
+  let idx = 0, timer = 0, visible = false, paused = false, busy = false, loaded = false, bgOn = 0;
+
+  const preload = () => {
+    if (loaded) return; loaded = true;
+    SHOW.forEach((s) => { new Image().src = `art/show/${s.f}.webp`; new Image().src = `art/show/${s.f}-bg.webp`; });
+  };
+  const setTicks = () => tickEls.forEach((t, i) => {
+    t.className = i < idx ? 'done' : i === idx ? 'now' : '';
+    t.style.animationDuration = `${HOLD}ms`;
+  });
+  const OUT_EASE = 'cubic-bezier(.7, 0, .84, 0)', IN_EASE = 'cubic-bezier(.16, 1, .3, 1)';
+
+  function go(next) {
+    if (busy) return;
+    busy = true;
+    const old = frame.querySelector('.show-piece');
+    const s = SHOW[next];
+    const img = new Image();
+    img.className = 'show-piece' + (s.tall ? ' tall' : '');
+    img.alt = `${s.kind}${s.kind === 'Concepto' ? ' de ejemplo' : ' NFC'} de ${s.name}`;
+    img.src = `art/show/${s.f}.webp`;
+    img.decode().catch(() => {}).then(() => {
+      frame.appendChild(img);
+      // Fondo: la luz del nuevo diseño entra con un empujón
+      const nb = bgs[1 - bgOn];
+      nb.src = `art/show/${s.f}-bg.webp`;
+      nb.classList.add('is-on'); bgs[bgOn].classList.remove('is-on');
+      bgOn = 1 - bgOn;
+      if (REDUCED) {
+        img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, easing: 'ease-out' });
+        old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' }).finished.then(() => old.remove());
+      } else {
+        nb.animate([{ transform: 'translate3d(8%, -5%, 0) scale(1.22)' }, { transform: 'translate3d(0, 0, 0) scale(1.06)' }], { duration: 1400, easing: IN_EASE });
+        showEl.classList.remove('whoosh'); void showEl.offsetWidth; showEl.classList.add('whoosh');
+        old.animate([
+          { transform: 'none', filter: 'blur(0px)', opacity: 1 },
+          { transform: 'translate3d(-60%, 0, 0) skewX(-14deg) scaleX(1.3)', filter: 'blur(22px)', opacity: 0 },
+        ], { duration: 480, easing: OUT_EASE, fill: 'forwards' }).finished.then(() => old.remove());
+        img.animate([
+          { transform: 'translate3d(60%, 0, 0) skewX(14deg) scaleX(1.35)', filter: 'blur(26px)', opacity: 0 },
+          { opacity: 1, offset: .45 },
+          { transform: 'none', filter: 'blur(0px)', opacity: 1 },
+        ], { duration: 950, delay: 120, easing: IN_EASE, fill: 'backwards' });
+      }
+      idx = next;
+      kindEl.textContent = s.kind; nameEl.textContent = s.name;
+      setTicks();
+      setTimeout(() => { busy = false; }, REDUCED ? 500 : 900);
+    });
+  }
+  const schedule = () => {
+    clearTimeout(timer);
+    if (visible && !paused) timer = setTimeout(() => { go((idx + 1) % SHOW.length); schedule(); }, HOLD);
+  };
+  frame.addEventListener('click', () => { go((idx + 1) % SHOW.length); schedule(); });
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused;
+    pauseBtn.setAttribute('aria-pressed', String(paused));
+    pauseBtn.setAttribute('aria-label', paused ? 'Reanudar los diseños' : 'Pausar los diseños');
+    showEl.classList.toggle('is-paused', paused);
+    schedule();
+  });
+  new IntersectionObserver((es) => {
+    for (const e of es) {
+      if (e.isIntersecting) preload();
+      visible = e.intersectionRatio > .35;
+      showEl.classList.toggle('is-live', visible);
+      schedule();
+    }
+  }, { rootMargin: '600px 0px', threshold: [0, .35] }).observe(showEl);
+  setTicks();
+}
+
 const nav = document.getElementById('nav');
 const onNav = () => nav.classList.toggle('scrolled', scrollY > 24);
 addEventListener('scroll', onNav, { passive: true });
