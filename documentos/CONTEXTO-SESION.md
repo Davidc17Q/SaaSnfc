@@ -185,8 +185,15 @@ fijo 12 meses + IPC) antes de pagar materiales; separar la empresa demo
 
 ## Otros frentes (30 oct – 6 nov de 2026)
 
-- **Incubadora On Going:** postulación enviada. One pager y logos en
-  `documentos/incubadora/`.
+- **Incubadoras (9 nov):** David quedó **preseleccionado en On Going EAFIT**
+  (incubadora; postulación con 8 h/semana, fase "lanzamiento y adquisición de
+  clientes") y **admitido en INTRO 2.0** (programa de la Alcaldía de Medellín con
+  EAFIT, operado con On Going, para ideas de base tecnológica; modalidad "Martes
+  Virtual", kick off por confirmar). No esperaba pasar a ambas. Recomendación:
+  conservar el cupo de INTRO mientras se define On Going y preguntarle al equipo,
+  con transparencia, si son compatibles o cuál encaja mejor (NFCloud ya tiene
+  producto y clientes). Ojo con el tiempo: instalación de Hogar y Moda del 23 al
+  30 nov. One pager y logos en `documentos/incubadora/`.
 - **Croydon:** diagnóstico de fichas en Antioquia
   (`cotizaciones/croydon/Diagnostico-Croydon-Antioquia.pdf`): 12 de 15 tiendas,
   7 por debajo de 4,0. Es grande (~110 tiendas en el país; decide el área de
