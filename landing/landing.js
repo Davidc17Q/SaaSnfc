@@ -18,10 +18,19 @@ document.getElementById('leadForm').addEventListener('submit', (e) => {
   const d = new FormData(e.target);
   const sedes = String(d.get('sedes') || '').trim();
   const msg = `Hola, soy de ${String(d.get('negocio')).trim()}. ` +
-    (sedes ? `Tenemos ${sedes} ${sedes === '1' ? 'sede' : 'sedes'}. ` : '') +
+    (sedes ? `Necesito ${sedes} ${sedes === '1' ? 'sede o tarjeta' : 'sedes o tarjetas'}. ` : '') +
     `Me interesa: ${d.get('interes')}. ¿Me envías los precios de NFCloud?`;
   window.open(`${WA}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
 });
+// Conversaciones de ejemplo: los mensajes llegan uno a uno al entrar en pantalla
+const convos = document.querySelectorAll('.convo');
+if (!REDUCED && 'IntersectionObserver' in window) {
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('play'); io.unobserve(e.target); }
+  }, { threshold: .45 });
+  convos.forEach((c) => { c.classList.add('wait'); io.observe(c); });
+}
+
 const nav = document.getElementById('nav');
 const onNav = () => nav.classList.toggle('scrolled', scrollY > 24);
 addEventListener('scroll', onNav, { passive: true });

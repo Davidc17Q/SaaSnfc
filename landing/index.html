@@ -37,6 +37,7 @@
     <a href="#como">Cómo funciona</a>
     <a href="#formatos">Formatos</a>
     <a href="#beneficios">Beneficios</a>
+    <a href="#profesionales">Para quién</a>
     <a href="#casos">Casos</a>
   </nav>
   <a class="nav-login" href="/login">Entrar</a>
@@ -137,6 +138,51 @@
       </div>
     </section>
 
+    <section class="block aud" id="profesionales">
+      <div class="aud-copy">
+        <h2 class="block-title">Para quien vende con su nombre</h2>
+        <p class="aud-lead">Ejecutivos, docentes, consultores y empresarios: una tarjeta con tu marca personal que abre tu trabajo con un toque.</p>
+        <dl class="aud-points">
+          <div><dt>Tu trabajo, no solo tu número</dt><dd>Lleva a tu portafolio, tu web, tu libro o tu LinkedIn.</dd></div>
+          <div><dt>Siempre al día</dt><dd>Cambias de cargo, de enlace o de proyecto y la tarjeta no se reimprime.</dd></div>
+          <div><dt>Sabes si funcionó</dt><dd>Cuántas personas la tocaron y cuándo, después de cada evento.</dd></div>
+          <div><dt>Para todo tu equipo</dt><dd>Una por integrante, con su nombre, como las de Inplux.</dd></div>
+        </dl>
+      </div>
+      <figure class="convo convo-pro" aria-label="Ejemplo: dos personas se conocen en un evento y una abre el portafolio de la otra con la tarjeta">
+        <div class="convo-thread">
+          <p class="bub bub-out" style="--i:0">¿Me pasas tu contacto?</p>
+          <p class="bub bub-in" style="--i:1">Claro, acerca tu celular a mi tarjeta.</p>
+          <p class="bub bub-chip" style="--i:2"><span class="chip-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8.3a6 6 0 0 1 0 7.4"/><path d="M9.5 5.6a10 10 0 0 1 0 12.8"/><path d="M13 3a14 14 0 0 1 0 18"/></svg></span>Portafolio de Ana María Restrepo, arquitecta</p>
+          <p class="bub bub-out" style="--i:3">Muy buen trabajo. Te escribo esta semana.</p>
+        </div>
+        <figcaption><span>Profesionales</span>Tu tarjeta lleva a lo que haces: portafolio, web, LinkedIn o WhatsApp, y lo cambias cuando quieras.</figcaption>
+      </figure>
+    </section>
+
+    <section class="block aud aud-rev" id="instituciones">
+      <div class="aud-copy">
+        <h2 class="block-title">Para instituciones que atienden a muchos</h2>
+        <p class="aud-lead">Universidades, colegios, clínicas y entidades: escucha a quien atiendes en cada punto, sin formularios en papel.</p>
+        <dl class="aud-points">
+          <div><dt>Encuestas en cada punto</dt><dd>Ventanilla, consultorio o aula: cada respuesta queda con su sede.</dd></div>
+          <div><dt>Nadie se va molesto sin que lo sepas</dt><dd>Con una nota baja, la persona deja su WhatsApp y llega un aviso al instante.</dd></div>
+          <div><dt>Información sin filas</dt><dd>Horarios, trámites o inscripciones en un toque, siempre actualizados.</dd></div>
+          <div><dt>Un informe para la dirección</dt><dd>Cada mes, en el correo, la comparación por sede o campus.</dd></div>
+        </dl>
+      </div>
+      <figure class="convo convo-inst" aria-label="Ejemplo: una persona califica mal la atención, deja su WhatsApp y la institución recibe un aviso">
+        <div class="convo-thread">
+          <p class="bub bub-in" style="--i:0">¿Cómo te atendimos hoy?</p>
+          <p class="bub bub-out" style="--i:1">2 de 5. Esperé mucho.</p>
+          <p class="bub bub-in" style="--i:2">Lo sentimos. ¿Te contactamos para resolverlo?</p>
+          <p class="bub bub-out" style="--i:3">Sí, este es mi WhatsApp.</p>
+          <p class="bub bub-chip" style="--i:4"><span class="chip-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>Aviso enviado a coordinación, Sede Norte</p>
+        </div>
+        <figcaption><span>Instituciones</span>Encuestas en cada punto de atención y un aviso al instante cuando alguien sale inconforme.</figcaption>
+      </figure>
+    </section>
+
     <section class="block" id="servicios">
       <h2 class="block-title">Nos encargamos de todo</h2>
       <ol class="steps">
@@ -171,16 +217,18 @@
 
   <section class="contact theme-blue" id="contacto" data-contact>
     <div class="contact-inner">
-      <h2>Cuéntanos cuántos puntos tienes y te enviamos los precios.</h2>
+      <h2>Cuéntanos qué necesitas y te enviamos los precios.</h2>
       <form id="leadForm" class="lead-form">
-        <label>Tu negocio<input name="negocio" required autocomplete="organization" placeholder="Nombre del negocio" /></label>
+        <label>Tu negocio o tu nombre<input name="negocio" required autocomplete="organization" placeholder="Negocio, institución o tu nombre" /></label>
         <div class="field-row">
-          <label>Sedes<input name="sedes" inputmode="numeric" placeholder="Ej.: 6" /></label>
+          <label>Sedes o tarjetas<input name="sedes" inputmode="numeric" placeholder="Ej.: 6" /></label>
           <label>Te interesa
             <select name="interes">
               <option>Reseñas en Google</option>
               <option>WhatsApp o pedidos</option>
               <option>Tarjetas para mi equipo</option>
+              <option>Mi tarjeta profesional</option>
+              <option>Encuestas para mi institución</option>
               <option>Medir mis sedes</option>
               <option>Aún no lo sé</option>
             </select>
