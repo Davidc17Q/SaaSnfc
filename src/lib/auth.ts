@@ -5,6 +5,9 @@ import { pool } from '../db/pool';
 import { BASIC_ALLOWED, companyPlan } from './plans';
 
 const COOKIE_NAME = 'nfc_session';
+// Marca de "ya es cliente" (sin datos de sesión): quien vuelve con la sesión
+// vencida llega al login y no a la landing comercial.
+const RETURN_COOKIE = 'nfc_cliente';
 
 export interface Session {
   userId: string | null; // null = superadmin por env (bootstrap)
@@ -41,6 +44,12 @@ function sign(payload: string): string {
 }
 
 function verify(token: string | undefined): Session | null {
+  const v = verifyFull(token);
+  return v ? v.session : null;
+}
+
+/** Como verify(), pero también entrega vencimiento y si es una sesión "recordada". */
+function verifyFull(token: string | undefined): { session: Session; exp: number; rem: boolean } | null {
   if (!token || !token.includes('.')) return null;
   const [data, sig] = token.split('.');
   const expected = createHmac('sha256', config.sessionSecret).update(data).digest('base64url');
@@ -55,24 +64,40 @@ function verify(token: string | undefined): Session | null {
     const p = JSON.parse(Buffer.from(data, 'base64url').toString('utf-8'));
     if (typeof p.exp !== 'number' || Date.now() > p.exp) return null;
     return {
-      userId: p.userId ?? null,
-      user: p.user,
-      role: p.role,
-      companyId: p.companyId ?? null,
+      session: {
+        userId: p.userId ?? null,
+        user: p.user,
+        role: p.role,
+        companyId: p.companyId ?? null,
+      },
+      exp: p.exp,
+      rem: p.rem === true,
     };
   } catch {
     return null;
   }
 }
 
-function readCookie(req: FastifyRequest): string | undefined {
+function readCookie(req: FastifyRequest, name = COOKIE_NAME): string | undefined {
   const raw = req.headers['cookie'];
   if (!raw) return undefined;
   for (const part of raw.split(';')) {
     const [k, ...v] = part.trim().split('=');
-    if (k === COOKIE_NAME) return decodeURIComponent(v.join('='));
+    if (k === name) return decodeURIComponent(v.join('='));
   }
   return undefined;
+}
+
+/** Cookie de sesión: "recordar" dura sessionHours; si no, 2 h y muere con el navegador. */
+function sessionCookie(session: Session, remember: boolean): string {
+  const hours = remember ? config.sessionHours : 2;
+  const exp = Date.now() + hours * 3600 * 1000;
+  const token = sign(JSON.stringify({ ...session, exp, rem: remember }));
+  const secure = config.publicBaseUrl.startsWith('https');
+  const persist = remember ? `; Max-Age=${config.sessionHours * 3600}` : '';
+  return `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${persist}${
+    secure ? '; Secure' : ''
+  }`;
 }
 
 /** Devuelve la sesión del request (o null). Se expone para uso en las rutas. */
@@ -143,17 +168,11 @@ export async function authRoutes(app: FastifyInstance) {
 
       // Con "recordar": la sesión dura sessionHours. Sin él: caduca pronto (2h) y la
       // cookie es de sesión de navegador (sin Max-Age).
-      const hours = remember === false ? 2 : config.sessionHours;
-      const exp = Date.now() + hours * 3600 * 1000;
-      const token = sign(JSON.stringify({ ...session, exp }));
       const secure = config.publicBaseUrl.startsWith('https');
-      const persist = remember === false ? '' : `; Max-Age=${config.sessionHours * 3600}`;
-      reply.header(
-        'Set-Cookie',
-        `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${persist}${
-          secure ? '; Secure' : ''
-        }`
-      );
+      reply.header('Set-Cookie', [
+        sessionCookie(session, remember !== false),
+        `${RETURN_COOKIE}=1; HttpOnly; Path=/; SameSite=Lax; Max-Age=${365 * 24 * 3600}${secure ? '; Secure' : ''}`,
+      ]);
       return { ok: true, role: session.role };
     }
   );
@@ -246,8 +265,14 @@ export function registerAuthGuard(app: FastifyInstance) {
       return;
     }
 
-    const session = getSession(req);
-    if (session) {
+    const full = verifyFull(readCookie(req));
+    const session = full ? full.session : null;
+    if (full && session) {
+      // Sesión deslizante: quien usa el panel con "recordar" no queda fuera a los
+      // 7 días; pasada la mitad del plazo, la cookie se renueva sola.
+      if (full.rem && full.exp - Date.now() < (config.sessionHours * 3600 * 1000) / 2) {
+        reply.header('Set-Cookie', sessionCookie(session, true));
+      }
       // Plan Básico (prueba vencida): solo se bloquea la API del panel; las
       // tarjetas (/r/) siguen funcionando y registrando interacciones.
       if (
@@ -265,7 +290,9 @@ export function registerAuthGuard(app: FastifyInstance) {
     if (url.startsWith('/api/')) {
       return reply.code(401).send({ error: 'No autenticado.' });
     }
-    // La raíz sin sesión es la entrada comercial; el resto del panel pide login.
-    return reply.redirect(url === '/' ? '/empresas/' : '/login');
+    // La raíz sin sesión es la entrada comercial, salvo para quien ya es cliente:
+    // ese vuelve a su login. El resto del panel pide login.
+    if (url === '/' && !readCookie(req, RETURN_COOKIE)) return reply.redirect('/empresas/');
+    return reply.redirect('/login');
   });
 }

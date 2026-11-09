@@ -210,6 +210,10 @@ fijo 12 meses + IPC) antes de pagar materiales; separar la empresa demo
   normalizados también en el servidor (`src/lib/names.ts`). El detector solo deja
   avisos de la fuente (decisión de marca) y falsos positivos de la landing.
 - Sin revisar a fondo: correos de avisos y lectura con lector de pantalla real.
+- 8 nov: login con el azul de la landing y tarjetas reales de clientes. Sesión
+  deslizante (con "recordar" se renueva sola pasada la mitad de los 7 días) y
+  cookie `nfc_cliente`: quien ya inició sesión alguna vez y la tiene vencida va
+  de `/` al login, no a la landing.
 
 ## Pendiente
 

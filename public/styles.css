@@ -1009,6 +1009,7 @@ thead.bg-slate-50 { background: var(--input-bg); }
 /* Layout split screen */
 .login-split {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 1fr;
 }
@@ -1016,57 +1017,84 @@ thead.bg-slate-50 { background: var(--input-bg); }
   .login-split { grid-template-columns: 1.05fr 1fr; }
 }
 
-/* Panel izquierdo: carbón liso en ambos temas. La marca la pone el texto y las
-   ondas NFC del logo, no un halo de color. */
+/* Panel izquierdo: el mismo azul de la landing, para que quien viene de ella
+   sienta que entra al mismo lugar. Luz de un solo tono (no degradado de
+   colores), ondas NFC del logo y las tarjetas reales de clientes. */
+:root { --login-blue: #0e2f9e; --login-blue-light: #2a63f0; --login-surface: #f7f5f1; }
+.dark { --login-surface: var(--app-bg); }
 .login-hero {
   position: relative;
-  display: none;
+  display: flex;
   overflow: hidden;
-  padding: 3.5rem;
-  color: #fafaf9;
-  background: #141312;
-  border-right: 1px solid #322e2b;
+  padding: 1.5rem 1.25rem 1.75rem;
+  color: #fff;
+  background: var(--login-blue);
 }
-@media (min-width: 768px) {
-  .login-hero { display: flex; align-items: center; }
-}
-.login-hero-waves {
+.login-hero-rings {
   position: absolute;
-  right: -7rem;
-  bottom: -7rem;
-  width: 26rem;
-  height: 26rem;
-  color: #fafaf9;
-  opacity: 0.07;
+  right: -18%;
+  bottom: -22%;
+  width: 46rem;
+  max-width: none;
+  aspect-ratio: 1;
+  color: #fff;
+  opacity: 0.14;
   pointer-events: none;
 }
-.login-hero-content { position: relative; max-width: 28rem; }
+.login-hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; max-width: 34rem; }
 .login-hero-title {
-  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-size: clamp(1.5rem, 2.9vw, 2.6rem);
   font-weight: 800;
-  line-height: 1.12;
+  line-height: 1.1;
   letter-spacing: -0.03em;
-  margin: 2.5rem 0 1rem;
-  color: #fafaf9;
+  margin: 1.25rem 0 0;
+  color: #fff;
   text-wrap: balance;
 }
 .login-hero-desc {
+  margin-top: 1rem;
   font-size: 1rem;
   line-height: 1.6;
-  color: #a8a29e;
-  max-width: 26rem;
+  color: #d6e2ff;
+  max-width: 27rem;
 }
-.login-hero-features {
-  list-style: none;
-  padding: 0;
-  margin: 2.25rem 0 0;
+.login-deck {
+  position: relative;
+  height: 15rem;
+  margin-top: 2.5rem;
 }
-.login-hero-features li {
-  padding: 0.75rem 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #e7e5e4;
-  border-top: 1px solid #322e2b;
+.login-deck img {
+  position: absolute;
+  width: 15.5rem;
+  height: auto;
+  border-radius: 0.9rem;
+  box-shadow: 0 18px 40px -14px rgba(3, 12, 48, 0.75), 0 2px 6px rgba(3, 12, 48, 0.35);
+}
+.login-deck img:nth-child(1) { left: 0; top: 2.4rem; transform: rotate(-7deg); }
+.login-deck img:nth-child(2) { left: 9.5rem; top: 0; transform: rotate(3deg); z-index: 2; }
+.login-deck img:nth-child(3) { left: 19rem; top: 3.2rem; transform: rotate(9deg); }
+.login-deck-note { margin-top: 1rem; font-size: 0.875rem; color: #d6e2ff; }
+/* Una sola entrada, al llegar: las tarjetas se asientan. El login se ve pocas
+   veces, así que este momento sí se permite. */
+@media (prefers-reduced-motion: no-preference) {
+  .login-deck img { animation: login-card-in 600ms var(--ease-out) both; }
+  .login-deck img:nth-child(2) { animation-delay: 70ms; }
+  .login-deck img:nth-child(3) { animation-delay: 140ms; }
+}
+@keyframes login-card-in {
+  from { opacity: 0; translate: 0 18px; }
+  to { opacity: 1; translate: 0 0; }
+}
+/* Móvil: franja azul compacta con marca y titular; las tarjetas quedan para
+   pantallas donde caben. */
+.login-hero .login-deck, .login-hero .login-deck-note, .login-hero .login-hero-desc { display: none; }
+@media (min-width: 768px) {
+  .login-hero { align-items: center; padding: 3.5rem; }
+  .login-hero .login-deck, .login-hero .login-deck-note, .login-hero .login-hero-desc { display: block; }
+  .login-hero-title { margin-top: 2.5rem; }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .login-deck { transform: scale(0.78); transform-origin: left top; height: 12rem; }
 }
 
 /* Panel derecho (formulario) */
@@ -1074,14 +1102,16 @@ thead.bg-slate-50 { background: var(--input-bg); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1.5rem;
-  background: var(--card-bg);
+  padding: 2rem 1.5rem 3rem;
+  background: var(--login-surface);
 }
 .login-card { width: 100%; max-width: 380px; }
+.login-form-side .field-input { background: var(--card-bg); }
+.login-hero .login-logo-full { height: 2.5rem; }
+@media (min-width: 768px) { .login-hero .login-logo-full { height: 3rem; } }
 
 .login-brand { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.75rem; }
-.login-brand-mobile { display: flex; }
-@media (min-width: 768px) { .login-brand-mobile { display: none; } }
+.login-brand-mobile { display: none; }
 
 /* Logo con texto (imagen completa, fondo transparente) */
 .login-logo-full { height: 3.25rem; width: auto; display: block; }
@@ -2346,3 +2376,8 @@ input[type='date'].input, input[type='month'].input { cursor: pointer; }
 }
 .skip-link:focus { transform: none; }
 .app-main:focus { outline: none; }
+
+/* Login: más específico que ".dark aside" (que pinta de carbón la barra lateral). */
+.login-split > .login-hero {
+  background: radial-gradient(90% 75% at 78% 62%, var(--login-blue-light) 0%, var(--login-blue) 72%);
+}

@@ -34,6 +34,11 @@ Dos sistemas de color SEPARADOS:
    estado **NUNCA** se usa como decoración. Lo grave puede destacar; lo "bien"
    casi silencioso. El color aparece donde hay que **actuar**.
 
+Excepción: el **login** comparte el mundo de la landing (azul de marca con luz de
+un solo tono, ondas NFC y tarjetas reales de clientes; formulario sobre
+`--login-surface`, hueso en claro). Es la puerta desde la landing; el panel
+sigue sobrio.
+
 Neutros **cálidos** (stone/zinc), no slate azulado. Fondo oscuro = carbón cálido
 (`--app-bg`), no azul noche. Tokens: `--app-bg`, `--card-bg`, `--card-border`,
 `--input-bg`, `--input-border`, `--input-text`, `--hover`, `--muted`.
