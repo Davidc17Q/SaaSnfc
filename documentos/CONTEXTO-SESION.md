@@ -111,6 +111,23 @@
 
 Todo el material está en `cotizaciones/hogar-y-moda/` (fuera de git).
 
+**Qué es el proyecto, en resumen.** Almacenes Hogar y Moda (Medellín; vende
+electrodomésticos, muebles y ropa a crédito; gerente: primo de David) contrató
+NFCloud para **sus 82 sedes**, sin piloto: $180.000 de instalación por sede (en
+cuotas) y $10.000 por sede al mes. En cada sede va **un hablador acrílico tamaño
+carta** con tres puntos (chip NFC + QR de NFCloud, destino editable en el panel):
+**reseñas en Google** de esa sede, **crédito por WhatsApp** (lo que más le
+interesa al gerente) y **canal de WhatsApp de promociones**. La gerencia ve en el
+panel las interacciones por sede, el crédito por sede, el ranking, alertas e
+informe mensual. Problema paralelo: las fichas de Google están desordenadas (51 en
+correos de una agencia sin acceso); mercadeo (Yeison, community manager) las
+recupera mientras se instala. **Se instalan las 82 sedes de una vez** (no por
+etapas de compra), del 23 al 30 de noviembre; los "lotes" solo ordenan las rutas
+de instalación. Contactos en el grupo de WhatsApp: gerente, su hermano (gerencia)
+y mercadeo. Presentación corta para terceros: artifact "NFCloud en Hogar y Moda"
+(https://claude.ai/artifact/BzR9kpgTPKv2scWU31ueQ8, 9 diapositivas, sin precios;
+fuentes en `presentacion/project/`).
+
 **Sedes (`sedes/`).** La empresa pasó `DIRECCIONES TIENDAS 2026.xlsx` (hoja XX,
 81 sedes; la 82 es **Junín Motos**, sin dirección oficial). `HyM-control-sedes.xlsx`
 (interno: cruce con Google, lotes, fichas sobrantes, preguntas; no compartir) y
