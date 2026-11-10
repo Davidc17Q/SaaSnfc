@@ -298,7 +298,7 @@ if (pvView) {
 const NARR = {
   // Los dos últimos mensajes y el cierre solo existen con la voz (.narr-only).
   pro: { src: 'audio/pro.mp3', cues: [1.7, 7.5, 9.3, 12.6, 15.3, 20.9], chime: [8.1], end: 23.9 },
-  inst: { src: 'audio/inst.mp3', cues: [1.6, 4.6, 8.4, 10.8, 12.9], chime: [.5] },
+  inst: { src: 'audio/inst.mp3', cues: [1.6, 4.6, 8.4, 10.8, 12.9], chime: [.5], end: 21.3 },
 };
 let actx = null;
 function nfcChime() {
