@@ -275,10 +275,37 @@ if (pvView) {
   const stopAuto = () => { auto = false; pvSec.classList.remove('auto'); clearTimeout(autoT); };
   function schedule() {
     clearTimeout(autoT);
-    if (auto && visible && !REDUCED) autoT = setTimeout(() => show((cur + 1) % VIEWS.length), 7000);
+    const go = auto && visible && open && !REDUCED;
+    if (go) autoT = setTimeout(() => show((cur + 1) % VIEWS.length), 7000);
     tabs.forEach((t) => t.classList.remove('run'));
-    if (auto && visible && !REDUCED) { void tabs[cur].offsetWidth; tabs[cur].classList.add('run'); }
+    if (go) { void tabs[cur].offsetWidth; tabs[cur].classList.add('run'); }
   }
+
+  // Plegado por defecto: se ve un adelanto y quien quiera abre el panel completo
+  const more = document.getElementById('pvMore');
+  const toggle = document.getElementById('pvToggle');
+  const PEEK = () => (matchMedia('(max-width: 640px)').matches ? 300 : 380);
+  let open = false;
+  more.inert = true;
+  more.style.maxHeight = `${PEEK()}px`;
+  toggle.addEventListener('click', () => {
+    open = !open;
+    pvSec.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? 'Ocultar el panel' : 'Ver el panel por dentro';
+    more.inert = !open;
+    more.style.maxHeight = `${open ? more.scrollHeight : PEEK()}px`;
+    if (open) {
+      more.addEventListener('transitionend', () => { if (open) more.style.maxHeight = 'none'; }, { once: true });
+    } else {
+      // Vuelve al inicio de la sección para no dejar a la persona a mitad de página
+      more.style.maxHeight = `${more.scrollHeight}px`;
+      void more.offsetHeight;
+      more.style.maxHeight = `${PEEK()}px`;
+      pvSec.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+    }
+    schedule();
+  });
   tabs.forEach((t, k) => {
     t.addEventListener('click', () => { stopAuto(); show(k); });
     t.addEventListener('keydown', (e) => {

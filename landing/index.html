@@ -135,6 +135,7 @@
           <h2 id="pvTitle">Así se ve tu panel</h2>
           <p>Cada vista responde una pregunta del negocio. Datos de ejemplo de una cadena con 8 sedes.</p>
         </div>
+        <div class="pv-more" id="pvMore">
         <div class="pv-tabs" role="tablist" aria-label="Vistas del panel" id="pvTabs">
           <button type="button" role="tab" id="pvTab0" aria-controls="pvView" aria-selected="true">Cuánto dinero dejan tus tarjetas</button>
           <button type="button" role="tab" id="pvTab1" aria-controls="pvView" aria-selected="false" tabindex="-1">Si la promoción funcionó</button>
@@ -155,6 +156,11 @@
           <li><b>Aviso de sede quieta</b>Te escribimos cuando un punto lleva días sin actividad.</li>
           <li><b>NFC o QR</b>Cada toque dice por dónde llegó el cliente.</li>
         </ul>
+        </div>
+        <div class="pv-toggle-wrap">
+          <button type="button" class="btn btn-primary pv-toggle" id="pvToggle" aria-expanded="false" aria-controls="pvMore">Ver el panel por dentro</button>
+          <span class="pv-toggle-note">5 vistas · datos de ejemplo</span>
+        </div>
       </div>
     </section>
 
