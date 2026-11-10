@@ -36,6 +36,7 @@
   <nav class="nav-links" aria-label="Secciones">
     <a href="#como">Cómo funciona</a>
     <a href="#formatos">Formatos</a>
+    <a href="#panel">Panel</a>
     <a href="#beneficios">Beneficios</a>
     <a href="#profesionales">Para quién</a>
     <a href="#casos">Casos</a>
@@ -57,8 +58,9 @@
         <p class="lead">Tarjetas y habladores NFC con tu marca, y un panel que te muestra qué sede responde y cuál no.</p>
         <div class="cta">
           <a class="btn btn-primary" href="#contacto">Pedir precios</a>
-          <a class="btn btn-ghost" href="#como">Ver cómo funciona</a>
+          <a class="btn btn-ghost" href="https://wa.me/573007240273?text=Hola%2C%20quiero%20agendar%20una%20demo%20de%20NFCloud%20de%2015%20minutos." target="_blank" rel="noopener" data-wa="Hola, quiero agendar una demo de NFCloud de 15 minutos.">Agendar una demo</a>
         </div>
+        <p class="trial">Incluye 30 días de prueba del panel.</p>
       </div>
       <p class="scroll-hint">Desliza para acercar el celular</p>
     </div>
@@ -127,6 +129,35 @@
 
   <div class="solid theme-light">
 
+    <section class="pv" id="panel" aria-labelledby="pvTitle">
+      <div class="pv-inner">
+        <div class="pv-head">
+          <h2 id="pvTitle">Así se ve tu panel</h2>
+          <p>Cada vista responde una pregunta del negocio. Datos de ejemplo de una cadena con 8 sedes.</p>
+        </div>
+        <div class="pv-tabs" role="tablist" aria-label="Vistas del panel" id="pvTabs">
+          <button type="button" role="tab" id="pvTab0" aria-controls="pvView" aria-selected="true">Cuánto dinero dejan tus tarjetas</button>
+          <button type="button" role="tab" id="pvTab1" aria-controls="pvView" aria-selected="false" tabindex="-1">Si la promoción funcionó</button>
+          <button type="button" role="tab" id="pvTab2" aria-controls="pvView" aria-selected="false" tabindex="-1">A qué hora llega tu gente</button>
+          <button type="button" role="tab" id="pvTab3" aria-controls="pvView" aria-selected="false" tabindex="-1">Qué sede necesita ayuda</button>
+          <button type="button" role="tab" id="pvTab4" aria-controls="pvView" aria-selected="false" tabindex="-1">Todo de una sede, en una página</button>
+        </div>
+        <div class="pv-window">
+          <div class="pv-bar" aria-hidden="true"><span class="pv-url">nfcloudco.com/panel</span><span class="pv-live"><i></i>Actualizado hace 3 min</span></div>
+          <div class="pv-body">
+            <ul class="pv-side" aria-hidden="true"><li data-s="0">Resumen</li><li data-s="1">Comparar sedes</li><li>Puntos NFC</li><li>Informes</li></ul>
+            <div class="pv-view" id="pvView" role="tabpanel" aria-labelledby="pvTab0" tabindex="0"></div>
+          </div>
+        </div>
+        <ul class="pv-extra">
+          <li><b>Descarga en Excel</b>Con los mismos filtros que estás viendo, para tu equipo o tu contador.</li>
+          <li><b>Informe mensual en tu correo</b>Listo para la junta, aunque nadie entre al panel.</li>
+          <li><b>Aviso de sede quieta</b>Te escribimos cuando un punto lleva días sin actividad.</li>
+          <li><b>NFC o QR</b>Cada toque dice por dónde llegó el cliente.</li>
+        </ul>
+      </div>
+    </section>
+
     <section class="show" id="hechos" aria-labelledby="showTitle">
       <div class="show-bg" aria-hidden="true"><img class="show-bg-img is-on" src="art/show/riovivo-bg.webp" alt="" /><img class="show-bg-img" alt="" /></div>
       <div class="show-inner">
@@ -152,8 +183,8 @@
       <h2 class="block-title">Lo que cambia en tu negocio</h2>
       <div class="rows">
         <article class="row"><h3>Tu reputación deja de depender de los molestos</h3><p>Le pides la reseña al cliente en el momento en que está contento, con un solo toque.</p></article>
-        <article class="row"><h3>Rescatas al cliente insatisfecho</h3><p>Con la encuesta, una nota baja no se pierde: el cliente puede dejar su WhatsApp y te avisamos al instante.</p></article>
-        <article class="row"><h3>Sabes qué sede funciona y cuál no</h3><p>Ranking por sede, mejor y peor siempre a la vista, con el origen de cada interacción: NFC o QR.</p></article>
+        <article class="row"><h3>Rescatas al cliente insatisfecho</h3><p>Con la encuesta, una nota baja no se pierde: el cliente puede dejar su WhatsApp y al responsable de la sede le llega un correo al instante con su comentario y su número.</p></article>
+        <article class="row"><h3>Sabes qué sede funciona y cuál no</h3><p>Ranking por sede, mejor y peor siempre a la vista, metas del mes y el valor en pesos de lo que genera cada una.</p></article>
         <article class="row"><h3>Nunca reimprimes por cambiar un enlace</h3><p>Promoción nueva, número nuevo o menú nuevo: cambias el destino y cada punto físico lo refleja.</p></article>
         <article class="row"><h3>Te enteras sin tener que entrar</h3><p>Informe mensual en tu correo y aviso cuando una sede lleva días sin actividad.</p></article>
       </div>
@@ -256,8 +287,10 @@
           </label>
         </div>
         <button class="btn btn-primary btn-full" type="submit">Pedir precios por WhatsApp</button>
+        <a class="btn btn-ghost btn-full" href="https://wa.me/573007240273?text=Hola%2C%20quiero%20agendar%20una%20demo%20de%20NFCloud%20de%2015%20minutos." target="_blank" rel="noopener" data-wa="Hola, quiero agendar una demo de NFCloud de 15 minutos.">Agendar una demo de 15 minutos</a>
+        <p class="trial">Todos los planes empiezan con 30 días de prueba del panel.</p>
       </form>
-      <p class="contact-alt">O escríbenos: <a href="https://wa.me/573007240273">300 724 0273</a> · <a href="mailto:davidquinterogallego1@gmail.com">davidquinterogallego1@gmail.com</a></p>
+      <p class="contact-alt">O escríbenos: <a href="https://wa.me/573007240273">300 724 0273</a> · <a href="mailto:contactonfcloud@gmail.com">contactonfcloud@gmail.com</a></p>
       <p class="qr-hint">Esta tarjeta funciona: escanéala con tu celular y abre nuestro WhatsApp.</p>
     </div>
   </section>
@@ -266,8 +299,17 @@
 
 <footer class="foot theme-blue">
   <img src="art/nfcloud-blanco.png" alt="NFCloud" width="624" height="186" loading="lazy" />
-  <span>Medellín, Colombia</span>
-  <a href="/login">Entrar al panel</a>
+  <span>Medellín, Colombia · <a href="mailto:contactonfcloud@gmail.com">contactonfcloud@gmail.com</a></span>
+  <nav class="foot-links" aria-label="Legal">
+    <!-- Ocultos hasta tener razón social, NIT y textos legales. Para activarlos, descomentar:
+    <a href="privacidad.html">Política de privacidad</a>
+    <a href="[ENLACE A TÉRMINOS DE USO]">Términos de uso</a>
+    -->
+    <a href="/login">Entrar al panel</a>
+  </nav>
+  <!-- [RAZÓN SOCIAL] · NIT [NIT]: añadir aquí como
+       <p class="foot-legal">[RAZÓN SOCIAL] · NIT [NIT]</p>
+       cuando exista el RUT. No publicar el número de cédula. -->
 </footer>
 
 <script src="vendor/qrcode.min.js"></script>

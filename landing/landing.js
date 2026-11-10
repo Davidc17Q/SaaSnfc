@@ -128,6 +128,171 @@ if (showEl) {
   setTicks();
 }
 
+/* ---------- Mensajes precargados de WhatsApp (mismo patrón del formulario) ---------- */
+const waLink = (msg) => `${WA}?text=${encodeURIComponent(msg)}`;
+document.querySelectorAll('a[data-wa]').forEach((a) => { a.href = waLink(a.dataset.wa); });
+document.querySelectorAll('a[data-pendiente]').forEach((a) => a.addEventListener('click', (e) => e.preventDefault()));
+
+/* ---------- "Así se ve tu panel": vistas con datos de ejemplo ---------- */
+const pvView = document.getElementById('pvView');
+if (pvView) {
+  const pvSec = document.getElementById('panel');
+  const tabs = [...document.querySelectorAll('#pvTabs [role="tab"]')];
+  const sideItems = [...document.querySelectorAll('.pv-side li')];
+  const n0 = new Intl.NumberFormat('es-CO');
+  const money = (v) => '$ ' + n0.format(Math.round(v));
+  const UP = '<span class="pv-delta up">▲', DOWN = '<span class="pv-delta down">▼';
+  const CH = { g: ['Reseñas en Google', '#4285f4'], w: ['WhatsApp', '#25d366'], i: ['Instagram', '#e1306c'] };
+  let reviewValue = 5000;
+
+  const VALUE = [['g', 1936, () => reviewValue], ['w', 3207, () => 2000], ['i', 1150, () => 1500]];
+  const valueTotal = () => VALUE.reduce((s, [, n, u]) => s + n * u(), 0);
+  const GOALS = [
+    ['Centro', 'Medellín', 1420, 1300, 'done', 'Cumplida'], ['Laureles', 'Medellín', 980, 1100, 'ok', 'En camino'],
+    ['Envigado', 'Envigado', 860, 1000, 'ok', 'En camino'], ['Sabaneta', 'Sabaneta', 610, 900, 'warn', 'Cerca'],
+    ['Bello', 'Bello', 420, 800, 'warn', 'Cerca'], ['Norte', 'Medellín', 290, 700, 'bad', 'Atrasada'],
+  ];
+  const DAY = 18, DAYS = 30;
+
+  function viewValue() {
+    const rows = VALUE.map(([k, n, u]) => `<div class="pv-vrow"><span class="pv-ch"><i style="background:${CH[k][1]}"></i>${CH[k][0]}</span><span class="pv-calc">${n0.format(n)} × ${money(u())}</span><b data-ch="${k}">${money(n * u())}</b></div>`).join('');
+    const goals = GOALS.map(([name, city, act, goal, st, lab]) => {
+      const proj = Math.min(100, act / DAY * DAYS / goal * 100), w = Math.min(100, act / goal * 100);
+      return `<div class="pv-goal"><span class="pv-gname">Sede ${name}<small>${city}</small></span><span class="pv-gbar"><i class="proj" style="--w:${proj}%"></i><i class="fill ${st}" style="--w:${w}%"></i></span><span class="pv-gnum">${n0.format(act)} <small>/ ${n0.format(goal)}</small></span><span class="pv-badge ${st}">${lab}</span></div>`;
+    }).join('');
+    return `<div class="pv-grid">
+      <div class="pv-card"><p class="pv-label">Valor estimado generado · este mes</p>
+        <p class="pv-big" id="pvTotal">${money(valueTotal())}</p>${UP} 12 % vs. el mes anterior</span>
+        <div class="pv-vrows">${rows}</div>
+        <label class="pv-slider"><span>Para ti, una reseña vale <output id="pvOut">${money(reviewValue)}</output></span>
+          <input type="range" id="pvRange" min="1000" max="20000" step="500" value="${reviewValue}" aria-label="Valor de una reseña en pesos" /></label>
+        <p class="pv-note">Tú pones el valor de cada destino; el panel convierte los toques en pesos.</p></div>
+      <div class="pv-card"><p class="pv-label">Metas del mes</p><p class="pv-sub">Día ${DAY} de ${DAYS} · 3 de 6 en camino · la barra clara es la proyección al cierre</p>
+        <div class="pv-goals">${goals}</div></div>
+    </div>`;
+  }
+
+  // Campaña: 14 días antes y 14 durante la promoción
+  const CAMP = [44, 41, 47, 52, 49, 45, 50, 46, 43, 48, 51, 47, 45, 49, 58, 66, 63, 71, 69, 64, 72, 68, 65, 70, 74, 67, 63, 69];
+  function viewCampaign() {
+    const W = 640, H = 220, P = 24, max = 80;
+    const x = (i) => P + i * (W - P * 2) / (CAMP.length - 1), y = (v) => H - P - v / max * (H - P * 2);
+    const line = CAMP.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+    const area = `${line}L${x(CAMP.length - 1)},${H - P}L${x(0)},${H - P}Z`;
+    const bx = (x(13) + x(14)) / 2;
+    return `<div class="pv-card pv-camp">
+      <div class="pv-camp-head"><div><p class="pv-label">Promoción 2x1 en cafés · 1 al 14 de octubre</p>
+        <p class="pv-big">+38 %</p><p class="pv-sub">interacciones diarias durante la promoción, frente a las 2 semanas anteriores</p></div>
+        <p class="pv-verdict">Funcionó en 7 de 8 sedes. En Sede Norte no se movió.</p></div>
+      <svg class="pv-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Interacciones diarias: unas 47 antes de la promoción y unas 67 durante">
+        <rect class="band" x="${bx}" y="${P - 8}" width="${W - P - bx}" height="${H - P * 2 + 8}" rx="6"/>
+        <text x="${P}" y="${P - 10}">Antes</text><text x="${bx + 10}" y="${P - 10}">Durante la promoción</text>
+        <line class="base" x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}"/>
+        <path class="area" d="${area}"/><path class="line" d="${line}" pathLength="1"/>
+      </svg>
+      <p class="pv-note">El panel no saca conclusiones con menos de 3 días de datos ni con muy pocas interacciones.</p></div>`;
+  }
+
+  // Mapa de calor: lunes a domingo, 8 a. m. a 8 p. m.
+  const DOW = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const HRS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const heatVal = (d, h) => {
+    const lunch = Math.exp(-((h - 12.5) ** 2) / 2.2), eve = Math.exp(-((h - 18.5) ** 2) / 2.6);
+    const wk = d >= 5 ? 1.35 : 1;
+    const sat = d === 5 ? 1.3 * Math.exp(-((h - 11.8) ** 2) / 3) : 0;
+    return Math.max(0, (lunch * .9 + eve * (d >= 5 ? .55 : .8) + .12) * wk + sat - (d === 6 && h > 17 ? .4 : 0));
+  };
+  function viewHeat() {
+    const max = Math.max(...DOW.flatMap((_, d) => HRS.map((h) => heatVal(d, h))));
+    const head = `<span></span>${HRS.map((h) => `<span class="pv-hh">${h % 2 === 0 ? (h > 12 ? h - 12 : h) + (h >= 12 ? ' p. m.' : ' a. m.') : ''}</span>`).join('')}`;
+    const rows = DOW.map((dn, d) => `<span class="pv-hd">${dn}</span>` + HRS.map((h, k) => {
+      const a = .1 + .9 * heatVal(d, h) / max;
+      return `<span class="pv-hc" style="--a:${a.toFixed(2)};--i:${d + k}" title="${dn} ${h}:00"></span>`;
+    }).join('')).join('');
+    return `<div class="pv-card"><p class="pv-insight">El momento más fuerte: <b>sábado de 11 a. m. a 1 p. m.</b> Ahí conviene tener a tu mejor gente en caja.</p>
+      <div class="pv-heat" style="--cols:${HRS.length}">${head}${rows}</div>
+      <p class="pv-legend"><span>Menos</span><i></i><span>Más interacciones</span></p></div>`;
+  }
+
+  const RANK = [['Centro', 2140, 9], ['Laureles', 1810, 4], ['Envigado', 1620, 6], ['Poblado', 1480, -2], ['Sabaneta', 1210, 3], ['Belén', 1090, -4], ['Bello', 870, 1], ['Norte', 412, -32]];
+  function viewRank() {
+    const max = RANK[0][1];
+    const rows = RANK.map(([name, v, dlt], i) => {
+      const bad = dlt <= -20, best = i === 0;
+      return `<div class="pv-rrow${bad ? ' bad' : ''}"><span class="pv-rnum">${i + 1}</span><span class="pv-rname">Sede ${name}${best ? '<em class="pv-badge done">La mejor</em>' : ''}</span>
+        <span class="pv-rbar"><i style="--w:${(v / max * 100).toFixed(1)}%"></i></span><span class="pv-rval">${n0.format(v)}</span>
+        ${Math.abs(dlt) >= 5 ? (dlt > 0 ? UP : DOWN) + ` ${Math.abs(dlt)} %</span>` : '<span class="pv-delta flat">' + (dlt > 0 ? '+' : '') + dlt + ' %</span>'}
+        ${bad ? '<button type="button" class="pv-go" data-go="4">Ver la sede</button>' : '<span></span>'}</div>`;
+    }).join('');
+    return `<div class="pv-card"><div class="pv-alert"><b>Sede Norte cayó 32 % esta semana.</b> Es la única en alerta; las demás están dentro de lo normal.</div>
+      <p class="pv-label">Interacciones por sede · últimos 7 días</p><div class="pv-rank">${rows}</div></div>`;
+  }
+
+  function viewSede() {
+    const pts = [['Caja principal', 'g', 210], ['Mesa 4', 'w', 118], ['Hablador de la entrada', 'i', 84]];
+    return `<div class="pv-card pv-sede">
+      <div class="pv-sede-head"><div><p class="pv-label">Sede Norte · Medellín</p><p class="pv-title">Puesto 8 de 8 <span class="pv-delta down">bajó 3 puestos</span></p></div>
+        <p class="pv-summary">Cayó 32 % frente a la semana anterior y casi toda la caída viene de la caja. Revisa que la tarjeta siga a la vista.</p></div>
+      <div class="pv-kpis">
+        <div><span>Interacciones</span><b>412</b>${DOWN} 32 %</span></div>
+        <div><span>Reseñas generadas</span><b>61</b>${DOWN} 18 %</span></div>
+        <div><span>Nota de la encuesta</span><b>3,9 <small>de 5</small></b><span class="pv-delta flat">igual</span></div>
+      </div>
+      <p class="pv-label">Puntos NFC de la sede</p>
+      <div class="pv-points">${pts.map(([n, k, v]) => `<div class="pv-point"><span class="pv-pname">${n}<small><i style="background:${CH[k][1]}"></i>${CH[k][0]}</small></span><span class="pv-pval">${v} toques</span><button type="button" class="pv-change">Cambiar destino</button></div>`).join('')}</div>
+      <div class="pv-src"><span>Cómo llegan: NFC 68 %</span><span class="pv-srcbar"><i style="--w:68%"></i></span><span>QR 32 %</span></div></div>`;
+  }
+
+  const VIEWS = [viewValue, viewCampaign, viewHeat, viewRank, viewSede];
+  const SIDE = [0, 0, 0, 1, 1];
+  let cur = -1, auto = true, autoT = 0, visible = false;
+
+  function show(i, focus) {
+    if (i === cur) return;
+    cur = i;
+    tabs.forEach((t, k) => { t.setAttribute('aria-selected', String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    if (focus) tabs[i].focus();
+    sideItems.forEach((li) => li.classList.toggle('on', Number(li.dataset.s) === SIDE[i]));
+    pvView.setAttribute('aria-labelledby', tabs[i].id);
+    pvView.innerHTML = VIEWS[i]();
+    pvView.classList.remove('enter'); void pvView.offsetWidth; pvView.classList.add('enter');
+    bind();
+    schedule();
+  }
+  function bind() {
+    const range = document.getElementById('pvRange');
+    if (range) range.addEventListener('input', () => {
+      reviewValue = Number(range.value);
+      document.getElementById('pvOut').textContent = money(reviewValue);
+      document.getElementById('pvTotal').textContent = money(valueTotal());
+      const g = pvView.querySelector('[data-ch="g"]');
+      g.textContent = money(1936 * reviewValue);
+      g.previousElementSibling.textContent = `${n0.format(1936)} × ${money(reviewValue)}`;
+      stopAuto();
+    });
+    pvView.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { stopAuto(); show(Number(b.dataset.go)); }));
+  }
+  const stopAuto = () => { auto = false; pvSec.classList.remove('auto'); clearTimeout(autoT); };
+  function schedule() {
+    clearTimeout(autoT);
+    if (auto && visible && !REDUCED) autoT = setTimeout(() => show((cur + 1) % VIEWS.length), 7000);
+    tabs.forEach((t) => t.classList.remove('run'));
+    if (auto && visible && !REDUCED) { void tabs[cur].offsetWidth; tabs[cur].classList.add('run'); }
+  }
+  tabs.forEach((t, k) => {
+    t.addEventListener('click', () => { stopAuto(); show(k); });
+    t.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (d) { e.preventDefault(); stopAuto(); show((k + d + tabs.length) % tabs.length, true); }
+    });
+  });
+  pvView.addEventListener('pointerdown', stopAuto);
+  new IntersectionObserver((es) => {
+    for (const e of es) { visible = e.isIntersecting; if (visible && cur < 0) show(0); else schedule(); }
+  }, { threshold: .35 }).observe(pvSec);
+  pvSec.classList.add('auto');
+}
+
 const nav = document.getElementById('nav');
 const onNav = () => nav.classList.toggle('scrolled', scrollY > 24);
 addEventListener('scroll', onNav, { passive: true });
@@ -970,7 +1135,7 @@ async function main() {
     // Textos: cada panel aparece cerca de su escena
     for (const p of panels) {
       const d = Math.abs(t - p.i);
-      const op = 1 - sstep(.2, .4, d);
+      const op = 1 - sstep(.28, .45, d);
       p.panel.style.opacity = op;
       p.panel.style.transform = `translateY(${(p.i - t) * 46}px)`;
       p.panel.style.visibility = op < .01 ? 'hidden' : 'visible';
