@@ -293,6 +293,96 @@ if (pvView) {
   pvSec.classList.add('auto');
 }
 
+/* ---------- Narración opcional de las conversaciones ---------- */
+// Segundo del audio en que aparece cada mensaje y en que suena el toque NFC.
+const NARR = {
+  // Los dos últimos mensajes y el cierre solo existen con la voz (.narr-only).
+  pro: { src: 'audio/pro.mp3', cues: [1.7, 7.5, 9.3, 12.6, 15.3, 20.9], chime: [8.1], end: 23.9 },
+  inst: { src: 'audio/inst.mp3', cues: [1.6, 4.6, 8.4, 10.8, 12.9], chime: [.5] },
+};
+let actx = null;
+function nfcChime() {
+  // Sonido propio de "tarjeta leída": dos notas cortas y limpias, generadas aquí.
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = actx.currentTime + .01;
+    [[1318.5, 0], [1975.5, .085]].forEach(([f, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t0 + d);
+      g.gain.linearRampToValueAtTime(.16, t0 + d + .008);
+      g.gain.exponentialRampToValueAtTime(.0001, t0 + d + .22);
+      o.connect(g).connect(actx.destination);
+      o.start(t0 + d); o.stop(t0 + d + .25);
+    });
+  } catch { /* sin Web Audio no pasa nada */ }
+}
+// La cifra de un mensaje sube de 0 a su valor cuando aparece
+function countUp(b) {
+  const el = b.querySelector('[data-to]');
+  if (!el) return;
+  const to = Number(el.dataset.to), t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / 900);
+    el.textContent = Math.round(to * (1 - (1 - k) ** 3));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const narrators = [];
+document.querySelectorAll('.convo-play').forEach((btn) => {
+  const fig = btn.closest('.convo');
+  const cfg = NARR[btn.dataset.narr];
+  const bubs = [...fig.querySelectorAll('.bub')];
+  const label = btn.querySelector('span');
+  const idle = label.textContent;
+  let audio = null, raf = 0, fired = [];
+  const tick = () => {
+    const t = audio.currentTime;
+    bubs.forEach((b, i) => {
+      const on = t >= cfg.cues[i];
+      if (on && !b.classList.contains('on')) countUp(b);
+      b.classList.toggle('on', on);
+    });
+    if (cfg.end) fig.classList.toggle('closing', t >= cfg.end);
+    cfg.chime.forEach((c, i) => { if (!fired[i] && t >= c) { fired[i] = true; nfcChime(); } });
+    fig.style.setProperty('--p', audio.duration ? (t / audio.duration).toFixed(4) : 0);
+    if (!audio.paused) raf = requestAnimationFrame(tick);
+  };
+  const setState = (s) => {
+    fig.dataset.narr = s;
+    label.textContent = s === 'playing' ? 'Pausar' : s === 'paused' ? 'Seguir' : s === 'done' ? 'Escuchar de nuevo' : idle;
+    btn.setAttribute('aria-pressed', String(s === 'playing'));
+  };
+  const pause = () => { if (audio && !audio.paused) audio.pause(); };
+  narrators.push(pause);
+  btn.addEventListener('click', () => {
+    if (!audio) {
+      audio = new Audio(cfg.src);
+      audio.preload = 'auto';
+      audio.addEventListener('play', () => { setState('playing'); raf = requestAnimationFrame(tick); });
+      audio.addEventListener('pause', () => { cancelAnimationFrame(raf); if (!audio.ended) setState('paused'); });
+      audio.addEventListener('ended', () => {
+        cancelAnimationFrame(raf);
+        bubs.forEach((b) => { if (!b.classList.contains('on')) countUp(b); b.classList.add('on'); });
+        if (cfg.end) fig.classList.add('closing');
+        fig.style.setProperty('--p', 1); setState('done');
+      });
+    }
+    if (!audio.paused) { audio.pause(); return; }
+    narrators.forEach((p) => p !== pause && p());
+    if (fig.dataset.narr !== 'paused') {
+      // Empieza de cero: la conversación se arma al ritmo de la voz
+      audio.currentTime = 0; fired = [];
+      fig.classList.add('narr');
+      fig.classList.remove('closing');
+      bubs.forEach((b) => b.classList.remove('on'));
+    }
+    if (actx && actx.state === 'suspended') actx.resume();
+    audio.play().catch(() => setState('idle'));
+  });
+});
+
 const nav = document.getElementById('nav');
 const onNav = () => nav.classList.toggle('scrolled', scrollY > 24);
 addEventListener('scroll', onNav, { passive: true });

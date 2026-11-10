@@ -112,6 +112,11 @@ main, .foot { position: relative; z-index: 1; }
   transition: color .15s ease;
 }
 .nav-links a:hover, .nav-login:hover { color: var(--text); }
+.nav-links a { white-space: nowrap; }
+/* En pantallas medianas el menú deja solo lo esencial para no partirse en dos líneas */
+@media (max-width: 1180px) {
+  .nav-links a[href="#formatos"], .nav-links a[href="#casos"] { display: none; }
+}
 .nav-login { margin-left: -20px; }
 .nav .btn-sm { margin-left: -8px; }
 @media (max-width: 860px) {
@@ -366,6 +371,9 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  /* "clip" no deja que el navegador desplace el contenido por dentro (con
+     "hidden" la tarjeta podía quedar corrida hacia un lado) */
+  overflow: clip;
   min-height: clamp(480px, 46vw, 600px);
   border-radius: 20px;
   padding: clamp(24px, 3vw, 36px);
@@ -425,6 +433,40 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
   transition: opacity .35s ease-out, transform .45s var(--ease);
   transition-delay: calc(var(--i) * .75s + .2s);
 }
+
+/* Narración: botón "Escúchalo" y mensajes al ritmo de la voz */
+.convo-play {
+  position: absolute; top: clamp(16px, 2.2vw, 24px); right: clamp(16px, 2.2vw, 24px); z-index: 2;
+  display: inline-flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 14px; font-weight: 600; color: #fff;
+  background: rgba(5, 6, 8, .35); border: 1px solid rgba(255, 255, 255, .5); border-radius: 999px;
+  padding: 8px 16px 8px 10px; min-height: 40px; cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.convo-play:hover { background: rgba(255, 255, 255, .12); border-color: #fff; }
+.convo-play:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.convo-play svg { width: 18px; height: 18px; fill: #fff; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; }
+.convo-play .i-play { stroke: none; }
+.convo-play .i-pause { display: none; fill: none; }
+.convo[data-narr="playing"] .convo-play .i-play { display: none; }
+.convo[data-narr="playing"] .convo-play .i-pause { display: block; }
+.convo-prog { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #fff; transform-origin: left; transform: scaleX(var(--p, 0)); opacity: 0; transition: opacity .3s ease; z-index: 2; }
+.convo[data-narr] .convo-prog { opacity: .85; }
+.convo .convo-thread { padding-top: 56px; }
+.convo.narr .bub { opacity: 0; transform: translateY(10px) scale(.97); transition: opacity .35s ease-out, transform .45s var(--ease); transition-delay: 0s; }
+.convo.narr .bub.on { opacity: 1; transform: none; }
+/* Lo que solo acompaña a la voz: el cambio de destino, la cifra y el cierre */
+.narr-only { display: none; }
+.convo.narr .bub.narr-only { display: flex; }
+.bub-stat { align-self: flex-start; align-items: baseline; gap: 10px; background: #fff; color: #14161b; border-radius: 16px; padding: 10px 16px; }
+.bub-stat b { font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; min-width: 1.4em; }
+.convo-thread { transition: opacity .6s ease, filter .6s ease; }
+.convo.closing .convo-thread { opacity: .18; filter: blur(2px); }
+.convo-end { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; pointer-events: none; }
+.convo.narr .convo-end { display: flex; opacity: 0; transform: scale(.96); transition: opacity .7s ease, transform .9s var(--ease); }
+.convo.closing .convo-end { opacity: 1; transform: none; }
+.convo-end img { width: min(240px, 52%); height: auto; }
+.convo-end span { font-size: clamp(18px, 1.8vw, 22px); font-weight: 600; color: #fff; }
 
 @media (max-width: 860px) {
   .aud { grid-template-columns: minmax(0, 1fr); }
