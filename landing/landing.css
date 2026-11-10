@@ -459,9 +459,20 @@ h1 .line:nth-child(3) > span { animation-delay: .16s; }
 .narr-only { display: none; }
 .convo.narr .bub.narr-only { display: flex; }
 .bub-stat { align-self: flex-start; align-items: baseline; gap: 10px; background: #fff; color: #14161b; border-radius: 16px; padding: 10px 16px; }
-.bub-stat b { font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; min-width: 1.4em; }
+.bub-stat b { white-space: nowrap; font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; min-width: 1.4em; }
 .convo-thread { transition: opacity .6s ease, filter .6s ease; }
 .convo.closing .convo-thread { opacity: .18; filter: blur(2px); }
+.convo:not(.narr) .convo-end { display: none; }
+.chip-ico.chip-bad { background: var(--danger); }
+.chip-ico.chip-ok { background: #3f9a6b; }
+/* Cadenas: el degradado se abre desde arriba a la derecha */
+.convo-cad::before {
+  background:
+    radial-gradient(56% 50% at 84% 18%, #2a63f0 0%, rgba(42, 99, 240, 0) 72%),
+    radial-gradient(48% 42% at 12% 70%, rgba(29, 78, 216, .7) 0%, rgba(29, 78, 216, 0) 72%),
+    radial-gradient(44% 38% at 60% 96%, rgba(42, 99, 240, .35) 0%, rgba(42, 99, 240, 0) 72%),
+    linear-gradient(220deg, #0e2f9e 0%, #080b18 55%, #050608 100%);
+}
 .convo-end { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; pointer-events: none; }
 .convo.narr .convo-end { display: flex; opacity: 0; transform: scale(.96); transition: opacity .7s ease, transform .9s var(--ease); }
 .convo.closing .convo-end { opacity: 1; transform: none; }

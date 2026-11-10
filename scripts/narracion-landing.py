@@ -18,6 +18,13 @@ GUIONES = {
         'Y después de cada evento, sabes cuántas personas la abrieron.',
         'NFCloud. Tu trabajo, a un toque.',
     ],
+    'cadenas': [
+        'Es lunes y llega tu informe: la Sede Norte cayó treinta y dos por ciento.',
+        'Abres la ficha de la sede y ves por qué: la tarjeta de la caja dejó de recibir toques.',
+        'La reponen ese mismo día, y desde el panel lanzas la promoción en todas las sedes, sin reimprimir nada.',
+        'El viernes, la promoción sumó treinta y ocho por ciento más de interacciones, y la Sede Norte volvió a la normalidad.',
+        'NFCloud. Toda tu cadena, en una sola vista.',
+    ],
     'inst': [
         'En cada punto de atención, una encuesta de un toque.',
         'Si alguien califica mal, no se va en silencio.',
@@ -28,8 +35,11 @@ GUIONES = {
     ],
 }
 
+PALABRAS = '--palabras' in sys.argv  # tiempos por palabra en vez de por frase
+SOLO = [a for a in sys.argv[2:] if not a.startswith('--')]  # p. ej.: cadenas
+
 async def gen(name, lines):
-    com = edge_tts.Communicate(' '.join(lines), VOICE, rate='-6%', boundary='SentenceBoundary')
+    com = edge_tts.Communicate(' '.join(lines), VOICE, rate='-6%', boundary='WordBoundary' if PALABRAS else 'SentenceBoundary')
     sents = []
     with open(os.path.join(OUT, f'{name}.mp3'), 'wb') as f:
         async for ch in com.stream():
@@ -43,7 +53,9 @@ async def gen(name, lines):
 async def main():
     res = {}
     for k, v in GUIONES.items():
+        if SOLO and k not in SOLO:
+            continue
         res[k] = await gen(k, v)
-    print(json.dumps(res, ensure_ascii=False, indent=1))
+    print(json.dumps(res, ensure_ascii=False))
 
 asyncio.run(main())
