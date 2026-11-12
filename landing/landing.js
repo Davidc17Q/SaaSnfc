@@ -134,9 +134,10 @@ if (flagMap) {
 /* ---------- Diseños hechos: una pieza sale con estela y entra la siguiente ---------- */
 const SHOW = [
   { f: 'riovivo', kind: 'Tarjeta', name: 'RioVivo Spa' },
-  { f: 'hab-hym', kind: 'Hablador de sede', name: 'Hogar y Moda', tall: true },
+  { f: 'hym', kind: 'Tarjeta de reseñas', name: 'Hogar y Moda' },
   { f: 'gym', kind: 'Concepto', name: 'Gimnasio' },
   { f: 'inplux', kind: 'Tarjeta de equipo', name: 'Inplux' },
+  { f: 'hab-hym', kind: 'Hablador de sede', name: 'Hogar y Moda', tall: true },
   { f: 'cafe', kind: 'Concepto', name: 'Cafetería' },
   { f: 'hab-lalico', kind: 'Hablador en acrílico', name: 'La Lico', tall: true },
   { f: 'libro', kind: 'Tarjeta de un libro', name: 'Docente universitario' },
@@ -826,7 +827,7 @@ const BG_KEYS = [
   { t: 6.1, core: 0x2f6bff, edge: 0x0e2f9e, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .3, light: 0 },
   { t: 7, core: 0x2f6bff, edge: 0x0e2f9e, ring: 0xffffff, ringA: .15, lamp: 0x6d9bff, lampA: .3, light: 0 },
 ].map((k) => ({ ...k, core: hex(k.core), edge: hex(k.edge), ring: hex(k.ring), lamp: hex(k.lamp) }));
-const SHADOWS = 7;
+const SHADOWS = 8;
 
 function makeBackground() {
   const uniforms = {
@@ -1046,6 +1047,7 @@ async function main() {
     makeCard(artMat('art/card-riovivo.webp'), cardBack, whiteEdge),
     makeCard(artMat('art/card-lalico.webp'), new THREE.MeshStandardMaterial({ color: 0x050605, roughness: .5 }), darkEdge),
     makeCard(artMat('art/card-inplux.webp'), new THREE.MeshStandardMaterial({ color: 0x0b0e13, roughness: .5 }), darkEdge),
+    makeCard(artMat('art/card-hym.webp'), cardBack, whiteEdge),
   ];
   deck.forEach((d) => root.add(d));
 
@@ -1053,21 +1055,68 @@ async function main() {
   const GRID = 9, cell = .36;
   const grid = new THREE.Group();
   const baseSize = GRID * cell + .3;
-  const baseGeo = new THREE.ExtrudeGeometry(roundedShape(baseSize, baseSize, .12), { depth: .05, bevelEnabled: false, curveSegments: 10 });
-  baseGeo.rotateX(-Math.PI / 2);
-  const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x24211e, roughness: .55, metalness: .3 }));
-  base.position.y = -.05;
-  base.receiveShadow = true;
-  grid.add(base);
-  const barGeo = new THREE.BoxGeometry(cell * .68, 1, cell * .68);
-  barGeo.translate(0, .5, 0);
-  const bars = new THREE.InstancedMesh(barGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .38, metalness: .15, envMapIntensity: .8 }), GRID * GRID);
-  bars.castShadow = bars.receiveShadow = true;
+  // Piso: retícula alineada a las sedes que se desvanece hacia el fondo, sin placa sólida
+  const floorTex = (() => {
+    const S = 1024, c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d'), span = baseSize * 1.9, px = S / span, off = S / 2;
+    g.strokeStyle = 'rgba(196, 215, 255, .5)';
+    g.lineWidth = 2;
+    for (let i = -GRID; i <= GRID; i++) {
+      const p = off + (i * cell) * px + (GRID % 2 ? cell / 2 * px : 0);
+      g.beginPath(); g.moveTo(p, 0); g.lineTo(p, S); g.stroke();
+      g.beginPath(); g.moveTo(0, p); g.lineTo(S, p); g.stroke();
+    }
+    g.globalCompositeOperation = 'destination-in';
+    const fade = g.createRadialGradient(off, off, S * .16, off, off, S * .5);
+    fade.addColorStop(0, 'rgba(0,0,0,1)');
+    fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade; g.fillRect(0, 0, S, S);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  })();
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(baseSize * 1.9, baseSize * 1.9), new THREE.MeshBasicMaterial({ map: floorTex, transparent: true, opacity: .55, depthWrite: false }));
+  floor.rotation.x = -Math.PI / 2;
+  grid.add(floor);
+  // Recibe solo la sombra de las columnas
+  const shadowFloor = new THREE.Mesh(new THREE.PlaneGeometry(baseSize * 1.4, baseSize * 1.4), new THREE.ShadowMaterial({ opacity: .32, depthWrite: false }));
+  shadowFloor.rotation.x = -Math.PI / 2;
+  shadowFloor.position.y = .001;
+  shadowFloor.receiveShadow = true;
+  grid.add(shadowFloor);
+
+  // Columna: sección cuadrada con esquinas redondeadas; la tapa lleva el filo biselado y no se estira
+  const bw = cell * .68, br = .045, CAP = .02;
+  const barGeo = new THREE.ExtrudeGeometry(roundedShape(bw, bw, br), { depth: 1, bevelEnabled: false, curveSegments: 6 });
+  barGeo.rotateX(-Math.PI / 2);
+  const capGeo = new THREE.ExtrudeGeometry(roundedShape(bw - CAP * 2, bw - CAP * 2, br - CAP), { depth: .001, bevelEnabled: true, bevelThickness: CAP, bevelSize: CAP, bevelSegments: 4, curveSegments: 6 });
+  capGeo.rotateX(-Math.PI / 2);
+  const barMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .42, metalness: .12, envMapIntensity: .85 });
+  const bars = new THREE.InstancedMesh(barGeo, barMat, GRID * GRID);
+  const caps = new THREE.InstancedMesh(capGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .3, metalness: .1, envMapIntensity: 1 }), GRID * GRID);
+  bars.castShadow = bars.receiveShadow = caps.castShadow = true;
+  // Sombra de contacto bajo cada columna: la ancla al piso aunque se apaguen las sombras
+  const aoTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 18, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(0,0,0,.85)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  })();
+  const aoGeo = new THREE.PlaneGeometry(bw * 1.9, bw * 1.9);
+  aoGeo.rotateX(-Math.PI / 2);
+  const ao = new THREE.InstancedMesh(aoGeo, new THREE.MeshBasicMaterial({ map: aoTex, transparent: true, opacity: .7, depthWrite: false }), GRID * GRID);
+  ao.position.y = .002;
   const BEST = 2 * GRID + 3, WORST = 7 * GRID + 8;
   const barData = [];
   let seed = 7;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const low = new THREE.Color(0x1d4ed8), high = new THREE.Color(0x93c5fd), alert = new THREE.Color(0xc2594b), col = new THREE.Color();
+  const low = new THREE.Color(0x1d4ed8), high = new THREE.Color(0x93c5fd), alert = new THREE.Color(0xc2594b), col = new THREE.Color(), white = new THREE.Color(0xffffff);
+  const m4 = new THREE.Matrix4();
   for (let z = 0; z < GRID; z++) for (let x = 0; x < GRID; x++) {
     const i = z * GRID + x;
     let h = (.3 + rnd() * rnd() * 1.5 + rnd() * .35) * (1 - .38 * (x + z) / (2 * GRID - 2));
@@ -1078,8 +1127,15 @@ async function main() {
     if (i === WORST) col.copy(alert);
     else col.copy(low).lerp(high, clamp(h / 1.5));
     bars.setColorAt(i, col);
+    // La tapa es un poco más clara: marca el filo y deja leer la altura
+    caps.setColorAt(i, col.lerp(white, i === BEST ? .4 : .22));
+    ao.setMatrixAt(i, m4.makeTranslation(px, 0, pz));
   }
-  grid.add(bars);
+  // Anillo en el piso de la sede en alerta: late despacio, sin resplandor
+  const alertRing = new THREE.Mesh(new THREE.RingGeometry(.92, 1, 64), new THREE.MeshBasicMaterial({ color: 0xd9776a, transparent: true, opacity: 0, depthWrite: false }));
+  alertRing.rotation.x = -Math.PI / 2;
+  alertRing.position.set(barData[WORST].px, .004, barData[WORST].pz);
+  grid.add(ao, bars, caps, alertRing);
   root.add(grid);
 
   // Objeto, media medida de su sombra y si se aplana al girar
@@ -1091,6 +1147,7 @@ async function main() {
     { o: deck[0], rx: 1.95, ry: 1.3, turn: false },
     { o: deck[1], rx: 1.95, ry: 1.3, turn: false },
     { o: deck[2], rx: 1.95, ry: 1.3, turn: false },
+    { o: deck[3], rx: 1.95, ry: 1.3, turn: false },
   ];
 
   /* ---------- Poses por escena ---------- */
@@ -1139,13 +1196,14 @@ async function main() {
         OFF, OFF, OFF,
       ] },
       ...deck.map((o, i) => {
-        const col = i === 2 ? 0 : i ? 1 : -1;
+        // Cuatro tarjetas en rombo: Hogar y Moda al frente, abajo
+        const col = [-1, 1, 0, 0][i];
         const pose = wide
-          ? { p: P(sx * .92 + col * .9 * k, sy + [.5, .3, -.62][i] * k, [-.3, 0, .35][i]), r: [-.1, -.2 * col + .08, .035], s: k * .5 }
-          : { p: P(sx + col * .05, sy - .1 + (1 - i) * 1.1 * k, i * .2 - .4), r: [-.28, .18, .05], s: k * .5 };
+          ? { p: P(sx * .92 + col * .95 * k, sy + [.32, .2, 1.02, -.78][i] * k, [-.3, 0, -.5, .4][i]), r: [-.1, -.2 * col + .08, .035], s: k * .46 }
+          : { p: P(sx + [-.05, .05, 0, 0][i], sy - .1 + [1.36, .4, -.58, -1.56][i] * k, [-.6, -.3, 0, .3][i]), r: [-.28, .18, .05], s: k * .44 };
         return { o, keys: [
           OFF, OFF, OFF,
-          { p: P(sx + (i - 1) * 1.1, -6.5, -1.5), r: [-1, -.4 + i * .6, .4], s: k * .8 },
+          { p: P(sx + (i - 1.5) * 1.1, -6.5, -1.5), r: [-1, -.4 + i * .6, .4], s: k * .8 },
           pose,
           { p: P(sx, sy, -.5), r: [-.62, .42, .16], s: 0 },
           OFF, OFF,
@@ -1445,8 +1503,20 @@ async function main() {
         v3.set(b.px, 0, b.pz);
         mat4.compose(v3, q, sc);
         bars.setMatrixAt(i, mat4);
+        sc.set(1, 1, 1);
+        v3.y = Math.max(.001, b.h * g) - .001;
+        mat4.compose(v3, q, sc);
+        caps.setMatrixAt(i, mat4);
       });
-      bars.instanceMatrix.needsUpdate = true;
+      bars.instanceMatrix.needsUpdate = caps.instanceMatrix.needsUpdate = true;
+      // Pulso del anillo: crece y se apaga, luego espera
+      const ph = REDUCED ? .3 : (time % 2.8) / 1.4, ringOn = sstep(4.82, 4.98, t) * (1 - sstep(5.2, 5.4, t));
+      alertRing.visible = ringOn > .01 && ph < 1;
+      if (alertRing.visible) {
+        const e = 1 - (1 - ph) ** 3;
+        alertRing.scale.setScalar(bw * (.75 + e * 1.1));
+        alertRing.material.opacity = (1 - ph) * .85 * ringOn;
+      }
     }
 
     // Cifras del panel
