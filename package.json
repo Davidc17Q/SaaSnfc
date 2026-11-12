@@ -11,6 +11,7 @@
     "seed": "tsx src/db/seed.ts",
     "demo": "tsx src/db/demo.ts",
     "clientes": "tsx src/db/clientes.ts",
+    "inplux": "tsx src/db/inplux.ts",
     "reset": "tsx src/db/migrate.ts"
   },
   "engines": {

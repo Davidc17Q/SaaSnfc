@@ -253,6 +253,8 @@ export function registerAuthGuard(app: FastifyInstance) {
       // Landing comercial
       url === '/empresas' ||
       url.startsWith('/empresas/') ||
+      // Perfiles digitales de clientes
+      url.startsWith('/perfiles/') ||
       url === '/login.html' ||
       url === '/login.js' ||
       url === '/styles.css' ||

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0c0c0b" />
+<title>INPLUX · Tarjeta digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Perfil digital por integrante (ejemplo para Inplux). Abre con ?p=<id>.
+     Estilo de inplux.co: negro cálido, marfil, un solo acento turquesa y botones en píldora. */
+  :root { --negro: #0c0c0b; --marfil: #f6f2ec; --tenue: #a39d94; --linea: rgba(246,242,236,.14); --turq: #15dcc4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--negro); color: var(--marfil); }
+  body { font-family: 'Rethink Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 440px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+
+  .portada { position: relative; height: 250px; background: url('estructura.jpg') 70% 40% / cover; }
+  .portada::after { content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(12,12,11,.35) 0%, rgba(12,12,11,.15) 40%, var(--negro) 100%); }
+  .portada img { position: absolute; left: 24px; top: 26px; height: 22px; z-index: 1; }
+
+  main { padding: 0 24px 28px; margin-top: -28px; position: relative; flex: 1; }
+  .rol { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--tenue); }
+  .rol b { color: var(--turq); font-weight: 500; }
+  h1 { font-size: 36px; line-height: 1.05; letter-spacing: -.025em; font-weight: 500; margin-top: 10px; }
+  .desc { margin-top: 12px; font-size: 16px; line-height: 1.5; color: rgba(246,242,236,.78); }
+
+  .acciones { margin-top: 28px; display: grid; gap: 12px; }
+  .btn { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 0 22px;
+    border-radius: 999px; border: 1px solid var(--linea); color: var(--marfil); text-decoration: none; font-size: 16px; font-weight: 500;
+    background: rgba(246,242,236,.03); transition: background .15s ease, border-color .15s ease; cursor: pointer; font-family: inherit; width: 100%; }
+  .btn:hover, .btn:focus-visible { background: rgba(246,242,236,.08); border-color: rgba(246,242,236,.3); outline: none; }
+  .btn .i { display: flex; align-items: center; gap: 12px; }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+  .btn .flecha { color: var(--tenue); }
+  .btn.principal { background: var(--marfil); color: var(--negro); border-color: var(--marfil); }
+  .btn.principal:hover, .btn.principal:focus-visible { background: #fff; }
+  .btn.principal .flecha { color: var(--negro); }
+
+  footer { padding: 22px 24px calc(24px + env(safe-area-inset-bottom)); border-top: 1px solid var(--linea); margin: 0 24px; padding-left: 0; padding-right: 0;
+    font-size: 13px; color: var(--tenue); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  footer .lema b { color: var(--turq); font-weight: 500; }
+  footer .nfc { white-space: nowrap; font-size: 12px; }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="portada"><img src="logo-inplux.svg" alt="INPLUX" /></div>
+  <main>
+    <p class="rol" id="rol"></p>
+    <h1 id="nombre"></h1>
+    <p class="desc" id="desc"></p>
+    <div class="acciones" id="acciones"></div>
+  </main>
+  <footer>
+    <span class="lema">Transformación con IA que llega <b>a producción.</b></span>
+    <span class="nfc">Tarjeta NFC · nfcloud</span>
+  </footer>
+</div>
+
+<script>
+  // Datos confirmados por Inplux (12 nov 2026). Quien no tiene perfil propio en inplux.co va a la página de equipo.
+  // Santiago no tiene perfil: su tarjeta lleva directo a inplux.co.
+  const EQUIPO = {
+    jaime: { nombre: 'Jaime Alonso Cano Pino', corto: 'Jaime Cano', cargo: 'CEO', correo: 'gerencia@inplux.co',
+      desc: 'Línea Gerencia',
+      perfil: 'https://inplux.co/equipo/jaime-alonso-cano-pino', linkedin: 'https://www.linkedin.com/in/jaime-alonso-cano-pino-a11a6246/' },
+    cristian: { nombre: 'Cristian Espinal Maya', corto: 'Cristian Espinal', cargo: 'CTO', correo: 'cristian@inplux.co',
+      desc: 'Línea Innovación',
+      perfil: 'https://inplux.co/equipo/cristian-espinal-maya', linkedin: 'https://www.linkedin.com/in/cespial/' },
+    alejandro: { nombre: 'Alejandro López Durango', corto: 'Alejandro López', cargo: 'Gerente General', correo: 'alejandro@inplux.co',
+      desc: 'Línea Gerencia, Financiera y Administrativa', linkedin: 'https://www.linkedin.com/in/alejandro-l%C3%B3pez-durango-287bb22a5/' },
+    daniel: { nombre: 'Daniel Alejandro López Naranjo', corto: 'Daniel López', cargo: 'Engineer', correo: 'daniel@inplux.co',
+      desc: 'Línea Desarrollo', linkedin: 'https://www.linkedin.com/in/dalona126/' },
+    ajavi: { nombre: 'Cristian Ajavi', corto: 'Cristian Ajavi', cargo: 'Engineer', correo: 'ajavi@inplux.co',
+      desc: 'Línea Desarrollo', linkedin: 'https://www.linkedin.com/in/cristianajavi/' },
+  };
+  const WEB = 'https://inplux.co/', EQUIPO_URL = 'https://inplux.co/equipo';
+
+  const ICONO = {
+    contacto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>',
+    perfil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 16.5a3.8 3.8 0 0 1 7 0M14 9h4M14 13h4"/></svg>',
+    correo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="m3 6 9 7 9-7"/></svg>',
+    linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4V21H3zM9.5 9.75h3.8v1.6h.06c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.77 2.65 4.77 6.1V21h-4v-4.9c0-1.17-.02-2.68-1.63-2.68-1.64 0-1.89 1.28-1.89 2.6V21h-4z"/></svg>',
+    web: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5a14.5 14.5 0 0 1 0 19M12 2.5a14.5 14.5 0 0 0 0 19"/></svg>',
+  };
+  const FLECHA = '<span class="flecha" aria-hidden="true">→</span>', SALE = '<span class="flecha" aria-hidden="true">↗</span>';
+
+  const p = EQUIPO[new URLSearchParams(location.search).get('p')];
+  // Enlace sin perfil válido: a la web de Inplux, sin pintar nada.
+  if (!p) { location.replace(WEB); throw new Error('Perfil desconocido'); }
+  document.title = `${p.corto} · INPLUX`;
+  document.getElementById('rol').innerHTML = p.cargo ? `INPLUX · <b>${p.cargo}</b>` : 'INPLUX';
+  document.getElementById('nombre').textContent = p.nombre;
+  const desc = document.getElementById('desc');
+  if (p.desc) desc.textContent = p.desc; else desc.remove();
+
+  const boton = (cls, icono, texto, extra, attrs) =>
+    `<a class="btn ${cls}" ${attrs}><span class="i">${ICONO[icono]}${texto}</span>${extra}</a>`;
+  const acciones = [
+    boton('principal', 'contacto', 'Guardar contacto', FLECHA, 'href="#" id="vcard" role="button"'),
+    boton('', 'perfil', p.perfil ? 'Ver mi perfil completo' : 'Conocer al equipo', FLECHA, `href="${p.perfil || EQUIPO_URL}"`),
+    boton('', 'correo', 'Escríbeme', FLECHA, `href="mailto:${p.correo}"`),
+    p.linkedin ? boton('', 'linkedin', 'LinkedIn', SALE, `href="${p.linkedin}" target="_blank" rel="noopener"`) : '',
+    boton('', 'web', 'Conocer Inplux', SALE, `href="${WEB}" target="_blank" rel="noopener"`),
+  ];
+  document.getElementById('acciones').innerHTML = acciones.join('');
+
+  // "Guardar contacto": genera la vCard en el celular (iPhone y Android la abren en Contactos).
+  document.getElementById('vcard').addEventListener('click', (e) => {
+    e.preventDefault();
+    const [nombres, ...resto] = p.corto.split(' ');
+    const vcf = ['BEGIN:VCARD', 'VERSION:3.0', `N:${resto.join(' ')};${nombres};;;`, `FN:${p.nombre}`, 'ORG:INPLUX S.A.S.',
+      p.cargo ? `TITLE:${p.cargo}` : '', `EMAIL;TYPE=WORK:${p.correo}`, `URL:${p.perfil || WEB}`, 'END:VCARD'].filter(Boolean).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([vcf], { type: 'text/vcard;charset=utf-8' }));
+    a.download = `${p.corto.replace(/\s+/g, '-')}-INPLUX.vcf`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+</script>
+</body>
+</html>

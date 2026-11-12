@@ -15,6 +15,7 @@ import { applySchema } from './db/migrate';
 
 const PUBLIC_DIR = join(__dirname, '..', 'public');
 const LANDING_DIR = join(__dirname, '..', 'landing');
+const PERFILES_DIR = join(__dirname, '..', 'perfiles');
 
 // Versión de los archivos del panel: cambia en cada despliegue (commit de
 // Railway o, en local, la hora de arranque). Se añade como ?v= a los JS/CSS
@@ -80,6 +81,16 @@ async function main() {
     setHeaders,
   });
   app.get('/empresas', async (_req, reply) => reply.redirect(301, '/empresas/'));
+
+  // Perfiles digitales de clientes (públicos): la tarjeta NFC de cada persona
+  // abre /perfiles/<empresa>/?p=<persona>.
+  await app.register(fastifyStatic, {
+    root: PERFILES_DIR,
+    prefix: '/perfiles/',
+    index: ['index.html'],
+    decorateReply: false,
+    setHeaders,
+  });
 
   // Páginas con sus archivos versionados. En producción se arman una vez por
   // arranque; en desarrollo se releen en cada petición para ver los cambios.
