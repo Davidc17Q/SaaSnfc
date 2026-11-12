@@ -44,6 +44,19 @@
   footer .lema b { color: var(--turq); font-weight: 500; }
   footer .nfc { white-space: nowrap; font-size: 12px; }
   @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+
+  /* Escritorio: la foto ocupa media pantalla y el perfil se centra a su lado. */
+  @media (min-width: 900px) {
+    .wrap { max-width: none; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: 1fr auto; }
+    .portada { grid-row: 1 / span 2; height: auto; background-position: 60% 50%; }
+    .portada::after { background: linear-gradient(90deg, rgba(12,12,11,.25) 0%, rgba(12,12,11,0) 45%, rgba(12,12,11,.55) 85%, var(--negro) 100%); }
+    .portada img { left: 56px; top: 52px; height: 28px; }
+    main { grid-column: 2; margin: 0; padding: 72px 64px 40px; align-self: center; justify-self: center; width: 100%; max-width: 560px; }
+    h1 { font-size: 48px; }
+    .desc { font-size: 17px; }
+    .acciones { margin-top: 36px; }
+    footer { grid-column: 2; justify-self: center; width: calc(100% - 128px); max-width: 432px; margin: 0 0 8px; }
+  }
 </style>
 </head>
 <body>
