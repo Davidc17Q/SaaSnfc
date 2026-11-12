@@ -795,10 +795,11 @@ function stickerArt(logo) {
 }
 
 /* ---------- Estudio de luz (sin HDR que descargar) ---------- */
-function studioEnvironment(renderer) {
+// cool: estudio con luz azul de marca, solo para la tarjeta de NFCloud (las de clientes conservan su blanco)
+function studioEnvironment(renderer, cool = false) {
   const s = new THREE.Scene();
-  s.add(new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshBasicMaterial({ color: 0x151412, side: THREE.BackSide })));
-  const panel = (w, h, x, y, z, v, tint = 0xffffff) => {
+  s.add(new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshBasicMaterial({ color: cool ? 0x0a1530 : 0x151412, side: THREE.BackSide })));
+  const panel = (w, h, x, y, z, v, tint = cool ? 0xc4d7ff : 0xffffff) => {
     const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(tint).multiplyScalar(v), side: THREE.DoubleSide });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.set(x, y, z); m.lookAt(0, 0, 0); s.add(m);
@@ -949,8 +950,9 @@ async function main() {
 
   /* Tarjeta protagonista */
   const hero = heroFaces(logo);
+  const coolEnv = studioEnvironment(renderer, true);
   const heroMat = (f) => new THREE.MeshPhysicalMaterial({
-    map: f.color, roughnessMap: f.mask, metalnessMap: f.mask, roughness: 1, metalness: 1,
+    envMap: coolEnv, map: f.color, roughnessMap: f.mask, metalnessMap: f.mask, roughness: 1, metalness: 1,
     clearcoat: .25, clearcoatRoughness: .35, envMapIntensity: 1.35,
   });
   const edgeBlue = new THREE.MeshStandardMaterial({ color: 0x4d86ff, metalness: .7, roughness: .3, emissive: 0x12307a, emissiveIntensity: .5 });
@@ -1199,8 +1201,8 @@ async function main() {
         // Cuatro tarjetas en rombo: Hogar y Moda al frente, abajo
         const col = [-1, 1, 0, 0][i];
         const pose = wide
-          ? { p: P(sx * .92 + col * .95 * k, sy + [.32, .2, 1.02, -.78][i] * k, [-.3, 0, -.5, .4][i]), r: [-.1, -.2 * col + .08, .035], s: k * .46 }
-          : { p: P(sx + [-.05, .05, 0, 0][i], sy - .1 + [1.36, .4, -.58, -1.56][i] * k, [-.6, -.3, 0, .3][i]), r: [-.28, .18, .05], s: k * .44 };
+          ? { p: P(sx * .92 + col * .95 * k, sy + [.32, .2, 1.02, -.78][i] * k, [-.75, 0, -1.5, .75][i]), r: [-.1, -.12 * col + .05, .035], s: k * [.48, .46, .5, .44][i] }
+          : { p: P(sx + [-.05, .05, 0, 0][i], sy - .1 + [1.36, .4, -.58, -1.56][i] * k, [-1.2, -.4, .4, 1.2][i]), r: [-.28, .18, .05], s: k * [.47, .45, .43, .41][i] };
         return { o, keys: [
           OFF, OFF, OFF,
           { p: P(sx + (i - 1.5) * 1.1, -6.5, -1.5), r: [-1, -.4 + i * .6, .4], s: k * .8 },
@@ -1452,7 +1454,7 @@ async function main() {
     if (stickerWrap.visible) stickerWrap.rotation.y += Math.sin(time * .7) * .14;
     if (phone.visible) phone.position.y += REDUCED ? 0 : Math.sin(time * 1.1 + 1) * .022;
     deck.forEach((d, i) => {
-      if (d.visible) { d.rotation.y += (t - 4) * .45; d.position.y += (t - 4) * (i % 2 ? .35 : -.2) + Math.sin(time * .9 + i * .9) * .02; }
+      if (d.visible) { d.rotation.y += (t - 4) * .25; d.position.y += (t - 4) * (i % 2 ? .35 : -.2) + Math.sin(time * .9 + i * .9) * .02; }
     });
 
     // Ondas: tenues en el inicio, fuertes cuando el celular toca
