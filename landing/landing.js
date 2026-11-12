@@ -31,13 +31,114 @@ if (!REDUCED && 'IntersectionObserver' in window) {
   convos.forEach((c) => { c.classList.add('wait'); io.observe(c); });
 }
 
+/* ---------- Caso Hogar y Moda: las sedes se encienden desde Medellín ---------- */
+// [municipio, sedes, latitud, longitud]; lista de sedes entregada por la empresa (nov. 2026)
+const HYM = [
+  ['Medellín', 25, 6.244, -75.574], ['Bello', 3, 6.337, -75.558], ['Itagüí', 3, 6.184, -75.599],
+  ['Caldas', 2, 6.091, -75.636], ['Apartadó', 2, 7.883, -76.626], ['Barbosa', 1, 6.438, -75.331],
+  ['Copacabana', 1, 6.347, -75.509], ['Girardota', 1, 6.378, -75.445], ['El Carmen de Viboral', 1, 6.083, -75.335],
+  ['El Peñol', 1, 6.219, -75.243], ['El Santuario', 1, 6.137, -75.264], ['Guarne', 1, 6.28, -75.443],
+  ['La Ceja', 1, 6.031, -75.43], ['La Unión', 1, 5.974, -75.361], ['Marinilla', 1, 6.174, -75.339],
+  ['Rionegro', 1, 6.155, -75.374], ['San Vicente Ferrer', 1, 6.282, -75.333], ['Sonsón', 1, 5.712, -75.311],
+  ['Cisneros', 1, 6.538, -75.088], ['Don Matías', 1, 6.486, -75.395], ['San Pedro de los Milagros', 1, 6.46, -75.557],
+  ['Santa Rosa de Osos', 1, 6.646, -75.461], ['Yarumal', 1, 6.964, -75.418], ['Amagá', 1, 6.039, -75.703],
+  ['Andes', 1, 5.657, -75.879], ['Betania', 1, 5.746, -75.977], ['Ciudad Bolívar', 1, 5.853, -76.021],
+  ['Fredonia', 1, 5.926, -75.674], ['Jardín', 1, 5.598, -75.819], ['Santa Bárbara', 1, 5.875, -75.567],
+  ['Támesis', 1, 5.665, -75.715], ['Urrao', 1, 6.317, -76.134], ['San Alberto', 1, 7.761, -73.392],
+  ['Anserma', 1, 5.236, -75.784], ['Cartago', 1, 4.746, -75.912], ['La Virginia', 1, 4.899, -75.882],
+  ['Palestina', 1, 5.019, -75.624], ['Riosucio', 1, 5.421, -75.703], ['Supía', 1, 5.447, -75.65],
+  ['Viterbo', 1, 5.062, -75.871], ['Barrancabermeja', 1, 7.065, -73.854], ['Cimitarra', 1, 6.317, -73.95],
+  ['Piedecuesta', 1, 6.988, -73.05], ['Puerto Berrío', 1, 6.491, -74.404], ['Puerto Boyacá', 1, 5.976, -74.587],
+  ['Chinchiná', 1, 4.983, -75.604], ['Carepa', 1, 7.758, -76.655], ['Chigorodó', 1, 7.669, -76.681],
+  ['Currulao', 1, 7.99, -76.64], ['Montería', 1, 8.748, -75.881], ['Necoclí', 1, 8.426, -76.784], ['Turbo', 1, 8.093, -76.728],
+];
+const flagMap = document.getElementById('flagMap');
+if (flagMap) {
+  const NS = 'http://www.w3.org/2000/svg';
+  // Encuadre acercado al noroccidente, donde están las sedes; el resto del país se desvanece
+  const [VX, VY, VW, VH] = [40, 76, 240, 252];
+  flagMap.setAttribute('viewBox', `${VX} ${VY} ${VW} ${VH}`);
+  const el = (tag, attrs, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  // Proyección del contorno de Colombia (Natural Earth 1:50m, ya proyectado a este lienzo)
+  const P = (lat, lon) => [14 + (lon + 79.025439) * 30.6188, 14.788 + (12.434375 - lat) * 30.6188];
+  const COL = 'M249.9 32.3L248.8 32.7L247.5 33.5L243.3 35L237.7 36.5L230.4 38.3L228.7 40.3L221.5 52.7L215.5 55.2L213.2 57.1L211.6 59.4L208 63.7L206.5 67.1L202.5 74.3L200.3 83.3L199.5 88.4L198.3 95.8L196.5 99.5L194.2 103L191.6 106.4L189.4 110.1L187.6 113L187.3 114L188.2 114.8L192.6 114L194.3 113.1L196.7 112L198.2 112.6L199.7 115.8L201.4 116.2L203 115.8L204.7 116.6L206.9 124.6L208.7 131.3L213 135.6L216.4 138.9L217.2 141.8L218 145.9L218.2 147.9L217.1 149.1L215.5 151.6L215 156.4L214.8 158L214.4 162.4L214.7 165.1L215.5 167.3L217 168.5L220 169.1L222.8 169.8L224.3 173.5L226.5 178.2L228.9 180.2L232.4 181.5L234.9 181L240.7 180.2L245.7 180.4L253.1 181.6L255.8 181.6L259.3 181.4L265.5 178.8L267.8 178.4L270.3 178.6L273.9 179.9L275.9 181L278.5 182L282.2 182.8L284.6 182.6L286.4 182.6L287.4 183.1L293.3 190.4L298.3 196.7L302.8 202L307.5 207.7L310 207.3L311.4 207.6L312.8 208.7L315 208.3L318.2 206.2L322.9 205.7L329 207L337.1 207L347.2 205.8L353.5 204.4L355.9 202.9L359.9 203.1L364.8 204.4L367.4 206.3L367.8 208.1L368.8 211L367.7 213.9L364.6 216.9L362.9 220.7L362.5 225.3L360.9 228.7L358.1 230.9L356.9 234.1L357.6 238.4L357.3 244.5L356 252.7L356 257.5L357.3 259.1L357.8 261.4L357.8 264.3L358.2 267L359.8 270.4L361.9 277.2L363.8 280.1L365.3 281.2L366.9 282.5L371.6 289.5L372.7 290.9L372.3 292.2L371.9 293.2L366.4 297.9L356.6 306.9L355.8 308.1L355.9 310L358.7 308.8L361.8 309.8L363.3 310L363.9 310.7L364.8 313.2L365.8 313.6L367.3 314.6L370.2 317.1L372.6 319.8L374.5 321.1L375.7 322.3L376.2 324.1L375.6 325.8L377.1 329.9L378.2 331.2L378.7 332.7L378.2 334.3L379.5 336.1L380.9 339.7L382.6 344.1L382.8 346.5L383.5 347.6L384.3 350.9L385.7 353.9L385.4 356L386 358.1L380.2 359.4L379.3 358.5L379.5 352.6L379.4 346L378.6 343.4L375.9 339L372.4 333.3L371.4 331.6L369.9 330.7L368.2 330.6L366.9 331L365.2 332L363.6 333.2L360.4 336.7L357.2 340.7L355.4 341.6L353.5 342L351.9 341.9L350.6 340.8L349.2 338.6L347.6 335.6L345.7 334.7L344.9 335.6L344.3 337.3L343.7 339L345.1 341.2L346.2 342.9L344.3 342.8L338 342.8L330.8 342.8L323.6 342.8L317.2 342.8L311.2 342.8L308.9 342.7L306.6 341.7L304.3 341.2L303.2 341.3L301.1 342.3L298.3 342.4L296.5 343.3L295 343.2L295 348.2L294.9 355.4L294.9 363.1L296.5 362.5L298 362.5L299 363.1L302 362.7L303.6 362.9L305.1 363.1L306.6 363.1L307.4 363.7L308.6 363.6L309.9 362.9L311.4 363.3L313 364.4L314.1 366L315 368L316 369.1L315.9 371L315.9 372.4L315.6 373.7L316.3 375.3L315.6 376.1L313.2 376.4L311.6 375.5L310 375.6L309 375.1L308.1 374.1L306.5 373.2L304.8 373.6L303.7 374.1L302.5 374.7L301.4 375.3L300.3 375.1L299 375.6L297.8 376.3L296.3 376.9L294.6 377.2L292.6 377.5L290.8 377.6L288.7 377.8L288.6 381.8L288.3 389.7L288.2 394.9L288.2 399.8L289 401.5L292.7 405.2L295.6 407.2L298.1 409.4L300.5 410.3L301.6 411.1L302.2 412.5L302.6 413.9L302.8 415.1L302.6 416.4L302 417.6L302.2 418.9L303.1 419.9L303.4 421.2L304 422.4L304.3 423.6L305.1 424.5L306 425.1L307.2 426.1L307.2 428.1L308.4 430.8L308.7 432.1L308.2 433.7L307.7 439L306.3 445.2L305.5 449.9L304.1 457.5L302.5 466.4L300.5 477.2L298.5 487.9L296.7 498.2L294.9 507.6L293.1 517.9L291.9 524.1L291.4 525.2L289.8 522.9L287.4 520.8L285.2 519.5L284.3 517.8L283 514.4L281.2 513.2L280 512.3L278.7 512.4L277.5 513.4L275.5 514L274.1 513.9L268.7 511.5L271.3 505.9L277.5 496.2L281.5 490L285.8 483.2L288.1 479.7L288.4 478.2L287.4 476.9L285.3 476.3L282.9 475.3L281.3 473.7L279.2 473L277.5 471.8L274.5 470.6L272.7 469.6L270.5 469.2L268.8 467.2L262.3 463.4L260.7 463.1L258.9 463.7L256.3 464.3L253.7 466.3L250.5 467L247.6 467L246 465.7L244.5 465.3L242.6 463.6L239.2 462.3L236.7 461.4L235.2 461.8L233.2 463.7L231.2 465.6L229.6 466.7L227.5 466.7L224.9 468.4L222.4 469L219.9 469.3L217 469.9L213.8 468.8L211.1 467.9L210 467.5L208.9 467.8L207.2 468.8L204.3 469.2L201.9 469.3L200.3 468.8L198.8 467.2L196.4 466.3L193.8 465.3L193.2 463.1L193.6 461.5L194.6 459.2L194 456.9L192.9 453.1L192.5 451.6L191.6 450.2L190.3 449.8L187.8 450.1L185 448.7L183.3 447.4L182.4 445.7L183.4 442.6L182.5 439.9L180.9 438.4L179.8 435.8L178.2 433.8L176 432.7L173.8 432.8L172.1 432.2L170.1 430L168.3 429.1L166.2 427L162.3 426.1L160.3 425.2L159.2 423.9L157.6 421.6L157.8 420.3L157.1 419L156.4 416.7L155.1 413.3L153.6 411.4L152.1 409.9L150.9 408.7L149 406.8L146.7 405.8L144.7 404.7L144 403L143.3 401.6L140.7 401.6L138.9 401.3L137.1 400.3L135.6 399.1L133 397.1L131.6 396.8L128.5 398.8L123 396.7L118.4 393.6L113.5 392.8L110.3 390.9L107.4 387.9L105.8 385.9L104.6 384.9L98.3 382.1L97.1 381.8L94.7 383.1L94 383.9L93.8 386.2L93.6 387.5L91.5 388.3L88.2 388.1L85.9 387.3L84.3 387.2L83.1 388.1L81.2 387.9L78.5 387.3L75.9 386.4L72.5 384.6L70.9 384.9L67.1 384.5L63.9 383.5L63.1 382.5L61.7 376L59.9 375.3L57.6 374.4L56.2 373.4L55.4 371.6L54.5 369.9L50.6 370.2L44.3 368L39.9 365.9L35.8 363.5L29.7 358.8L27.4 357.6L24.5 356.2L22.8 353.9L20 351.6L19.1 351L18.2 348.8L14 345.8L16.1 341.9L21.1 338.9L27.7 341.2L28.5 336.6L26.2 332.6L26.5 324.9L27.3 323.4L29 321.3L31.3 319.9L32.6 319.5L34.9 320.2L36.3 318.6L41.7 319.3L43.4 318.7L44.5 317.6L45.8 316.9L47.5 315L48.4 312.9L49.2 312L51.1 312.3L52.2 310.2L55.5 307.4L55.5 306.1L54.6 303.4L56.7 302.1L58.9 301.3L60.1 298.7L61.6 296.5L63.2 293.2L65.1 293L66.1 289.1L68.6 285.7L73.7 275.7L72.1 275.9L70.9 277.3L69.5 277.1L67.9 276.3L68.4 271.8L67.5 271.2L65 274.7L62.9 271.2L62.7 269L63.6 266.9L63.5 265.5L60.1 266.5L60.2 265.2L62.4 263.8L63.3 262.4L65.2 260.8L66 258.5L66.4 254.9L67.2 250.9L66.6 249L65.6 247.4L64.8 240.1L65 235.8L64.6 232.5L63.7 229.7L59.7 226L66.1 221.7L68.4 218.5L65.5 211.9L61.6 206.4L61.5 203.1L62.5 203.5L63.8 203.4L65 196.4L64.7 194.2L62.6 190.7L59.9 190.6L57.6 186.2L56.2 185.2L55.2 182.4L51.4 177L48.4 174.2L50.7 167.6L52.6 166.4L53.2 164.7L52.5 160.7L53.1 159.4L54.4 160L55.9 161.8L57.1 163.9L58.1 164.6L59.5 163.8L65.3 159.6L64.9 158.2L65.4 155.6L67.4 153.4L69.4 152.6L70 151.4L69.5 149.5L67.4 144.8L65.4 142.3L64.2 139.8L63.5 137.5L61.4 135.3L62.3 133.2L64 130.8L65.5 131.1L68 135.4L72 138.3L76.3 142.9L78 146.1L79.4 146.6L80.6 147.8L80 148.6L78.7 149.5L78.3 151.4L79.2 152.4L80.1 153.1L82.6 152.7L83.9 150.5L83 141.1L81.6 136.3L79.9 134.9L78.5 133L79.4 131.6L82.1 130.9L85.5 129.3L98.2 120.3L102.5 111.8L105.8 108.7L109.5 106.8L114.1 107.2L117.7 106.2L118.8 103.5L117.8 99.8L116.4 97.6L117.7 94.4L119.1 89.5L119 85.5L120.8 83L120.2 82.1L117.6 84.1L115.6 84.9L116.7 83.3L120.3 79.3L122.2 73.2L123.6 70.6L128.7 67.1L129.7 65.3L133.5 62.7L139.7 56.9L142 55.3L154 59L157.8 58.8L157.1 59.5L155.3 59.7L152.8 60.7L152.1 62.9L153.8 65.2L155.6 65.9L157.2 64.4L158.7 60.2L161.2 55.5L161.7 50.6L163.5 48.9L166.1 48.3L170.6 49.2L174.1 50.3L177.8 50.4L188.9 49.7L207 36.9L215.4 34.2L220.7 31.5L224.1 26.2L225 22.3L227.4 20.8L230 20.8L231.2 19.8L231.6 18.6L237.9 15.2L241.4 14.8L244.6 14.9L251.7 17.8L255 23.1L255.5 26.7L251 30.6L249.9 32.3Z';
+
+  // El país en retícula de puntos, con su borde
+  const defs = el('defs', {}, flagMap);
+  el('path', { d: COL }, el('clipPath', { id: 'fmClip' }, defs));
+  const rg = el('radialGradient', { id: 'fmFade', gradientUnits: 'userSpaceOnUse', cx: 145, cy: 195, r: 150 }, defs);
+  el('stop', { offset: '55%', 'stop-color': '#fff' }, rg);
+  el('stop', { offset: '100%', 'stop-color': '#000' }, rg);
+  el('rect', { x: VX, y: VY, width: VW, height: VH, fill: 'url(#fmFade)' }, el('mask', { id: 'fmMask', maskUnits: 'userSpaceOnUse', x: VX, y: VY, width: VW, height: VH }, defs));
+  const land = el('g', { mask: 'url(#fmMask)' }, flagMap);
+  const grid = el('g', { class: 'fm-grid', 'clip-path': 'url(#fmClip)' }, land);
+  for (let y = VY; y < VY + VH; y += 4) for (let x = VX; x < VX + VW; x += 4) el('circle', { cx: x, cy: y, r: .55 }, grid);
+  el('path', { class: 'fm-country', d: COL }, land);
+
+  const [hx, hy] = P(HYM[0][2], HYM[0][3]);
+  const lines = el('g', {}, flagMap), dots = el('g', {}, flagMap);
+  const items = HYM.map(([name, n, lat, lon]) => {
+    const [x, y] = P(lat, lon);
+    const r = 1.3 + Math.sqrt(n) * .8;
+    const line = n === 25 ? null : el('line', { class: 'fm-line', x1: hx, y1: hy, x2: x, y2: y }, lines);
+    const ring = el('circle', { class: 'fm-ring', cx: x, cy: y, r }, dots);
+    const dot = el('circle', { class: 'fm-dot', cx: x, cy: y, r }, dots);
+    el('title', {}, dot).textContent = `${name}: ${n} ${n === 1 ? 'sede' : 'sedes'}`;
+    return { n, line, ring, dot, d: Math.hypot(x - hx, y - hy) };
+  }).sort((a, b) => a.d - b.d);
+
+  // [texto, municipio de referencia, desplazamiento x, y, alineación, destacada]
+  const LABELS = [
+    [['Medellín', '25 sedes'], 'Medellín', -40, -18, 'end', true], [['Montería'], 'Montería', 5, 2.5, 'start'],
+    [['Urabá'], 'Apartadó', -6, 2.5, 'end'], [['Magdalena Medio'], 'Barrancabermeja', 6, 11, 'start'],
+    [['Eje Cafetero'], 'Chinchiná', 6, 4, 'start'],
+  ];
+  LABELS.forEach(([txt, ref, dx, dy, anchor, big]) => {
+    const m = HYM.find((h) => h[0] === ref);
+    const [x, y] = P(m[2], m[3]);
+    // La de Medellín se saca al mar con una guía para no tapar los puntos vecinos
+    if (big) el('line', { class: 'fm-guide', x1: x - 5, y1: y - 2.5, x2: x + dx + 2.5, y2: y + dy - 2.5 }, flagMap);
+    const t = el('text', { class: 'fm-label' + (big ? ' big' : ''), x: x + dx, y: y + dy, 'text-anchor': anchor }, flagMap);
+    txt.forEach((line, i) => { el('tspan', { x: x + dx, dy: i ? '1.15em' : 0, class: i ? 'fm-sub' : '' }, t).textContent = line; });
+  });
+
+  const count = document.getElementById('flagCount');
+  if (!REDUCED && 'IntersectionObserver' in window) {
+    items.forEach((it) => {
+      it.dot.style.opacity = '.12';
+      if (it.line) { const L = it.d; it.line.style.strokeDasharray = L; it.line.style.strokeDashoffset = L; }
+    });
+    count.textContent = '0';
+    const io = new IntersectionObserver((es) => {
+      if (!es[0].isIntersecting) return;
+      io.disconnect();
+      const maxD = items[items.length - 1].d, T = 2200;
+      let total = 0;
+      items.forEach((it) => {
+        const delay = 200 + (it.d / maxD) ** .8 * T;
+        it.line?.animate([{ strokeDashoffset: it.d }, { strokeDashoffset: 0 }], { duration: 520, delay: delay - 380, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'forwards' });
+        it.dot.animate([{ opacity: .12, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.25)', offset: .45 }, { opacity: 1, transform: 'scale(1)' }], { duration: 520, delay, easing: 'ease-out', fill: 'forwards' });
+        it.ring.animate([{ opacity: .8, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(3.2)' }], { duration: 900, delay: delay + 80, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+        setTimeout(() => { total += it.n; count.textContent = total; }, delay);
+      });
+    }, { threshold: .35 });
+    io.observe(flagMap);
+  }
+}
+
 /* ---------- Diseños hechos: una pieza sale con estela y entra la siguiente ---------- */
 const SHOW = [
   { f: 'riovivo', kind: 'Tarjeta', name: 'RioVivo Spa' },
+  { f: 'hab-hym', kind: 'Hablador de sede', name: 'Hogar y Moda', tall: true },
   { f: 'gym', kind: 'Concepto', name: 'Gimnasio' },
-  { f: 'hab-lalico', kind: 'Hablador en acrílico', name: 'La Lico', tall: true },
-  { f: 'cafe', kind: 'Concepto', name: 'Cafetería' },
   { f: 'inplux', kind: 'Tarjeta de equipo', name: 'Inplux' },
+  { f: 'cafe', kind: 'Concepto', name: 'Cafetería' },
+  { f: 'hab-lalico', kind: 'Hablador en acrílico', name: 'La Lico', tall: true },
   { f: 'libro', kind: 'Tarjeta de un libro', name: 'Docente universitario' },
   { f: 'inmobiliaria', kind: 'Concepto', name: 'Inmobiliaria' },
   { f: 'hab-riovivo', kind: 'Hablador en acrílico', name: 'RioVivo Spa', tall: true },
