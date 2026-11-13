@@ -8,6 +8,7 @@ import { apiRoutes } from './routes/api';
 import { businessRoutes } from './routes/business';
 import { competitionRoutes } from './routes/competition';
 import { adminImportRoutes } from './routes/admin-import';
+import { customerRoutes } from './routes/customers';
 import { authRoutes, checkedSession, registerAuthGuard } from './lib/auth';
 import { pool } from './db/pool';
 import { redis } from './db/redis';
@@ -151,6 +152,7 @@ export async function buildApp(opts: { logger?: boolean } = {}) {
   await app.register(businessRoutes);
   await app.register(competitionRoutes);
   await app.register(adminImportRoutes);
+  await app.register(customerRoutes);
   await app.register(redirectRoutes);
 
   return app;

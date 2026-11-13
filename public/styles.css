@@ -2417,3 +2417,17 @@ input[type='date'].input, input[type='month'].input { cursor: pointer; }
 .import-point span:first-child { white-space: nowrap; font-weight: 600; }
 .import-point span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .import-table td:last-child { max-width: 20rem; }
+
+/* ---- Clientes y equipo --------------------------------------------------- */
+.edit-check { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.875rem; font-weight: 500; }
+.edit-check input { margin-top: 0.2rem; }
+.cust-empty { padding: 1.25rem; font-size: 0.875rem; color: var(--muted); }
+.coupon-list { display: grid; gap: 1rem; }
+.coupon-item { display: grid; gap: 0.35rem; padding-bottom: 1rem; border-bottom: 1px solid var(--card-border); }
+.coupon-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.coupon-head { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.coupon-name { font-weight: 700; }
+.coupon-stats { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.875rem; }
+.coupon-stats b { font-weight: 700; }
+.coupon-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.staff-bar { height: 6px; border-radius: 3px; background: var(--accent); opacity: 0.85; min-width: 2px; }

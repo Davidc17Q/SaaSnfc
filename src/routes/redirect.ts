@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { pool } from '../db/pool';
 import { redis, deviceCacheKey, dedupeKey, surveyDedupeKey } from '../db/redis';
 import { detectOs } from '../lib/os';
@@ -8,6 +8,8 @@ import { transitionHtml } from '../lib/transition';
 import { surveyHtml } from '../lib/survey';
 import { notifyLowSurvey } from '../lib/survey-alerts';
 import { normalizePhone } from '../lib/messaging';
+import { consentText, couponHtml, couponUnavailableHtml, leadHtml } from '../lib/customer-pages';
+import { generateShortCode } from '../lib/shortcode';
 import { clientIp } from '../lib/client-ip';
 import type { DeviceCache } from '../types';
 
@@ -129,7 +131,8 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   try {
     rows = await pool.query(
       `SELECT d.id AS device_id, d.location_id, d.target_url, d.status,
-              d.transition, d.mode, d.survey_template_id, d.channel, co.name AS company_name
+              d.transition, d.mode, d.survey_template_id, d.channel, d.capture_lead, d.coupon_id,
+              co.name AS company_name
          FROM devices d
          LEFT JOIN locations l ON l.id = d.location_id
          LEFT JOIN companies co ON co.id = l.company_id
@@ -157,6 +160,118 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
     /* ignore */
   }
   return device;
+}
+
+/**
+ * Registra la interacción después de responder (no frena al cliente), con el
+ * anti-doble-conteo de siempre: Redis por punto+IP y una segunda barrera en
+ * Postgres (misma IP en la ventana, o mismo navegador hace muy poco).
+ */
+function recordScan(device: DeviceCache, req: FastifyRequest, channel: string): void {
+  const os = detectOs(req.headers['user-agent']);
+  const ua = req.headers['user-agent'] || null;
+  const ip = clientIp(req);
+  const source = scanSource(req.query);
+  setImmediate(async () => {
+    try {
+      // Anti-doble-conteo: si el mismo dispositivo+IP escaneó hace poco,
+      // no se registra otro evento. Ventana configurable (SCAN_DEDUPE_SECONDS).
+      if (config.scanDedupeSeconds > 0) {
+        try {
+          const key = dedupeKey(device.device_id, ip || 'unknown');
+          // SET key con NX + EX: solo tiene éxito si no existe la clave.
+          const ok = await redis.set(key, '1', 'EX', config.scanDedupeSeconds, 'NX');
+          if (ok === null) return; // ya hubo un escaneo reciente: se ignora
+        } catch {
+          // Si Redis falla, seguimos y registramos igual (no perder datos).
+        }
+      }
+      // Segunda barrera en Postgres (por si Redis no está o la IP cambió entre
+      // dos lecturas del mismo toque, p. ej. IPv4/IPv6): no se registra si el
+      // punto ya tuvo un evento de esa IP en la ventana, o del mismo
+      // navegador hace muy poco. El candado por punto evita que dos lecturas
+      // simultáneas pasen ambas el NOT EXISTS.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [device.device_id]);
+        await client.query(
+          `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, source)
+           SELECT $1, $2, $3, $4, $5, $6, $7
+            WHERE NOT EXISTS (
+              SELECT 1 FROM scan_events
+               WHERE device_id = $1
+                 AND scanned_at > now() - make_interval(secs => $8)
+                 AND (ip = $6 OR (user_agent = $5 AND scanned_at > now() - make_interval(secs => $9)))
+            )`,
+          [device.device_id, device.location_id, os, channel, ua, ip, source,
+            config.scanDedupeSeconds, Math.min(config.scanDedupeSeconds, SAME_BROWSER_SECONDS)]
+        );
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err: any) {
+      console.error('[scan_event] insert error:', err.message);
+    }
+  });
+}
+
+const CLAIM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function claimCode(): string {
+  // Reutiliza el generador de códigos y lo lleva al alfabeto sin ambiguos, en mayúsculas.
+  return generateShortCode(6)
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, 'X')
+    .replace(/[ILO]/g, (c) => CLAIM_ALPHABET[c.charCodeAt(0) % CLAIM_ALPHABET.length]);
+}
+
+/** HTML del cupón del punto: reutiliza el código del mismo cliente (24 h) o emite uno. */
+async function couponPage(device: DeviceCache, deviceCode: string, couponId: string, ip: string): Promise<string | null> {
+  const c = await pool.query<{ name: string; terms: string | null; active: boolean; valid: string | null; expired: boolean }>(
+    `SELECT name, terms, active, to_char(valid_until, 'DD/MM/YYYY') AS valid,
+            (valid_until IS NOT NULL AND valid_until < (now() AT TIME ZONE $2)::date) AS expired
+       FROM coupons WHERE id = $1`,
+    [couponId, process.env.APP_TIMEZONE || 'America/Bogota']
+  );
+  const coupon = c.rows[0];
+  if (!coupon) return null;
+  const company = device.company_name || '';
+  if (!coupon.active || coupon.expired) return couponUnavailableHtml(company);
+
+  const prev = await pool.query<{ code: string; redeemed: string | null }>(
+    `SELECT code, to_char(redeemed_at AT TIME ZONE $4, 'DD/MM/YYYY') AS redeemed
+       FROM coupon_claims
+      WHERE coupon_id = $1 AND device_id = $2 AND ip = $3 AND claimed_at > now() - INTERVAL '24 hours'
+      ORDER BY claimed_at DESC LIMIT 1`,
+    [couponId, device.device_id, ip, process.env.APP_TIMEZONE || 'America/Bogota']
+  );
+  let code = prev.rows[0]?.code;
+  const redeemedAt = prev.rows[0]?.redeemed ?? null;
+  if (!code) {
+    for (let i = 0; i < 5 && !code; i++) {
+      const candidate = claimCode();
+      const ins = await pool.query(
+        `INSERT INTO coupon_claims (coupon_id, device_id, location_id, code, ip)
+         VALUES ($1, $2, $3, $4, $5) ON CONFLICT (code) DO NOTHING RETURNING code`,
+        [couponId, device.device_id, device.location_id, candidate, ip]
+      );
+      if (ins.rowCount) code = candidate;
+    }
+    if (!code) return null;
+  }
+  return couponHtml({
+    code: deviceCode,
+    companyName: company,
+    couponName: coupon.name,
+    terms: coupon.terms,
+    validUntil: coupon.valid,
+    claimCode: code,
+    redeemedAt,
+  });
 }
 
 export async function redirectRoutes(app: FastifyInstance) {
@@ -233,6 +348,38 @@ export async function redirectRoutes(app: FastifyInstance) {
       }
     }
 
+    // ----- CUPÓN -----
+    // El punto entrega un código único por cliente; cuenta como interacción.
+    const couponId = (device as any).coupon_id as string | null | undefined;
+    if (couponId) {
+      const html = await couponPage(device, deviceId, couponId, clientIp(req)).catch(() => null);
+      if (html) {
+        reply.header('Cache-Control', 'no-store').type('text/html; charset=utf-8').send(html);
+        recordScan(device, req, 'Cupón');
+        return;
+      }
+      // Si algo falla con el cupón, el punto sigue redirigiendo a su destino.
+    }
+
+    // ----- CONTACTO CON AUTORIZACIÓN -----
+    // Antes de abrir el destino se ofrece dejar el WhatsApp (opcional). La
+    // interacción se registra igual que en una redirección normal.
+    if ((device as any).capture_lead === true && isSafeTarget(device.target_url)) {
+      reply
+        .header('Cache-Control', 'no-store')
+        .type('text/html; charset=utf-8')
+        .send(
+          leadHtml({
+            code: deviceId,
+            companyName: device.company_name || '',
+            targetUrl: device.target_url,
+            source: (req.query as { s?: string })?.s === 'q' ? 'q' : (req.query as { s?: string })?.s === 'n' ? 'n' : '',
+          })
+        );
+      recordScan(device, req, deviceChannel(device));
+      return;
+    }
+
     // Pantalla de transición OPCIONAL (solo con ?preview=1). Por defecto el
     // comportamiento es el 302 puro e instantáneo de siempre, para no añadir
     // fricción a reseñas/WhatsApp. El preview sirve para probar/demostrar.
@@ -265,58 +412,7 @@ export async function redirectRoutes(app: FastifyInstance) {
         .redirect(device.target_url, 302);
     }
 
-    // Registrar el ScanEvent de forma asíncrona (fire-and-forget).
-    const os = detectOs(req.headers['user-agent']);
-    const channel = deviceChannel(device);
-    const ua = req.headers['user-agent'] || null;
-    const ip = clientIp(req);
-    const source = scanSource(req.query);
-    setImmediate(async () => {
-      try {
-        // Anti-doble-conteo: si el mismo dispositivo+IP escaneó hace poco,
-        // no se registra otro evento. Ventana configurable (SCAN_DEDUPE_SECONDS).
-        if (config.scanDedupeSeconds > 0) {
-          try {
-            const key = dedupeKey(device.device_id, ip || 'unknown');
-            // SET key con NX + EX: solo tiene éxito si no existe la clave.
-            const ok = await redis.set(key, '1', 'EX', config.scanDedupeSeconds, 'NX');
-            if (ok === null) return; // ya hubo un escaneo reciente: se ignora
-          } catch {
-            // Si Redis falla, seguimos y registramos igual (no perder datos).
-          }
-        }
-        // Segunda barrera en Postgres (por si Redis no está o la IP cambió entre
-        // dos lecturas del mismo toque, p. ej. IPv4/IPv6): no se registra si el
-        // punto ya tuvo un evento de esa IP en la ventana, o del mismo
-        // navegador hace muy poco. El candado por punto evita que dos lecturas
-        // simultáneas pasen ambas el NOT EXISTS.
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [device.device_id]);
-          await client.query(
-            `INSERT INTO scan_events (device_id, location_id, os, channel, user_agent, ip, source)
-             SELECT $1, $2, $3, $4, $5, $6, $7
-              WHERE NOT EXISTS (
-                SELECT 1 FROM scan_events
-                 WHERE device_id = $1
-                   AND scanned_at > now() - make_interval(secs => $8)
-                   AND (ip = $6 OR (user_agent = $5 AND scanned_at > now() - make_interval(secs => $9)))
-              )`,
-            [device.device_id, device.location_id, os, channel, ua, ip, source,
-              config.scanDedupeSeconds, Math.min(config.scanDedupeSeconds, SAME_BROWSER_SECONDS)]
-          );
-          await client.query('COMMIT');
-        } catch (err) {
-          await client.query('ROLLBACK').catch(() => {});
-          throw err;
-        } finally {
-          client.release();
-        }
-      } catch (err: any) {
-        console.error('[scan_event] insert error:', err.message);
-      }
-    });
+    recordScan(device, req, deviceChannel(device));
   });
 
   // Recepción de respuestas de encuesta (Función 1). Hereda la exención del
@@ -444,4 +540,78 @@ export async function redirectRoutes(app: FastifyInstance) {
 
     return reply.send({ ok: true });
   });
+
+  const validCode = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || /^[A-Za-z0-9]{6,12}$/.test(id);
+
+  // Contacto que el cliente decide dejar (con su autorización expresa).
+  app.post<{ Params: { deviceId: string }; Body: { name?: string; phone?: string; consent?: boolean } }>(
+    '/r/:deviceId/lead',
+    async (req, reply) => {
+      const device = validCode(req.params.deviceId) ? await resolveDevice(req.params.deviceId) : null;
+      if (!device || device.status !== 'active' || (device as any).capture_lead !== true) {
+        return reply.code(404).send({ error: 'No disponible.' });
+      }
+      if (req.body?.consent !== true) {
+        return reply.code(400).send({ error: 'Marca la autorización para guardar tu número.' });
+      }
+      const phone = normalizePhone(String(req.body?.phone || '').slice(0, 30));
+      if (!phone) return reply.code(400).send({ error: 'Escribe un celular válido, por ejemplo 300 123 4567.' });
+      const name = String(req.body?.name || '').replace(/\s+/g, ' ').trim().slice(0, 80) || null;
+      const ip = clientIp(req);
+      // Un mismo número por punto no se guarda dos veces en el día.
+      await pool.query(
+        `INSERT INTO leads (device_id, location_id, name, phone, consent_text, ip, source)
+         SELECT $1, $2, $3, $4, $5, $6, $7
+          WHERE NOT EXISTS (
+            SELECT 1 FROM leads WHERE device_id = $1 AND phone = $4 AND created_at > now() - INTERVAL '24 hours')`,
+        [device.device_id, device.location_id, name, phone, consentText(device.company_name || 'este negocio'), ip, scanSource(req.query)]
+      );
+      return { ok: true };
+    }
+  );
+
+  // Canje en caja: el cajero escribe la clave del cupón en el celular del cliente.
+  app.post<{ Params: { deviceId: string }; Body: { code?: string; pin?: string } }>(
+    '/r/:deviceId/coupon/redeem',
+    async (req, reply) => {
+      const device = validCode(req.params.deviceId) ? await resolveDevice(req.params.deviceId) : null;
+      const code = String(req.body?.code || '').trim().toUpperCase().slice(0, 12);
+      const pin = String(req.body?.pin || '').trim().slice(0, 8);
+      if (!device || !code || !pin) return reply.code(400).send({ error: 'Faltan datos para canjear.' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const r = await client.query<{ id: string; pin: string; active: boolean; expired: boolean; redeemed_at: Date | null; pin_fails: number }>(
+          `SELECT cl.id, c.pin, c.active,
+                  (c.valid_until IS NOT NULL AND c.valid_until < (now() AT TIME ZONE $3)::date) AS expired,
+                  cl.redeemed_at, cl.pin_fails
+             FROM coupon_claims cl JOIN coupons c ON c.id = cl.coupon_id
+            WHERE cl.code = $1 AND cl.device_id = $2
+            FOR UPDATE OF cl`,
+          [code, device.device_id, process.env.APP_TIMEZONE || 'America/Bogota']
+        );
+        const claim = r.rows[0];
+        let out: { status: number; body: Record<string, unknown> };
+        if (!claim) out = { status: 404, body: { error: 'Ese código no existe.' } };
+        else if (claim.redeemed_at) out = { status: 409, body: { error: 'Este cupón ya fue canjeado.' } };
+        else if (!claim.active || claim.expired) out = { status: 410, body: { error: 'Este cupón ya no está vigente.' } };
+        else if (claim.pin_fails >= 5) out = { status: 429, body: { error: 'Demasiados intentos con este cupón. Pide ayuda al administrador.' } };
+        else if (claim.pin !== pin) {
+          await client.query(`UPDATE coupon_claims SET pin_fails = pin_fails + 1 WHERE id = $1`, [claim.id]);
+          out = { status: 403, body: { error: 'Clave de caja incorrecta.' } };
+        } else {
+          await client.query(`UPDATE coupon_claims SET redeemed_at = now() WHERE id = $1`, [claim.id]);
+          out = { status: 200, body: { ok: true } };
+        }
+        await client.query('COMMIT');
+        return reply.code(out.status).send(out.body);
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+  );
 }

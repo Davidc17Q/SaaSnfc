@@ -1518,6 +1518,7 @@ export async function apiRoutes(app: FastifyInstance) {
     const rows = await query(
       `SELECT d.id, d.code, d.label, d.target_url, d.status, d.updated_at, d.transition,
               d.mode, d.survey_template_id, d.channel AS channel_fixed,
+              d.staff, d.capture_lead, d.coupon_id,
               l.name AS location_name, l.city AS location_city, l.id AS location_id,
               l.company_id AS company_id
          FROM devices d
@@ -1566,6 +1567,7 @@ export async function apiRoutes(app: FastifyInstance) {
     Body: {
       target_url?: string; status?: string; mode?: string; survey_template_id?: string | null;
       channel?: string | null;
+      staff?: string | null; capture_lead?: boolean; coupon_id?: string | null;
     };
   }>('/api/devices/:id', async (req, reply) => {
     const { id } = req.params;
@@ -1594,7 +1596,24 @@ export async function apiRoutes(app: FastifyInstance) {
     const mode =
       req.body?.mode === 'survey' || req.body?.mode === 'redirect' ? req.body.mode : undefined;
 
-    if (!target_url && !status && mode === undefined && channel === undefined) {
+    // Quién atiende el punto (vendedor, mesa, caja), pedir contacto y cupón.
+    const rawStaff = req.body?.staff;
+    const staff = rawStaff === undefined ? undefined : String(rawStaff || '').replace(/\s+/g, ' ').trim().slice(0, 60) || null;
+    const captureLead = typeof req.body?.capture_lead === 'boolean' ? req.body.capture_lead : undefined;
+    const rawCoupon = req.body?.coupon_id;
+    const couponId = rawCoupon === undefined ? undefined : rawCoupon || null;
+    if (couponId) {
+      // El cupón debe ser de la misma empresa que la sede del punto.
+      const c = await query<{ company_id: string }>(`SELECT company_id FROM coupons WHERE id = $1`, [couponId]);
+      if (!c[0] || c[0].company_id !== prev[0].company_id) {
+        return reply.code(400).send({ error: 'Cupón no válido para este punto.' });
+      }
+    }
+
+    if (
+      !target_url && !status && mode === undefined && channel === undefined &&
+      staff === undefined && captureLead === undefined && couponId === undefined
+    ) {
       return reply.code(400).send({ error: 'Nada que actualizar.' });
     }
     if (target_url) {
@@ -1616,6 +1635,18 @@ export async function apiRoutes(app: FastifyInstance) {
     if (channel !== undefined) {
       params.push(channel);
       fields.push(`channel = $${params.length}`);
+    }
+    if (staff !== undefined) {
+      params.push(staff);
+      fields.push(`staff = $${params.length}`);
+    }
+    if (captureLead !== undefined) {
+      params.push(captureLead);
+      fields.push(`capture_lead = $${params.length}`);
+    }
+    if (couponId !== undefined) {
+      params.push(couponId);
+      fields.push(`coupon_id = $${params.length}`);
     }
 
     if (mode === 'survey') {
@@ -1665,7 +1696,7 @@ export async function apiRoutes(app: FastifyInstance) {
       `UPDATE devices SET ${fields.join(', ')}, updated_at = now()
          WHERE id = $${params.length}
        RETURNING id AS device_id, code, location_id, target_url, status,
-                 transition, mode, survey_template_id, channel`,
+                 transition, mode, survey_template_id, channel, staff, capture_lead, coupon_id`,
       params
     );
 

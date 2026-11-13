@@ -297,6 +297,7 @@ const VIEW_TITLES = {
   locations: 'Sedes',
   devices: 'Puntos NFC',
   reports: 'Informes',
+  customers: 'Clientes',
   admin: 'Empresas y usuarios',
   location: 'Ficha de sede',
 };
@@ -307,7 +308,7 @@ let activateView = () => {};
 const locView = { id: null, days: 30, prev: 'dashboard' };
 
 function setupNav() {
-  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'reports', 'admin', 'location'];
+  const views = ['dashboard', 'executive', 'operations', 'survey', 'locations', 'devices', 'reports', 'customers', 'admin', 'location'];
 
   function activate(target) {
     // La ficha de sede recuerda desde dónde se abrió, para el botón "Volver".
@@ -331,7 +332,7 @@ function setupNav() {
     // Los filtros de analítica (sede/fecha/canal) solo tienen sentido en las
     // vistas de reportes. En gestión (Sedes, Dispositivos, Empresas) se ocultan
     // para no competir visualmente con los buscadores propios de cada tabla.
-    const analyticsViews = ['dashboard', 'executive', 'operations', 'survey'];
+    const analyticsViews = ['dashboard', 'executive', 'operations', 'survey', 'customers'];
     const af = $('#analyticsFilters');
     if (af) af.classList.toggle('hidden', !analyticsViews.includes(target));
     // Actualizar chips de filtros activos según la vista.
@@ -345,6 +346,7 @@ function setupNav() {
     if (target === 'operations') loadOperations();
     if (target === 'survey') loadSurvey();
     if (target === 'reports') loadReports();
+    if (target === 'customers' && window.loadCustomers) window.loadCustomers();
     if (target === 'admin') loadAdmin();
   }
 
@@ -2859,6 +2861,8 @@ function setEditMode(mode) {
   $('#editModeSurvey').setAttribute('aria-checked', String(editMode === 'survey'));
   $('#editRedirectWrap').classList.toggle('hidden', editMode !== 'redirect');
   $('#editSurveyWrap').classList.toggle('hidden', editMode !== 'survey');
+  const extras = $('#editExtras');
+  if (extras) extras.classList.toggle('hidden', editMode !== 'redirect');
 }
 
 // Mismo vocabulario que src/lib/channel.ts (CHANNELS).
@@ -2879,6 +2883,7 @@ async function openEdit(id) {
   $('#editChannel').value = d.channel_fixed || '';
   $('#editStatus').value = d.status;
   $('#editMsg').textContent = '';
+  if (window.fillPointExtras) window.fillPointExtras(d);
 
   // Poblar el selector de plantillas con las de la empresa de la sede del punto.
   const sel = $('#editSurveyTemplate');
@@ -2933,6 +2938,8 @@ async function saveEdit() {
       return;
     }
     payload = { mode: 'redirect', target_url, status, channel: $('#editChannel').value };
+    // Quién atiende, pedir contacto y cupón (public/customers.js).
+    if (window.pointExtras) Object.assign(payload, window.pointExtras());
   }
 
   const res = await fetch(`/api/devices/${editingId}`, {
@@ -4846,6 +4853,7 @@ function setupFilters() {
     if (!$('#view-executive').classList.contains('hidden')) renderBenchmark();
     if (!$('#view-operations').classList.contains('hidden')) loadOperations();
     if (!$('#view-survey').classList.contains('hidden')) loadSurvey();
+    if (!$('#view-customers').classList.contains('hidden') && window.loadCustomers) window.loadCustomers();
   }
 
   // "Aplicar rango" (personalizado): toma las dos fechas y cierra el menú.

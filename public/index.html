@@ -34,6 +34,7 @@
         <a href="#survey" class="nav-link"><span data-icon="star"></span> Calificación</a>
         <a href="#locations" class="nav-link"><span data-icon="store"></span> Sedes</a>
         <a href="#devices" class="nav-link"><span data-icon="nfc"></span> Puntos NFC</a>
+        <a href="#customers" class="nav-link"><span data-icon="user"></span> Clientes</a>
         <a href="#reports" class="nav-link"><span data-icon="file-text"></span> Informes</a>
         <a href="#admin" class="nav-link superadmin-only hidden"><span data-icon="building"></span> Empresas</a>
       </nav>
@@ -650,6 +651,47 @@
       </section>
 
       <!-- Informes (Función 2) -->
+      <!-- Clientes y equipo: contactos con autorización, cupones y ranking por vendedor -->
+      <section id="view-customers" class="p-6 space-y-6 hidden">
+        <div id="custInsight" class="insight-card"><div class="insight-row lvl-neutral"><span class="insight-dot" aria-hidden="true"></span><p class="insight-row-text">Cargando…</p></div></div>
+
+        <div class="kpi-grid">
+          <div class="card kpi-card"><p class="kpi-label">Contactos con autorización</p><p id="custLeads" class="kpi-value">—</p><p class="kpi-sub">En el periodo filtrado</p></div>
+          <div class="card kpi-card"><p class="kpi-label">Cupones canjeados</p><p id="custRedeemed" class="kpi-value">—</p><p id="custRedeemedSub" class="kpi-sub">Desde que se crearon</p></div>
+          <div class="card kpi-card"><p class="kpi-label">Quien más atiende</p><p id="custTopStaff" class="kpi-value kpi-value-text">—</p><p id="custTopStaffSub" class="kpi-sub">En el periodo filtrado</p></div>
+        </div>
+
+        <div class="card overflow-hidden p-0">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="font-semibold">Contactos</h2>
+              <p class="text-sm text-muted">Clientes que dejaron su WhatsApp y autorizaron que los contactes.</p>
+            </div>
+            <a id="leadsCsv" href="/api/leads.csv" class="btn-ghost text-sm" style="border:1px solid var(--card-border)">Descargar (Excel)</a>
+          </div>
+          <div id="leadsBody"></div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <div>
+              <h2 class="font-semibold">Cupones</h2>
+              <p class="text-sm text-muted">El cliente recibe un código al tocar el punto; en caja se canjea con la clave.</p>
+            </div>
+            <button id="newCouponBtn" class="btn-primary text-sm">+ Nuevo cupón</button>
+          </div>
+          <div id="couponsBody"></div>
+        </div>
+
+        <div class="card overflow-hidden p-0">
+          <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+            <h2 class="font-semibold">Por vendedor, mesa o caja</h2>
+            <p class="text-sm text-muted">Interacciones de los puntos que tienen asignado quién los atiende.</p>
+          </div>
+          <div id="staffBody"></div>
+        </div>
+      </section>
+
       <section id="view-reports" class="p-6 space-y-6 hidden">
         <div class="card">
           <h2 class="font-semibold mb-1">Informe mensual</h2>
@@ -987,6 +1029,17 @@
         <p class="text-xs text-slate-500 mt-1">El punto mostrará esta encuesta en vez de redirigir.</p>
       </div>
 
+      <!-- Atribución, contacto y cupón (solo en modo redirección) -->
+      <div id="editExtras" class="edit-extras">
+        <label for="editStaff" class="block text-sm font-medium mb-1 mt-3">Quién atiende este punto (opcional)</label>
+        <input id="editStaff" type="text" class="input w-full" maxlength="60" placeholder="Vendedor, mesa o caja. Ej: Laura Gómez, Mesa 4" />
+        <label class="edit-check mt-3"><input id="editCaptureLead" type="checkbox" /> <span>Pedir el WhatsApp del cliente antes de abrir el destino</span></label>
+        <p class="text-xs text-muted">Es opcional para el cliente y pide su autorización (Ley 1581). Los contactos quedan en Clientes.</p>
+        <label for="editCoupon" class="block text-sm font-medium mb-1 mt-3">Entregar un cupón</label>
+        <select id="editCoupon" class="input w-full text-sm"><option value="">No</option></select>
+        <p class="text-xs text-muted mt-1">Con cupón, el punto muestra el código en vez de abrir el destino.</p>
+      </div>
+
       <div class="flex items-center gap-2 mt-3">
         <label for="editStatus" class="text-sm font-medium">Estado</label>
         <select id="editStatus" class="input text-sm">
@@ -1240,6 +1293,36 @@
 
   <div id="toast" role="status" aria-live="polite" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-lg text-white text-sm"></div>
 
+  <!-- Modal: cupón -->
+  <div id="couponModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="couponModalTitle" class="font-semibold text-lg">Nuevo cupón</h2>
+        <button id="closeCouponModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
+      </div>
+      <label for="couponName" class="block text-sm font-medium mb-1">Qué recibe el cliente</label>
+      <input id="couponName" type="text" class="input w-full" maxlength="80" placeholder="10 % en tu próxima compra" />
+      <label for="couponTerms" class="block text-sm font-medium mb-1 mt-3">Condiciones (opcional)</label>
+      <input id="couponTerms" type="text" class="input w-full" maxlength="300" placeholder="Un cupón por cliente. No acumulable." />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+        <div>
+          <label for="couponPin" class="block text-sm font-medium mb-1">Clave de caja</label>
+          <input id="couponPin" type="text" inputmode="numeric" class="input w-full" maxlength="8" placeholder="4 a 8 números" autocomplete="off" data-lpignore="true" data-1p-ignore />
+        </div>
+        <div>
+          <label for="couponUntil" class="block text-sm font-medium mb-1">Válido hasta (opcional)</label>
+          <input id="couponUntil" type="date" class="input w-full" />
+        </div>
+      </div>
+      <p class="text-xs text-muted mt-2">La clave la conoce solo el personal: el cajero la escribe en el celular del cliente para canjear.</p>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancelCoupon" class="btn-ghost">Cancelar</button>
+        <button id="saveCoupon" class="btn-primary">Guardar cupón</button>
+      </div>
+      <p id="couponMsg" class="text-sm mt-3" role="alert"></p>
+    </div>
+  </div>
+
   <!-- Modal: alta masiva de sedes (solo superadmin) -->
   <div id="importModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <div class="card w-full modal-wide">
@@ -1320,5 +1403,6 @@
 
   <script src="/app.js"></script>
   <script src="/admin-import.js"></script>
+  <script src="/customers.js"></script>
 </body>
 </html>

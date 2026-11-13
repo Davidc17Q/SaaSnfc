@@ -13,7 +13,7 @@
     "clientes": "tsx src/db/clientes.ts",
     "inplux": "tsx src/db/inplux.ts",
     "reset": "tsx src/db/migrate.ts",
-    "test": "tsx --test --test-concurrency=1 test/motor.test.ts test/aislamiento.test.ts test/login.test.ts test/alta-masiva.test.ts"
+    "test": "tsx --test --test-concurrency=1 test/motor.test.ts test/aislamiento.test.ts test/login.test.ts test/alta-masiva.test.ts test/clientes.test.ts"
   },
   "engines": {
     "node": ">=18 <=22"
