@@ -91,6 +91,72 @@ pausa." No hay que regrabar nada.
 
 ---
 
+## Respaldos de la base (hacerlo ya, y cada semana)
+
+Railway guarda la base en un volumen; si se daña o se borra por error, sin copia
+se pierden las sedes, los códigos de las tarjetas y todo el historial.
+
+1. **Copia propia, fuera de Railway** (probada: respaldo y restauración):
+
+   ```
+   scriptsespaldo-produccion.ps1
+   ```
+
+   Pide `DATABASE_PUBLIC_URL` y deja en `respaldos\` (fuera de git) la copia
+   completa (`nfcloud-FECHA.dump`) y la tabla de redirecciones
+   (`redirecciones-FECHA.csv`, la del paso 1 de arriba). Súbelos a Drive.
+   Frecuencia: **cada lunes** y **antes y después del montaje de cada lote**.
+2. **Copias de Railway**: en el servicio Postgres → *Backups*, activar la copia
+   diaria si el plan la incluye. Es la más cómoda para restaurar, pero vive en
+   el mismo proveedor: no reemplaza la copia propia.
+3. **Restaurar** (en una base vacía, local o nueva en Railway):
+
+   ```
+   pg_restore --no-owner --dbname=<URL de la base vacía> nfcloud-FECHA.dump
+   ```
+
+   Probar una restauración en local **una vez al mes**: un respaldo que nunca se
+   ha restaurado no es un respaldo.
+4. Automatizarlo (pendiente de decidir): una tarea diaria que suba la copia
+   cifrada a Cloudflare R2. Necesita credenciales de R2 y un lugar donde correr
+   que no sea este repositorio mientras sea público.
+
+---
+
+## Si el servidor se cae unas horas (no para siempre)
+
+Qué pasa hoy: Cloudflare muestra un error 502/521 y **las tarjetas no abren**
+hasta que Railway vuelva. Las interacciones de ese rato no se registran.
+
+**Antes (para enterarse a tiempo):**
+
+- Monitor externo gratuito (UptimeRobot, Better Stack) sobre
+  `https://nfcloudco.com/healthz` cada minuto, con aviso al celular. Responde
+  `{"ok":true,"db":true,"cache":true}`; si `db` es `false` las tarjetas siguen
+  funcionando desde la caché unos minutos, pero hay que actuar.
+- Railway ya comprueba `/healthz` antes de pasar el tráfico a una versión nueva:
+  un despliegue que no arranca **no reemplaza** al que funciona.
+
+**Durante:**
+
+1. Railway → servicio → *Deployments*: si el último despliegue falló, **Redeploy**
+   del anterior (o `git revert` del commit y `git push`).
+2. Si es Postgres: Railway → Postgres → reiniciar. Si se perdieron datos,
+   restaurar el último respaldo.
+3. Si Railway completo está caído y va para largo (más de 30–60 minutos en
+   horario de tiendas): activar la tabla de redirecciones en Cloudflare con el
+   último `redirecciones-FECHA.csv` (pasos 2 y 3 de arriba). Las tarjetas vuelven
+   a abrir en minutos; al volver Railway, desactivar la regla.
+
+**Mejora propuesta (no construida): respaldo automático en Cloudflare.** Un
+Worker delante de `/r/*` que intenta el servidor y, si responde 5xx o tarda más
+de 3 segundos, redirige con una copia de `código → destino` guardada en
+Cloudflare KV (sincronizada cada hora). El cliente nunca ve el error; solo se
+pierde el registro de esas interacciones. Con 82 sedes instaladas es el seguro
+que más vale la pena: convierte una caída en una molestia invisible.
+
+---
+
 ## Relación con los planes de prueba
 
 El modelo de planes ya sigue la misma filosofía: cuando una prueba gratis vence

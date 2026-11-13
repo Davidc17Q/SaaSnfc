@@ -64,6 +64,9 @@ Archivos clave:
 - `npm run dev` — desarrollo local (tsx watch). No lo lances como proceso
   bloqueante en automatizaciones.
 - `npm run migrate` — aplica `src/db/schema.sql`.
+- `npm test` — batería de pruebas (`test/`, node:test). Usa el Postgres y el
+  Redis locales de Docker (base aparte `nfc_test`). **Ejecútalo antes de cada
+  despliegue**; si cambias el motor `/r/`, la API o el login, añade su prueba.
 
 ## Estilo de ejecución
 

@@ -12,3 +12,6 @@ cotizaciones/*/
 
 # Permisos locales de Claude Code
 .claude/settings.local.json
+
+# Respaldos de la base (datos de clientes): nunca al repositorio
+respaldos/
