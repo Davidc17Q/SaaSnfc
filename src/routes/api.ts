@@ -634,13 +634,17 @@ export async function apiRoutes(app: FastifyInstance) {
       last_scan: string | null;
       hours_since: string | null;
     }>(
+      // Último escaneo por sede con el índice (location_id, scanned_at), sin
+      // recorrer todo el historial.
       `SELECT l.id, l.name, l.city, l.status,
-              MAX(se.scanned_at) AS last_scan,
-              EXTRACT(EPOCH FROM (now() - MAX(se.scanned_at))) / 3600 AS hours_since
+              ls.last_scan,
+              EXTRACT(EPOCH FROM (now() - ls.last_scan)) / 3600 AS hours_since
          FROM locations l
-         LEFT JOIN scan_events se ON se.location_id = l.id
+         LEFT JOIN LATERAL (
+           SELECT se.scanned_at AS last_scan FROM scan_events se
+            WHERE se.location_id = l.id ORDER BY se.scanned_at DESC LIMIT 1
+         ) ls ON true
          ${cWhere}
-         GROUP BY l.id, l.name, l.city, l.status
          ORDER BY hours_since DESC NULLS FIRST`,
       cParams
     );
@@ -700,12 +704,14 @@ export async function apiRoutes(app: FastifyInstance) {
       hours_since: string | null;
     }>(
       `SELECT l.id, l.name, l.city,
-              MAX(se.scanned_at) AS last_scan,
-              EXTRACT(EPOCH FROM (now() - MAX(se.scanned_at))) / 3600 AS hours_since
+              ls.last_scan,
+              EXTRACT(EPOCH FROM (now() - ls.last_scan)) / 3600 AS hours_since
          FROM locations l
-         LEFT JOIN scan_events se ON se.location_id = l.id
-         ${cWhere ? cWhere + ' AND' : 'WHERE'} l.status = 'active'
-         GROUP BY l.id, l.name, l.city`,
+         LEFT JOIN LATERAL (
+           SELECT se.scanned_at AS last_scan FROM scan_events se
+            WHERE se.location_id = l.id ORDER BY se.scanned_at DESC LIMIT 1
+         ) ls ON true
+         ${cWhere ? cWhere + ' AND' : 'WHERE'} l.status = 'active'`,
       cParams
     );
 
@@ -719,6 +725,7 @@ export async function apiRoutes(app: FastifyInstance) {
               COUNT(*) FILTER (WHERE se.scanned_at >= now() - INTERVAL '7 days') AS curr
          FROM locations l
          JOIN scan_events se ON se.location_id = l.id
+                            AND se.scanned_at >= now() - INTERVAL '14 days'
          ${cWhere ? cWhere + ' AND' : 'WHERE'} l.status = 'active'
          GROUP BY l.id, l.name, l.city`,
       cParams
@@ -1462,7 +1469,9 @@ export async function apiRoutes(app: FastifyInstance) {
        LEFT JOIN devices d ON d.location_id = l.id
        LEFT JOIN (
          SELECT location_id, COUNT(*) AS total_clicks
-           FROM scan_events GROUP BY location_id
+           FROM scan_events
+          ${companyId !== undefined ? 'WHERE location_id IN (SELECT id FROM locations WHERE company_id = $1)' : ''}
+          GROUP BY location_id
        ) sc ON sc.location_id = l.id
        ${cWhere}
        GROUP BY l.id, l.name, l.brand, l.city, l.status, l.company_id, l.monthly_goal, co.name, l.created_at, sc.total_clicks

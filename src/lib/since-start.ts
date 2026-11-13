@@ -30,7 +30,43 @@ export interface SinceStart {
   detail: string; // cifras y crecimiento
 }
 
+// "Personas distintas" exige recorrer y agrupar todo el historial (segundos con
+// años de datos) y es una cifra aproximada: se recalcula como mucho cada 6 h.
+const peopleCache = new Map<string, { value: number; at: number }>();
+const PEOPLE_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function distinctPeople(key: string, where: string, params: any[]): Promise<number> {
+  const hit = peopleCache.get(key);
+  if (hit && Date.now() - hit.at < PEOPLE_TTL_MS) return hit.value;
+  const r = await query<{ c: string }>(
+    `SELECT COUNT(*) AS c FROM (SELECT 1 FROM scan_events ${where} GROUP BY ip, user_agent) t`,
+    params
+  );
+  const value = parseInt(r[0]?.c || '0', 10);
+  peopleCache.set(key, { value, at: Date.now() });
+  if (peopleCache.size > 2000) peopleCache.clear();
+  return value;
+}
+
+// El resultado completo cambia despacio (es un acumulado): se guarda 10 minutos
+// para que el resumen y el informe no recorran el historial en cada carga.
+const resultCache = new Map<string, { value: SinceStart | null; at: number }>();
+const RESULT_TTL_MS = 10 * 60 * 1000;
+
 export async function sinceStart(
+  scope: { companyId?: string; locationId?: string },
+  segment: Segment
+): Promise<SinceStart | null> {
+  const cacheKey = `${scope.companyId ?? '*'}|${scope.locationId ?? '*'}|${segment}`;
+  const hit = resultCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < RESULT_TTL_MS) return hit.value;
+  const value = await computeSinceStart(scope, segment);
+  resultCache.set(cacheKey, { value, at: Date.now() });
+  if (resultCache.size > 2000) resultCache.clear();
+  return value;
+}
+
+async function computeSinceStart(
   scope: { companyId?: string; locationId?: string },
   segment: Segment
 ): Promise<SinceStart | null> {
@@ -51,7 +87,6 @@ export async function sinceStart(
       `SELECT to_char(MIN(scanned_at) AT TIME ZONE '${APP_TZ}', 'YYYY-MM-DD') AS first_day,
               EXTRACT(EPOCH FROM (now() - MIN(scanned_at))) / 86400 AS days,
               COUNT(*) AS total,
-              COUNT(DISTINCT COALESCE(ip, '') || '|' || COALESCE(user_agent, '')) AS people,
               COUNT(*) FILTER (WHERE channel IN ('WhatsApp', 'Llamada', 'Email')) AS contacts,
               COUNT(*) FILTER (WHERE channel = 'WhatsApp') AS wa,
               COUNT(*) FILTER (WHERE channel = 'Google Reviews') AS reviews
@@ -101,7 +136,10 @@ export async function sinceStart(
   );
   if (rep[0]?.gained !== null && rep[0]?.gained !== undefined) reviewsGained = n(rep[0].gained);
 
-  const people = Math.min(n(r.people), total);
+  const people = Math.min(
+    await distinctPeople(`${scope.companyId ?? '*'}|${scope.locationId ?? '*'}`, where, params),
+    total
+  );
   const contacts = n(r.contacts);
   const whatsapp = n(r.wa);
   const reviews = n(r.reviews);
