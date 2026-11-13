@@ -584,8 +584,9 @@ export async function apiRoutes(app: FastifyInstance) {
       }
 
       const meta = await query<{ id: string; name: string; city: string }>(
-        `SELECT id, name, city FROM locations WHERE id = ANY($1::uuid[])`,
-        [[q.a, q.b]]
+        `SELECT id, name, city FROM locations
+          WHERE id = ANY($1::uuid[]) ${companyId !== undefined ? 'AND company_id = $2' : ''}`,
+        companyId !== undefined ? [[q.a, q.b], companyId] : [[q.a, q.b]]
       );
       const metaOf = (id: string) => meta.find((m) => m.id === id) || null;
 
@@ -1559,7 +1560,12 @@ export async function apiRoutes(app: FastifyInstance) {
     };
   }>('/api/devices/:id', async (req, reply) => {
     const { id } = req.params;
-    const { target_url, status } = req.body || {};
+    const { target_url } = req.body || {};
+    const rawStatus = req.body?.status;
+    if (rawStatus !== undefined && rawStatus !== 'active' && rawStatus !== 'inactive') {
+      return reply.code(400).send({ error: 'Estado no válido.' });
+    }
+    const status = rawStatus;
     const scopeCompany = resolveCompanyId(req);
     const prev = await query<{ company_id: string | null; target_url: string; channel: string | null }>(
       `SELECT l.company_id, d.target_url, d.channel
@@ -1969,7 +1975,8 @@ export async function apiRoutes(app: FastifyInstance) {
   });
 
   // ---------- Diagnóstico de un dispositivo ----------
-  app.get<{ Params: { id: string } }>('/api/debug/device/:id', async (req) => {
+  app.get<{ Params: { id: string } }>('/api/debug/device/:id', async (req, reply) => {
+    if (getSession(req)?.role !== 'superadmin') return reply.code(403).send({ error: 'No autorizado.' });
     const { id } = req.params;
     const device = await query(
       `SELECT d.id, d.label, d.status, d.location_id, l.name AS location_name

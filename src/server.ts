@@ -54,6 +54,19 @@ async function main() {
     useSemicolonDelimiter: false,
   });
 
+  // Errores: un dato mal formado (id o fecha inválidos) es un 400, no un 500; y
+  // un fallo interno no devuelve el mensaje de la base de datos al navegador.
+  app.setErrorHandler((err: any, req, reply) => {
+    const pgBadInput = typeof err?.code === 'string' && ['22P02', '22007', '22008', '22003'].includes(err.code);
+    if (pgBadInput) return reply.code(400).send({ error: 'Parámetro no válido.' });
+    const status = err?.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
+    if (status >= 500) {
+      req.log.error(err);
+      return reply.code(500).send({ error: 'Error interno. Inténtalo de nuevo.' });
+    }
+    return reply.code(status).send({ error: err.message });
+  });
+
   await app.register(cors, { origin: true, credentials: true });
 
   // Autenticación: rutas de login/logout/me + guard global

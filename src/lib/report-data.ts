@@ -76,7 +76,11 @@ export async function buildReportData(scope: ReportScope): Promise<ReportData> {
   }
   let locationName: string | null = null;
   if (scope.locationId) {
-    const l = await query<{ name: string }>(`SELECT name FROM locations WHERE id = $1`, [scope.locationId]);
+    // Solo dentro de la empresa del alcance: no revelar nombres de sedes ajenas.
+    const l = await query<{ name: string }>(
+      `SELECT name FROM locations WHERE id = $1 ${scope.companyId !== undefined ? 'AND company_id = $2' : ''}`,
+      scope.companyId !== undefined ? [scope.locationId, scope.companyId] : [scope.locationId]
+    );
     locationName = l[0]?.name ? niceName(l[0].name) : null;
   }
 

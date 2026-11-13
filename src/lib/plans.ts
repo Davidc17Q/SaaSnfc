@@ -91,7 +91,8 @@ export async function planStatus(companyId: string) {
 // ---------------------------------------------------------------------------
 // Worker: vence pruebas y avisa antes de que terminen.
 // ---------------------------------------------------------------------------
-function noticeHtml(company: string, days: number, scans: number, link: string): string {
+function noticeHtml(rawCompany: string, days: number, scans: number, link: string): string {
+  const company = rawCompany.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const FONT = "'Segoe UI',Roboto,Arial,sans-serif";
   return `<div style="background:#eef1f6;padding:24px 12px;font-family:${FONT}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden">

@@ -343,23 +343,6 @@ export async function redirectRoutes(app: FastifyInstance) {
     const templateId = (device as any).survey_template_id as string;
     const ip = clientIp(req);
 
-    // Anti-doble-conteo: una respuesta por dispositivo+IP dentro de la ventana.
-    // Si ya existe la clave, respondemos OK sin insertar (gracias idempotente).
-    if (config.scanDedupeSeconds > 0) {
-      try {
-        const ok = await redis.set(
-          surveyDedupeKey(device.device_id, ip || 'unknown'),
-          '1',
-          'EX',
-          config.scanDedupeSeconds,
-          'NX'
-        );
-        if (ok === null) return reply.send({ ok: true });
-      } catch {
-        // Redis caído: seguimos y registramos igual (no perder datos).
-      }
-    }
-
     // Validar body.
     const ratings = (req.body?.ratings || {}) as Record<string, number>;
     const aspectIds = Object.keys(ratings);
@@ -402,6 +385,24 @@ export async function redirectRoutes(app: FastifyInstance) {
     const comment = (req.body?.comment || '').toString().slice(0, 2000).trim() || null;
     // Contacto opcional que el cliente deja si calificó mal (solo un celular válido).
     const contact = normalizePhone((req.body?.contact || '').toString().slice(0, 30));
+
+    // Anti-doble-conteo: una respuesta por dispositivo+IP dentro de la ventana.
+    // Va después de validar: un envío incompleto no debe gastar el turno.
+    // Si ya existe la clave, respondemos OK sin insertar (gracias idempotente).
+    if (config.scanDedupeSeconds > 0) {
+      try {
+        const ok = await redis.set(
+          surveyDedupeKey(device.device_id, ip || 'unknown'),
+          '1',
+          'EX',
+          config.scanDedupeSeconds,
+          'NX'
+        );
+        if (ok === null) return reply.send({ ok: true });
+      } catch {
+        // Redis caído: seguimos y registramos igual (no perder datos).
+      }
+    }
 
     // Insertar respuesta + notas en una transacción.
     const client = await pool.connect();
