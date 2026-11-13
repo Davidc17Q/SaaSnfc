@@ -16,6 +16,7 @@
  * un toque puede quedar en la sede vieja).
  */
 import { pool } from './pool';
+import { findCompanyByName } from './find-company';
 import { redis, dropDeviceCache } from './redis';
 import { config } from '../config';
 
@@ -34,15 +35,12 @@ async function main() {
     throw new Error('La base de datos no es local. Si de verdad es producción, agrega --produccion.');
   }
 
-  // Destino: si hay varias empresas con ese nombre, la que tiene más sedes (como demo.ts).
+  // Destino: nombre exacto; con varias empresas iguales exige --a-id <id>.
+  const destCompany = await findCompanyByName(to, opt('a-id'));
+  if (!destCompany) throw new Error(`No existe la empresa destino "${to}".`);
   const dest = await pool.query<{ id: string; name: string }>(
-    `SELECT l.id, l.name FROM locations l
-      WHERE l.company_id = (
-              SELECT c.id FROM companies c WHERE lower(c.name) = lower($1)
-               ORDER BY (SELECT COUNT(*) FROM locations x WHERE x.company_id = c.id) DESC, c.created_at
-               LIMIT 1)
-        AND l.name ILIKE '%' || $2 || '%'`,
-    [to, sede]
+    `SELECT l.id, l.name FROM locations l WHERE l.company_id = $1 AND l.name ILIKE '%' || $2 || '%'`,
+    [destCompany.id, sede]
   );
   if (dest.rows.length !== 1) {
     throw new Error(`Se esperaba una sede "${sede}" en "${to}" y hay ${dest.rows.length}: ${dest.rows.map((r) => r.name).join(', ')}`);

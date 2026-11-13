@@ -150,7 +150,9 @@ async function resolveDevice(idOrCode: string): Promise<DeviceCache | null> {
   const device = rows.rows[0] as DeviceCache;
   // Rellenar caché para próximas lecturas (bajo la clave consultada).
   try {
-    await redis.set(deviceCacheKey(idOrCode), JSON.stringify(device), 'EX', 3600);
+    // 5 minutos: un cambio hecho por un script directo en la base (sin acceso
+    // al Redis de producción) se refleja pronto; el panel borra la caché al instante.
+    await redis.set(deviceCacheKey(idOrCode), JSON.stringify(device), 'EX', 300);
   } catch {
     /* ignore */
   }

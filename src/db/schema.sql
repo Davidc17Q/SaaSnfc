@@ -171,8 +171,12 @@ ON CONFLICT (slug) DO NOTHING;
 DO $$
 BEGIN
   IF to_regclass('public.campaigns') IS NOT NULL THEN
+    -- Solo empresas anteriores al 13-nov-2026: el error que las creaba es
+    -- histórico, y sin este tope se borraría una empresa real recién creada y
+    -- aún sin sedes que se llame igual que la marca de otra (p. ej. la demo).
     DELETE FROM companies c
-     WHERE NOT EXISTS (SELECT 1 FROM locations l WHERE l.company_id = c.id)
+     WHERE c.created_at < TIMESTAMPTZ '2026-11-13 00:00:00+00'
+       AND NOT EXISTS (SELECT 1 FROM locations l WHERE l.company_id = c.id)
        AND NOT EXISTS (SELECT 1 FROM users u WHERE u.company_id = c.id)
        AND NOT EXISTS (SELECT 1 FROM survey_templates t WHERE t.company_id = c.id)
        AND NOT EXISTS (SELECT 1 FROM report_schedules r WHERE r.company_id = c.id)

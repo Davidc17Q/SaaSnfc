@@ -11,6 +11,7 @@
  */
 import { randomUUID } from 'crypto';
 import { pool } from './pool';
+import { findCompanyByName } from './find-company';
 import { redis, dropDeviceCache } from './redis';
 import { config } from '../config';
 import { uniqueShortCode } from '../lib/shortcode';
@@ -30,14 +31,13 @@ async function main() {
     throw new Error('La base de datos no es local. Si de verdad es producción, agrega --produccion.');
   }
 
-  // Junín Principal de la empresa demo (la "Hogar y Moda" con más sedes).
+  // Junín Principal de la empresa demo. Con varias "Hogar y Moda" (demo y
+  // real) no se adivina: --empresa "Nombre exacto" o --empresa-id <id>.
+  const company = await findCompanyByName(opt('empresa') || 'Hogar y Moda', opt('empresa-id'));
+  if (!company) throw new Error('No se encontró la empresa demo. Indica --empresa "Nombre exacto".');
   const loc = await pool.query<{ id: string; name: string }>(
-    `SELECT l.id, l.name FROM locations l
-      WHERE l.company_id = (
-              SELECT c.id FROM companies c WHERE lower(c.name) = 'hogar y moda'
-               ORDER BY (SELECT COUNT(*) FROM locations x WHERE x.company_id = c.id) DESC, c.created_at
-               LIMIT 1)
-        AND l.name ILIKE '%principal%'`
+    `SELECT l.id, l.name FROM locations l WHERE l.company_id = $1 AND l.name ILIKE '%principal%'`,
+    [company.id]
   );
   if (loc.rows.length !== 1) throw new Error(`Se esperaba una sede Junín Principal y hay ${loc.rows.length}.`);
   const locationId = loc.rows[0].id;

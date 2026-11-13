@@ -19,6 +19,7 @@
  */
 import { randomUUID } from 'crypto';
 import { pool } from './pool';
+import { findCompanyByName } from './find-company';
 import { redis, deviceCacheKey } from './redis';
 import { config } from '../config';
 import { detectChannel } from '../lib/channel';
@@ -523,15 +524,10 @@ async function main() {
   const now = new Date();
   const today = localMidnight(now);
 
-  // Empresa (se crea si no existe).
-  // Si hay varias con el mismo nombre, se usa la que tiene más sedes.
-  let company = await pool.query<{ id: string }>(
-    `SELECT c.id FROM companies c
-      WHERE lower(c.name) = lower($1)
-      ORDER BY (SELECT COUNT(*) FROM locations l WHERE l.company_id = c.id) DESC, c.created_at ASC
-      LIMIT 1`,
-    [COMPANY_NAME]
-  );
+  // Empresa (se crea si no existe). Si hay varias con el mismo nombre no se
+  // adivina: hay que indicar --empresa-id (ver find-company.ts).
+  const found = await findCompanyByName(COMPANY_NAME, opt('empresa-id', '') || undefined);
+  let company: { rows: { id: string }[] } = { rows: found ? [{ id: found.id }] : [] };
   if (!company.rows[0]) {
     if (topUp) throw new Error(`No existe la empresa "${COMPANY_NAME}". Ejecuta primero con --confirmar.`);
     const slug = COMPANY_NAME.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
