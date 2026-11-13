@@ -8,6 +8,7 @@ import { transitionHtml } from '../lib/transition';
 import { surveyHtml } from '../lib/survey';
 import { notifyLowSurvey } from '../lib/survey-alerts';
 import { normalizePhone } from '../lib/messaging';
+import { clientIp } from '../lib/client-ip';
 import type { DeviceCache } from '../types';
 
 /**
@@ -266,7 +267,7 @@ export async function redirectRoutes(app: FastifyInstance) {
     const os = detectOs(req.headers['user-agent']);
     const channel = deviceChannel(device);
     const ua = req.headers['user-agent'] || null;
-    const ip = req.ip;
+    const ip = clientIp(req);
     const source = scanSource(req.query);
     setImmediate(async () => {
       try {
@@ -340,7 +341,7 @@ export async function redirectRoutes(app: FastifyInstance) {
     }
 
     const templateId = (device as any).survey_template_id as string;
-    const ip = req.ip;
+    const ip = clientIp(req);
 
     // Anti-doble-conteo: una respuesta por dispositivo+IP dentro de la ventana.
     // Si ya existe la clave, respondemos OK sin insertar (gracias idempotente).

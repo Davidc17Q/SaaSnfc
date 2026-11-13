@@ -8,7 +8,7 @@ import { redirectRoutes } from './routes/redirect';
 import { apiRoutes } from './routes/api';
 import { businessRoutes } from './routes/business';
 import { competitionRoutes } from './routes/competition';
-import { authRoutes, getSession, registerAuthGuard } from './lib/auth';
+import { authRoutes, checkedSession, registerAuthGuard } from './lib/auth';
 import { startReportScheduler } from './lib/scheduler';
 import { startPlanScheduler } from './lib/plans';
 import { applySchema } from './db/migrate';
@@ -105,7 +105,7 @@ async function main() {
 
   // Página de login (pública)
   app.get('/login', async (req, reply) => {
-    if (getSession(req)) return reply.redirect('/');
+    if (await checkedSession(req)) return reply.redirect('/');
     return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('login'));
   });
 

@@ -57,7 +57,7 @@ function qs(opts = {}) {
 function toast(msg, ok = true) {
   const t = $('#toast');
   const ico = ok ? icon('check-circle', { size: 16 }) : icon('alert-triangle', { size: 16 });
-  t.innerHTML = `<span class="toast-inner">${ico}<span>${msg}</span></span>`;
+  t.innerHTML = `<span class="toast-inner">${ico}<span>${escapeHtml(msg)}</span></span>`;
   t.style.background = ok ? token('--accent-fill') : token('--danger-fill');
   t.classList.remove('hidden');
   clearTimeout(toast.timer);
@@ -3462,9 +3462,9 @@ function setupChangePassword() {
       const next = $('#pwNext').value;
       const confirmv = $('#pwConfirm').value;
       const msg = $('#pwMsg');
-      if (next.length < 6) {
+      if (next.length < 8) {
         msg.style.color = 'var(--danger)';
-        msg.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
+        msg.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.';
         return;
       }
       if (next !== confirmv) {
@@ -3554,9 +3554,9 @@ async function saveUser() {
     msg.textContent = 'Selecciona una empresa.';
     return;
   }
-  if (!username || password.length < 6) {
+  if (!username || password.length < 8) {
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'Usuario y contraseña (mín. 6 caracteres) requeridos.';
+    msg.textContent = 'Usuario y contraseña (mín. 8 caracteres) requeridos.';
     return;
   }
   const res = await fetch('/api/users', {

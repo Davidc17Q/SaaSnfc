@@ -3,7 +3,7 @@ import { randomInt } from 'crypto';
 import { pool, query } from '../db/pool';
 import { redis, dropDeviceCache } from '../db/redis';
 import type { DeviceCache } from '../types';
-import { getSession, hashPassword, requireApiSession } from '../lib/auth';
+import { getSession, hashPassword, invalidateSessions, requireApiSession } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
 import { reportHtml } from '../lib/report';
 import { reportMailHtml } from '../lib/report-mail';
@@ -2159,6 +2159,7 @@ export async function apiRoutes(app: FastifyInstance) {
         [status, req.params.id]
       );
       if (r.rowCount === 0) return reply.code(404).send({ error: 'Empresa no encontrada.' });
+      invalidateSessions(); // suspender cierra las sesiones abiertas de la empresa
       return { ok: true, company: r.rows[0] };
     }
   );
@@ -2175,8 +2176,8 @@ export async function apiRoutes(app: FastifyInstance) {
       const password = req.body?.password || '';
       const role = req.body?.role === 'superadmin' ? 'superadmin' : 'company_admin';
       const company_id = role === 'company_admin' ? req.body?.company_id || null : null;
-      if (!username || password.length < 6) {
-        return reply.code(400).send({ error: 'Usuario y contraseña (mín. 6) requeridos.' });
+      if (!username || password.length < 8) {
+        return reply.code(400).send({ error: 'Usuario y contraseña (mín. 8) requeridos.' });
       }
       if (role === 'company_admin' && !company_id) {
         return reply.code(400).send({ error: 'Debe indicar la empresa del usuario.' });
@@ -2211,6 +2212,7 @@ export async function apiRoutes(app: FastifyInstance) {
       req.params.id,
     ]);
     if (r.rowCount === 0) return reply.code(404).send({ error: 'Usuario no encontrado.' });
+    invalidateSessions(); // la clave nueva cierra las sesiones abiertas del usuario
     return { ok: true, username: r.rows[0].username, password };
   });
 
