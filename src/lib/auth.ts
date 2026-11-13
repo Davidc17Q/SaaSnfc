@@ -238,9 +238,28 @@ export async function authRoutes(app: FastifyInstance) {
   );
 }
 
+/** Rutas /api/* que no piden sesión (por patrón de ruta, no por la URL recibida). */
+const PUBLIC_API = new Set(['/api/login', '/api/logout', '/api/me']);
+
+/**
+ * Segunda barrera, por plugin de rutas: toda ruta /api/* exige sesión aunque el
+ * guard global fallara. Usa el patrón de la ruta ya resuelta por el enrutador,
+ * que no se puede falsear con trucos en la URL.
+ */
+export function requireApiSession(app: FastifyInstance) {
+  app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+    const route = req.routeOptions?.url || '';
+    if (!route.startsWith('/api/') || PUBLIC_API.has(route)) return;
+    if (!getSession(req)) return reply.code(401).send({ error: 'No autenticado.' });
+  });
+}
+
 export function registerAuthGuard(app: FastifyInstance) {
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    const url = req.url.split('?')[0];
+    // La ruta se corta también en ";": Fastify 4 lo trataba como inicio del
+    // query, así que "/api/kpis;x.png" llegaba a /api/kpis saltándose el login.
+    const url = req.url.split(/[?;]/)[0];
+    const isApi = url.startsWith('/api/');
 
     if (
       url.startsWith('/r/') ||
@@ -262,7 +281,8 @@ export function registerAuthGuard(app: FastifyInstance) {
       url === '/chart.umd.min.js' ||
       url === '/qrcode.min.js' ||
       url === '/favicon.ico' ||
-      /\.(png|jpe?g|svg|gif|webp|ico|woff2?|ttf)$/i.test(url)
+      // Imágenes y fuentes estáticas; nunca una ruta de la API.
+      (!isApi && /\.(png|jpe?g|svg|gif|webp|ico|woff2?|ttf)$/i.test(url))
     ) {
       return;
     }

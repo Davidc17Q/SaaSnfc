@@ -8,6 +8,7 @@
 import { FastifyInstance } from 'fastify';
 import { pool, query } from '../db/pool';
 import { resolveCompanyId } from './api';
+import { requireApiSession } from '../lib/auth';
 import { isPlacesEnabled, searchPlaces, refreshPlace, locationPlaceIds } from '../lib/places';
 
 const MAX_COMPETITORS = 3;
@@ -68,6 +69,7 @@ async function placeStats(placeIds: string[]): Promise<Map<string, PlaceStat>> {
 const empty: PlaceStat = { rating: null, reviews: null, gained: null, since: null, measuredOn: null };
 
 export async function competitionRoutes(app: FastifyInstance) {
+  requireApiSession(app);
   app.get('/api/places/status', async () => ({ enabled: isPlacesEnabled() }));
 
   app.get<{ Querystring: { q?: string } }>('/api/places/search', async (req, reply) => {

@@ -15,14 +15,15 @@
 import { FastifyInstance } from 'fastify';
 import { pool, query } from '../db/pool';
 import { CHANNELS } from '../lib/channel';
-import { resolveCompanyId } from './api';
+import { NO_COMPANY, resolveCompanyId } from './api';
+import { requireApiSession } from '../lib/auth';
 
 const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
 
 /** Empresa sobre la que se trabaja: la de la sesión o la elegida por el superadmin. */
 function scopedCompany(req: any): string | null {
   const c = resolveCompanyId(req);
-  return c && c !== '__none__' ? c : null;
+  return c && c !== NO_COMPANY ? c : null;
 }
 
 interface CompanySettings {
@@ -51,6 +52,7 @@ function cleanValues(raw: unknown): Record<string, number> {
 }
 
 export async function businessRoutes(app: FastifyInstance) {
+  requireApiSession(app);
   // ---------- Configuración de valor y metas ----------
   app.get('/api/business-settings', async (req, reply) => {
     const companyId = scopedCompany(req);

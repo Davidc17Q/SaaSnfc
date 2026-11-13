@@ -50,6 +50,8 @@ async function main() {
     // Los enlaces firmados del informe (/informe/:token) superan el límite
     // por defecto de 100 caracteres por parámetro.
     maxParamLength: 512,
+    // ";" no separa el query: "/api/x;y.png" no debe resolver a /api/x.
+    useSemicolonDelimiter: false,
   });
 
   await app.register(cors, { origin: true, credentials: true });

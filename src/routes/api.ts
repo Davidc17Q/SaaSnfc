@@ -3,7 +3,7 @@ import { randomInt } from 'crypto';
 import { pool, query } from '../db/pool';
 import { redis, dropDeviceCache } from '../db/redis';
 import type { DeviceCache } from '../types';
-import { getSession, hashPassword } from '../lib/auth';
+import { getSession, hashPassword, requireApiSession } from '../lib/auth';
 import { uniqueShortCode } from '../lib/shortcode';
 import { reportHtml } from '../lib/report';
 import { reportMailHtml } from '../lib/report-mail';
@@ -29,10 +29,14 @@ const APP_TZ = process.env.APP_TIMEZONE || 'America/Bogota';
  * - superadmin: la que pida por ?companyId=, o null = todas.
  * Devuelve `undefined` cuando no hay que filtrar (superadmin viendo todo).
  */
+/** Empresa que no existe: alcance vacío para quien no tiene empresa o sesión. */
+export const NO_COMPANY = '00000000-0000-0000-0000-000000000000';
+
 export function resolveCompanyId(req: any): string | undefined {
   const s = getSession(req);
-  if (!s) return undefined;
-  if (s.role === 'company_admin') return s.companyId || '__none__';
+  // Sin sesión nunca "todas las empresas": alcance vacío (el guard ya responde 401).
+  if (!s) return NO_COMPANY;
+  if (s.role === 'company_admin') return s.companyId || NO_COMPANY;
   // superadmin
   const q = req.query as any;
   return q.companyId ? String(q.companyId) : undefined;
@@ -107,6 +111,7 @@ function bulkScopeWhere(
 }
 
 export async function apiRoutes(app: FastifyInstance) {
+  requireApiSession(app);
   // ---------- KPIs ----------
   app.get('/api/kpis', async (req) => {
     const q = req.query as any;

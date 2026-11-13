@@ -17,6 +17,13 @@ import type { DeviceCache } from '../types';
  */
 const SAME_BROWSER_SECONDS = 10;
 
+/** Escapa texto para incrustarlo con seguridad en HTML. */
+function esc(s: string): string {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string)
+  );
+}
+
 const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -56,7 +63,7 @@ const NOT_CONFIGURED_HTML = (deviceId: string) => `<!DOCTYPE html>
     <div class="icon">📡</div>
     <h1>Dispositivo NFC no configurado</h1>
     <p>Este punto NFC aún no tiene un destino asignado. Contacta al administrador de la plataforma para activarlo.</p>
-    <div class="code">ID: ${deviceId}</div>
+    <div class="code">ID: ${esc(deviceId.slice(0, 60))}</div>
   </div>
 </body>
 </html>`;
