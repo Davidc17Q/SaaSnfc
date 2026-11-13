@@ -462,3 +462,86 @@ CREATE TABLE IF NOT EXISTS place_snapshots (
 
 -- Anti-doble-conteo en Postgres (redirect.ts): últimos eventos de un punto.
 CREATE INDEX IF NOT EXISTS idx_scan_device_time ON scan_events(device_id, scanned_at DESC);
+
+-- ============================================================================
+-- ALTA MASIVA DE UNA CADENA (src/lib/chain-import.ts, solo superadmin).
+-- import_key: nombre normalizado de la sede; role: papel del punto en la sede
+-- (resenas, credito, canal…). Con ambos, volver a cargar la hoja actualiza sin
+-- duplicar y conserva los códigos de los chips ya grabados.
+-- ============================================================================
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS batch TEXT;              -- lote de instalación
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS import_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_locations_import_key
+  ON locations(company_id, import_key) WHERE import_key IS NOT NULL;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS role TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_devices_role
+  ON devices(location_id, role) WHERE role IS NOT NULL;
+-- Empresa de demostración (los scripts de demo solo actúan sobre estas).
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
+-- Logo para los habladores imprimibles (data URL; no vive en el repositorio).
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS print_logo TEXT;
+-- Última plantilla de puntos usada en la carga (para repetirla igual).
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS import_template JSONB;
+
+-- ============================================================================
+-- ATRIBUCIÓN POR VENDEDOR / MESA / CAJA: quién atiende ese punto. Texto libre;
+-- el ranking agrupa las interacciones por este valor.
+-- ============================================================================
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS staff TEXT;
+
+-- ============================================================================
+-- CONTACTOS CON AUTORIZACIÓN (Ley 1581): un punto puede pedir el WhatsApp del
+-- cliente antes de llevarlo a su destino. Dejarlo es opcional y exige marcar la
+-- autorización; se guarda el texto exacto que aceptó.
+-- ============================================================================
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS capture_lead BOOLEAN NOT NULL DEFAULT false;
+CREATE TABLE IF NOT EXISTS leads (
+  id           BIGSERIAL PRIMARY KEY,
+  device_id    UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  location_id  UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  name         TEXT,
+  phone        TEXT        NOT NULL,
+  consent_text TEXT        NOT NULL,
+  ip           TEXT,
+  source       TEXT        NOT NULL DEFAULT 'unknown',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_leads_location ON leads(location_id, created_at DESC);
+
+-- ============================================================================
+-- CUPONES CON CANJE EN CAJA: un punto entrega un código único por cliente; el
+-- cajero lo canjea en el celular del cliente con la clave de caja del cupón.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS coupons (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id  UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  name        TEXT        NOT NULL,              -- "10 % en tu próxima compra"
+  terms       TEXT,                              -- condiciones visibles al cliente
+  pin         TEXT        NOT NULL,              -- clave de caja (4-8 dígitos)
+  valid_until DATE,                              -- NULL = sin vencimiento
+  active      BOOLEAN     NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_coupons_company ON coupons(company_id);
+CREATE TABLE IF NOT EXISTS coupon_claims (
+  id           BIGSERIAL PRIMARY KEY,
+  coupon_id    UUID        NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  device_id    UUID        NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  location_id  UUID        NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  code         TEXT        NOT NULL UNIQUE,      -- código que ve el cliente
+  ip           TEXT,
+  pin_fails    INT         NOT NULL DEFAULT 0,
+  claimed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  redeemed_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_coupon_claims_coupon ON coupon_claims(coupon_id, claimed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coupon_claims_device_ip ON coupon_claims(device_id, ip, claimed_at DESC);
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS coupon_id UUID;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'devices_coupon_fk') THEN
+    ALTER TABLE devices ADD CONSTRAINT devices_coupon_fk
+      FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE SET NULL;
+  END IF;
+END $$;

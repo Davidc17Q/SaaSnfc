@@ -1240,6 +1240,85 @@
 
   <div id="toast" role="status" aria-live="polite" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-lg text-white text-sm"></div>
 
+  <!-- Modal: alta masiva de sedes (solo superadmin) -->
+  <div id="importModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+    <div class="card w-full modal-wide">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="font-semibold text-lg">Cargar sedes desde una hoja</h2>
+        <button id="closeImportModal" class="btn-ghost" data-icon="x" aria-label="Cerrar ventana"></button>
+      </div>
+      <p id="importCompany" class="text-sm text-muted mb-4"></p>
+
+      <div id="importStep1">
+        <label for="impFile" class="block text-sm font-medium mb-1">Hoja de sedes (CSV)</label>
+        <input id="impFile" type="file" accept=".csv,text/csv" class="input w-full text-sm" />
+        <p class="text-xs text-muted mt-1">En Excel: Guardar como → CSV. Columnas: sede, ciudad, direccion, lote, ficha_google, whatsapp_credito.
+          <button type="button" id="impSample" class="link-btn">Descargar hoja de ejemplo</button></p>
+
+        <p class="block text-sm font-medium mb-1 mt-4">Puntos de cada sede</p>
+        <div class="import-points">
+          <div class="import-tpl">
+            <label class="import-check"><input type="checkbox" id="impUseReviews" checked /> <span>Reseñas</span></label>
+            <div class="import-fields">
+              <input id="impLabelReviews" aria-label="Nombre del punto de reseñas" type="text" class="input text-sm" value="Reseñas" />
+              <input id="impFallbackReviews" aria-label="Destino provisional de reseñas" type="url" class="input text-sm" placeholder="Destino provisional si la sede no tiene ficha (opcional)" />
+            </div>
+            <p class="text-xs text-muted">Lleva al enlace de la columna ficha_google de cada sede.</p>
+          </div>
+          <div class="import-tpl">
+            <label class="import-check"><input type="checkbox" id="impUseCredit" checked /> <span>Crédito</span></label>
+            <div class="import-fields">
+              <input id="impLabelCredit" aria-label="Nombre del punto de crédito" type="text" class="input text-sm" value="Crédito" />
+              <input id="impMessageCredit" aria-label="Mensaje con el que abre el chat" type="text" class="input text-sm" value="Hola, quiero información de crédito." placeholder="Mensaje con el que abre el chat" />
+              <input id="impFallbackCredit" aria-label="Destino provisional de crédito" type="url" class="input text-sm" placeholder="Destino provisional si falta el celular (opcional)" />
+            </div>
+            <p class="text-xs text-muted">Abre el WhatsApp de la columna whatsapp_credito de cada sede.</p>
+          </div>
+          <div class="import-tpl">
+            <label class="import-check"><input type="checkbox" id="impUseChannel" checked /> <span>Canal de WhatsApp</span></label>
+            <div class="import-fields">
+              <input id="impLabelChannel" aria-label="Nombre del punto del canal" type="text" class="input text-sm" value="Canal de WhatsApp" />
+              <input id="impUrlChannel" aria-label="Enlace del canal de WhatsApp" type="url" class="input text-sm" placeholder="https://whatsapp.com/channel/…" />
+            </div>
+            <p class="text-xs text-muted">El mismo enlace para todas las sedes.</p>
+          </div>
+        </div>
+
+        <label for="impLogo" class="block text-sm font-medium mb-1 mt-4">Logo para los habladores</label>
+        <input id="impLogo" type="file" accept="image/png,image/jpeg,image/webp" class="input w-full text-sm" />
+        <p id="impLogoState" class="text-xs text-muted mt-1"></p>
+
+        <div id="importDownloads1" class="mt-4"></div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button id="cancelImport" class="btn-ghost">Cancelar</button>
+          <button id="impPreviewBtn" class="btn-primary">Revisar hoja</button>
+        </div>
+        <p id="importMsg" class="text-sm mt-3" role="alert"></p>
+      </div>
+
+      <div id="importStep2" class="hidden">
+        <div id="importSummary" class="import-summary" role="status"></div>
+        <div class="import-table">
+          <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left"><tr><th class="th">Fila</th><th class="th">Sede</th><th class="th">Qué pasa</th><th class="th">Puntos y destino</th></tr></thead>
+            <tbody id="importRows"></tbody>
+          </table>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button id="impBackBtn" class="btn-ghost">Volver</button>
+          <button id="impCommitBtn" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+
+      <div id="importStep3" class="hidden">
+        <p id="importResult" class="font-semibold mb-4" role="status"></p>
+        <div id="importDownloads3"></div>
+        <div class="flex justify-end mt-6"><button id="closeImportDone" class="btn-primary">Cerrar</button></div>
+      </div>
+    </div>
+  </div>
+
   <script src="/app.js"></script>
+  <script src="/admin-import.js"></script>
 </body>
 </html>

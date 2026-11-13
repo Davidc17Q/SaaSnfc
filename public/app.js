@@ -3203,7 +3203,7 @@ async function loadAdmin() {
               : `<button class="btn-primary text-xs sub-toggle" data-id="${c.id}" data-next="active">Activar</button>`;
             return `
         <tr>
-          <td class="td font-medium">${escapeHtml(c.name)}</td>
+          <td class="td font-medium">${escapeHtml(c.name)}${c.isDemo ? ' <span class="state-badge state-neutral">Demo</span>' : ''}</td>
           <td class="td">${badge}</td>
           <td class="td text-right">${fmt(c.locations ?? 0)}</td>
           <td class="td">
@@ -3227,7 +3227,13 @@ async function loadAdmin() {
               </select>
             </div>
           </td>
-          <td class="td text-right">${btn}</td>
+          <td class="td text-right">
+            <div class="company-actions">
+              <button class="btn-ghost text-xs import-open" data-id="${c.id}" style="border:1px solid var(--card-border)">Cargar sedes</button>
+              <button class="btn-ghost text-xs demo-toggle" data-id="${c.id}" data-name="${escapeHtml(c.name)}" data-demo="${c.isDemo ? 1 : 0}" style="border:1px solid var(--card-border)">${c.isDemo ? 'Quitar demo' : 'Marcar como demo'}</button>
+              ${btn}
+            </div>
+          </td>
         </tr>`;
           })
           .join('')

@@ -2393,3 +2393,27 @@ input[type='date'].input, input[type='month'].input { cursor: pointer; }
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.6 -0.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
+
+/* ---- Alta masiva de sedes (superadmin) ---------------------------------- */
+.modal-wide { max-width: 60rem; max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.company-actions { display: flex; gap: 0.4rem; justify-content: flex-end; flex-wrap: wrap; }
+.link-btn { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.import-points { display: grid; gap: 0.75rem; }
+.import-tpl { display: grid; gap: 0.35rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--card-border); }
+.import-tpl:last-child { border-bottom: 0; padding-bottom: 0; }
+.import-check { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.875rem; }
+.import-fields { display: grid; gap: 0.5rem; grid-template-columns: minmax(0, 12rem) repeat(auto-fit, minmax(12rem, 1fr)); }
+.import-downloads { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.import-summary { display: grid; gap: 0.3rem; padding: 0.85rem 1rem; border-radius: 0.75rem; background: var(--hover); margin-bottom: 0.85rem; }
+.import-summary.has-errors { background: var(--danger-soft); }
+.import-table { max-height: 46dvh; overflow: auto; border: 1px solid var(--card-border); border-radius: 0.75rem; }
+.import-table thead th { position: sticky; top: 0; background: var(--card-bg); }
+.import-note { font-size: 0.78rem; color: var(--warn); margin-top: 0.2rem; }
+.import-note.is-error { color: var(--danger); font-weight: 600; }
+.import-point { display: flex; gap: 0.6rem; justify-content: space-between; font-size: 0.78rem; overflow-wrap: anywhere; }
+.state-badge.state-neutral { color: var(--muted); }
+@media (max-width: 640px) { .import-fields { grid-template-columns: minmax(0, 1fr); } }
+.import-table .state-badge { white-space: nowrap; }
+.import-point span:first-child { white-space: nowrap; font-weight: 600; }
+.import-point span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.import-table td:last-child { max-width: 20rem; }

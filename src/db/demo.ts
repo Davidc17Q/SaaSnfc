@@ -528,10 +528,18 @@ async function main() {
   // adivina: hay que indicar --empresa-id (ver find-company.ts).
   const found = await findCompanyByName(COMPANY_NAME, opt('empresa-id', '') || undefined);
   let company: { rows: { id: string }[] } = { rows: found ? [{ id: found.id }] : [] };
+  // La demo genera datos inventados y puede borrar sedes: solo sobre una
+  // empresa marcada como demostración (Empresas → "Marcar como demo").
+  if (found && !found.isDemo) {
+    const real = await pool.query(`SELECT 1 FROM locations WHERE company_id = $1 LIMIT 1`, [found.id]);
+    if (real.rowCount) {
+      throw new Error(`"${found.name}" no está marcada como demostración. Si es la demo, márcala en el panel (Empresas → Marcar como demo); si es la empresa real del cliente, no ejecutes la demo sobre ella.`);
+    }
+  }
   if (!company.rows[0]) {
     if (topUp) throw new Error(`No existe la empresa "${COMPANY_NAME}". Ejecuta primero con --confirmar.`);
     const slug = COMPANY_NAME.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    company = await pool.query(`INSERT INTO companies (name, slug) VALUES ($1, $2) RETURNING id`, [COMPANY_NAME, `${slug}-${Date.now().toString(36)}`]);
+    company = await pool.query(`INSERT INTO companies (name, slug, is_demo) VALUES ($1, $2, true) RETURNING id`, [COMPANY_NAME, `${slug}-${Date.now().toString(36)}`]);
   }
   const companyId = company.rows[0].id;
 

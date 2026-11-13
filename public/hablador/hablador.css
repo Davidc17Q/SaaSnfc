@@ -1,0 +1,64 @@
+/* Hablador Hogar y Moda · sistema "Corriente Clara".
+   Medidas en mm. La hoja (.sheet) es el tamaño final de corte; la página
+   suma 3 mm de sangrado por lado. Con #corte se exporta solo el corte. */
+@font-face { font-family: 'Outfit'; src: url('fuentes/Outfit-Regular.ttf'); font-weight: 400; }
+@font-face { font-family: 'Outfit'; src: url('fuentes/Outfit-Bold.ttf'); font-weight: 700; }
+@font-face { font-family: 'Instrument'; src: url('fuentes/InstrumentSans-Regular.ttf'); font-weight: 400; }
+@font-face { font-family: 'Instrument'; src: url('fuentes/InstrumentSans-Bold.ttf'); font-weight: 700; }
+
+:root {
+  --blue: #0067a9;
+  --green: #00aa61;
+  --teal: #0089a0;
+  --ink: #14212b;
+  --muted: #66707a;
+  --line: #e3e6e8;
+  --wa: #25d366;
+  --bleed: 3mm;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: 'Instrument', sans-serif; color: var(--ink); }
+
+.page { position: relative; overflow: hidden; background: #fff;
+  width: calc(var(--w) + 2 * var(--bleed)); height: calc(var(--h) + 2 * var(--bleed)); }
+.sheet { position: absolute; left: var(--bleed); top: var(--bleed); width: var(--w); height: var(--h); }
+/* Vista de corte (presentación): la página mide lo mismo que la pieza final. */
+.corte .page { width: var(--w); height: var(--h); }
+.corte .sheet { left: 0; top: 0; }
+
+.abs { position: absolute; }
+.center-x { left: 0; right: 0; text-align: center; }
+
+.logo { position: absolute; left: 50%; transform: translateX(-50%); }
+
+h1 { font-family: 'Outfit', sans-serif; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; color: var(--ink); }
+.sub { font-family: 'Outfit', sans-serif; font-weight: 400; color: var(--ink); display: flex; align-items: center; justify-content: center; }
+.stars { color: #f4b400; letter-spacing: 0.08em; }
+
+/* Zona para tocar: anillos concéntricos que se abren desde el chip. */
+.tap { position: absolute; }
+.tap svg { display: block; width: 100%; height: 100%; }
+
+.qr { position: absolute; background: #fff; border: 0.35mm solid var(--line); border-radius: 4mm; }
+.qr svg { position: absolute; display: block; }
+
+.cap { position: absolute; font-family: 'Instrument', sans-serif; color: var(--muted); text-align: center; letter-spacing: 0.01em; }
+.cap b { color: var(--ink); font-weight: 700; }
+
+.or { position: absolute; font-family: 'Outfit', sans-serif; color: #9aa2a9; text-align: center; }
+
+.rule { position: absolute; height: 0; border-top: 0.3mm solid var(--line); }
+.rule-label { position: absolute; background: #fff; font-family: 'Instrument'; color: var(--muted); text-align: center; }
+
+.card { position: absolute; border: 0.35mm solid var(--line); border-radius: 5mm; background: #fff; }
+.card h2 { font-family: 'Outfit', sans-serif; font-weight: 700; letter-spacing: -0.01em; line-height: 1.12; color: var(--ink); }
+.card p { font-family: 'Instrument'; color: var(--muted); line-height: 1.35; }
+
+.waves { position: absolute; left: calc(-1 * var(--bleed)); right: calc(-1 * var(--bleed)); }
+.waves svg { display: block; width: 100%; height: 100%; }
+
+.firma { position: absolute; display: flex; align-items: center; color: #fff; font-family: 'Instrument'; }
+
+/* Exportación por capas: sin fondo, cada capa sale sobre transparencia. */
+.capas, .capas body, .capas .page { background: transparent !important; }

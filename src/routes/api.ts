@@ -2028,7 +2028,7 @@ export async function apiRoutes(app: FastifyInstance) {
     }
     const rows = await query(
       `SELECT c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment,
-              c.unit_one, c.unit_many,
+              c.unit_one, c.unit_many, c.is_demo,
               COUNT(DISTINCT l.id) AS locations,
               COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') AS active_locations,
               COUNT(DISTINCT d.id) FILTER (WHERE d.mode = 'survey') AS survey_points,
@@ -2037,7 +2037,7 @@ export async function apiRoutes(app: FastifyInstance) {
          LEFT JOIN locations l ON l.company_id = c.id
          LEFT JOIN devices d ON d.location_id = l.id
          GROUP BY c.id, c.name, c.slug, c.status, c.plan, c.trial_ends_at, c.basic_since, c.segment,
-                  c.unit_one, c.unit_many
+                  c.unit_one, c.unit_many, c.is_demo
          ORDER BY c.name ASC`
     );
     return rows.map((r: any) => {
@@ -2049,6 +2049,7 @@ export async function apiRoutes(app: FastifyInstance) {
         id: r.id, name: r.name, slug: r.slug, status: r.status, plan: r.plan,
         trial_ends_at: r.trial_ends_at, basic_since: r.basic_since,
         locations: parseInt(r.locations, 10),
+        isDemo: r.is_demo === true,
         segment: r.segment, // null = automático
         segmentEffective,
         unitsCustom: !!(r.unit_one && r.unit_many),
