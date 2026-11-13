@@ -2269,13 +2269,19 @@ export async function apiRoutes(app: FastifyInstance) {
       locParams
     );
 
+    // Tope: las interacciones más recientes. Cargar años completos en memoria
+    // puede tumbar el proceso (y con él las tarjetas); el respaldo completo es
+    // el volcado diario de la base.
+    const EXPORT_MAX_SCANS = 200_000;
     const scans = await query(
       `SELECT se.id, se.device_id, se.location_id, se.os, se.channel, se.scanned_at
          FROM scan_events se JOIN locations l ON l.id = se.location_id
          ${locWhere ? 'WHERE l.company_id = $1' : ''}
-         ORDER BY se.scanned_at`,
+         ORDER BY se.scanned_at DESC
+         LIMIT ${EXPORT_MAX_SCANS}`,
       locParams
     );
+    scans.reverse();
 
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -2285,6 +2291,7 @@ export async function apiRoutes(app: FastifyInstance) {
         locations: locations.length,
         devices: devices.length,
         scan_events: scans.length,
+        scan_events_truncated: scans.length >= EXPORT_MAX_SCANS,
       },
       companies,
       locations,

@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { join } from 'path';
 import { readFileSync } from 'fs';
@@ -12,6 +11,8 @@ import { authRoutes, checkedSession, registerAuthGuard } from './lib/auth';
 import { startReportScheduler } from './lib/scheduler';
 import { startPlanScheduler } from './lib/plans';
 import { applySchema } from './db/migrate';
+import { pool } from './db/pool';
+import { redis } from './db/redis';
 
 const PUBLIC_DIR = join(__dirname, '..', 'public');
 const LANDING_DIR = join(__dirname, '..', 'landing');
@@ -67,7 +68,28 @@ async function main() {
     return reply.code(status).send({ error: err.message });
   });
 
-  await app.register(cors, { origin: true, credentials: true });
+  // Sin CORS: el panel y la API viven en el mismo origen; ningún otro sitio
+  // necesita llamar a la API con las credenciales del usuario.
+
+  // Cabeceras de seguridad en todas las respuestas.
+  const https = config.publicBaseUrl.startsWith('https');
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'SAMEORIGIN'); // el panel no se incrusta en otros sitios
+    if (!reply.hasHeader('Referrer-Policy')) reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (https) reply.header('Strict-Transport-Security', 'max-age=15552000');
+  });
+
+  // Comprobación de salud pública (Railway y monitores externos). Responde 200
+  // si el proceso atiende, aunque la base esté caída: las tarjetas siguen
+  // redirigiendo desde la caché y no conviene que Railway reinicie por eso.
+  app.get('/healthz', async () => {
+    const [db, cache] = await Promise.all([
+      pool.query('SELECT 1').then(() => true, () => false),
+      redis.ping().then(() => true, () => false),
+    ]);
+    return { ok: true, db, cache };
+  });
 
   // Autenticación: rutas de login/logout/me + guard global
   await app.register(authRoutes);
@@ -127,6 +149,27 @@ async function main() {
   await app.register(businessRoutes);
   await app.register(competitionRoutes);
   await app.register(redirectRoutes);
+
+  // Apagado ordenado: en cada despliegue Railway envía SIGTERM; se terminan las
+  // peticiones en curso (y sus registros de interacción) antes de salir.
+  let closing = false;
+  const shutdown = async (signal: string) => {
+    if (closing) return;
+    closing = true;
+    app.log.info(`${signal}: cerrando...`);
+    const force = setTimeout(() => process.exit(0), 10_000);
+    force.unref();
+    try {
+      await app.close();
+      await new Promise((r) => setTimeout(r, 500)); // registros de escaneo en vuelo
+      await pool.end();
+      redis.disconnect();
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 
   try {
     await app.listen({ port: config.port, host: config.host });

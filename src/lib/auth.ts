@@ -394,6 +394,7 @@ export function registerAuthGuard(app: FastifyInstance) {
       url === '/api/logout' ||
       url === '/api/me' ||
       url === '/login' ||
+      url === '/healthz' ||
       // Landing comercial
       url === '/empresas' ||
       url.startsWith('/empresas/') ||
