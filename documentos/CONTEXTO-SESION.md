@@ -3,7 +3,59 @@
 > Léelo al empezar. Las reglas permanentes del proyecto están en `CLAUDE.md` y
 > el sistema de diseño en la skill `nfcloud-design`; aquí solo va el estado.
 >
-> **Lo más reciente:** sección "HOGAR Y MODA: ESTADO AL 6 DE NOVIEMBRE DE 2026".
+> **Lo más reciente:** "BLINDAJE ANTES DEL MONTAJE (13 de noviembre)" y "HOGAR Y MODA:
+> ESTADO AL 6 DE NOVIEMBRE DE 2026".
+
+## BLINDAJE ANTES DEL MONTAJE (13 de noviembre de 2026) — lo más reciente
+
+Auditoría completa y correcciones publicadas (`f34ad52` … `59d658a`). El informe
+con archivo y línea está en `documentos/AUDITORIA-2026-11-13.md` (**sin subir a
+git a propósito: el repositorio de GitHub es público**).
+
+**Hecho y en producción:**
+- Seguridad: la API ya no responde sin sesión (segunda barrera por grupo de
+  rutas, `requireApiSession`); sesiones que se cierran al cambiar o restablecer
+  la clave, borrar el usuario o suspender la empresa; tope de intentos de login;
+  IP real por `CF-Connecting-IP` (`src/lib/client-ip.ts`); cabeceras de
+  seguridad; sin CORS; errores sin detalles internos; contraseñas de 8+.
+- En producción no se aceptan `AUTH_PASSWORD` ni `SESSION_SECRET` de ejemplo
+  (`src/config.ts`): con la clave de ejemplo, el superadmin por variables queda
+  desactivado y lo avisa en el registro.
+- Operación: `/healthz` público + comprobación de salud en `railway.json` (un
+  despliegue que no arranca no reemplaza al que funciona), apagado ordenado,
+  tiempos máximos en el pool, `/api/export` acotado.
+- Rendimiento medido con 82 sedes y 3 años de datos: alertas 2,1 s → 40 ms,
+  salud 1,2 s → 6 ms, informe 15 s → 3 s.
+- Scripts: `demo.ts`, `tarjetas-junin.ts` y `mover-puntos.ts` ya no eligen la
+  empresa "con más sedes" (`src/db/find-company.ts`; con dos iguales piden
+  `--empresa-id`). La limpieza de empresas fantasma del esquema quedó limitada a
+  las anteriores al 13 de noviembre.
+- **`npm test`**: 45 pruebas (`test/`, node:test, sin dependencias) del motor
+  `/r/`, el aislamiento entre empresas y el login. Usa la base `nfc_test` y la
+  base 15 de Redis locales. La app se construye en `src/app.ts` (`buildApp`).
+- Respaldos: `scriptsespaldo-produccion.ps1` (copia completa + tabla de
+  redirecciones en `respaldos\`, fuera de git). `CONTINGENCIA-SERVIDOR.md`
+  ampliado (respaldos, restauración, caída temporal).
+
+**Pendiente de David (no se puede hacer desde el código):**
+- Confirmar que puede iniciar sesión como superadmin en producción; si no,
+  definir `AUTH_PASSWORD` en Railway.
+- Revisar en Railway los registros y los destinos de los puntos por si alguien
+  usó el hueco de la API (consulta al final del informe de auditoría).
+- Poner el repositorio de GitHub en privado (hoy es público y `documentos/`
+  tiene precios y nombres de clientes).
+- Primer respaldo con el script, activar las copias de Railway y un monitor
+  externo sobre `/healthz`.
+- En Cloudflare: regla de "no guardar en caché" para `/api/*`.
+
+**Tarea 2 (alta masiva de una cadena): diseñada, a la espera de aprobación.**
+No se ha programado nada. `DIRECCIONES TIENDAS 2026.xlsx` no está en
+`cotizaciones/hogar-y-moda/sedes/` (hay que volver a copiarlo).
+
+**Sin hacer (propuestas):** respaldo diario automático a Cloudflare R2; Worker
+de Cloudflare que redirige las tarjetas si el servidor no responde; quitar los
+índices repetidos de `scan_events`; `--confirmar` en `src/db/vaciar.ts` (sigue
+sin commit, junto con `scripts/vaciar-produccion.ps1`).
 
 ## Estado (25 de octubre de 2026)
 
