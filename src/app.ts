@@ -1,0 +1,155 @@
+import Fastify from 'fastify';
+import fastifyStatic from '@fastify/static';
+import { join } from 'path';
+import { readFileSync } from 'fs';
+import { config } from './config';
+import { redirectRoutes } from './routes/redirect';
+import { apiRoutes } from './routes/api';
+import { businessRoutes } from './routes/business';
+import { competitionRoutes } from './routes/competition';
+import { authRoutes, checkedSession, registerAuthGuard } from './lib/auth';
+import { pool } from './db/pool';
+import { redis } from './db/redis';
+
+const PUBLIC_DIR = join(__dirname, '..', 'public');
+const LANDING_DIR = join(__dirname, '..', 'landing');
+const PERFILES_DIR = join(__dirname, '..', 'perfiles');
+
+// Versión de los archivos del panel: cambia en cada despliegue (commit de
+// Railway o, en local, la hora de arranque). Se añade como ?v= a los JS/CSS
+// para que el navegador no use una copia vieja después de publicar cambios.
+const ASSET_VERSION = (process.env.RAILWAY_GIT_COMMIT_SHA || String(Date.now())).slice(0, 12);
+
+/** Lee una página HTML y versiona sus JS/CSS e imágenes locales (/archivo.js -> /archivo.js?v=...). */
+function versionedPage(file: string): string {
+  return readFileSync(join(PUBLIC_DIR, file), 'utf8').replace(
+    // Las imágenes también: si un navegador o Cloudflare guardó un fallo del
+    // momento del despliegue, la URL nueva lo deja atrás.
+    /(src|href)="\/([\w.-]+\.(?:js|css|png|svg))"/g,
+    `$1="/$2?v=${ASSET_VERSION}"`
+  );
+}
+
+/**
+ * Construye la aplicación (rutas, guard y estáticos) sin escuchar en ningún
+ * puerto. La usan el servidor (src/server.ts) y las pruebas (test/), que la
+ * ejercitan con app.inject().
+ */
+export async function buildApp(opts: { logger?: boolean } = {}) {
+  const app = Fastify({
+    logger:
+      opts.logger === false
+        ? false
+        : {
+            level: 'info',
+            transport:
+              process.env.NODE_ENV === 'production'
+                ? undefined
+                : { target: 'pino-pretty', options: { colorize: true } },
+          },
+    disableRequestLogging: false,
+    trustProxy: true,
+    // Los enlaces firmados del informe (/informe/:token) superan el límite
+    // por defecto de 100 caracteres por parámetro.
+    maxParamLength: 512,
+    // ";" no separa el query: "/api/x;y.png" no debe resolver a /api/x.
+    useSemicolonDelimiter: false,
+  });
+
+  // Errores: un dato mal formado (id o fecha inválidos) es un 400, no un 500; y
+  // un fallo interno no devuelve el mensaje de la base de datos al navegador.
+  app.setErrorHandler((err: any, req, reply) => {
+    const pgBadInput = typeof err?.code === 'string' && ['22P02', '22007', '22008', '22003'].includes(err.code);
+    if (pgBadInput) return reply.code(400).send({ error: 'Parámetro no válido.' });
+    const status = err?.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
+    if (status >= 500) {
+      req.log.error(err);
+      return reply.code(500).send({ error: 'Error interno. Inténtalo de nuevo.' });
+    }
+    return reply.code(status).send({ error: err.message });
+  });
+
+  // Sin CORS: el panel y la API viven en el mismo origen; ningún otro sitio
+  // necesita llamar a la API con las credenciales del usuario.
+
+  // Cabeceras de seguridad en todas las respuestas.
+  const https = config.publicBaseUrl.startsWith('https');
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'SAMEORIGIN'); // el panel no se incrusta en otros sitios
+    if (!reply.hasHeader('Referrer-Policy')) reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (https) reply.header('Strict-Transport-Security', 'max-age=15552000');
+  });
+
+  // Comprobación de salud pública (Railway y monitores externos). Responde 200
+  // si el proceso atiende, aunque la base esté caída: las tarjetas siguen
+  // redirigiendo desde la caché y no conviene que Railway reinicie por eso.
+  app.get('/healthz', async () => {
+    const [db, cache] = await Promise.all([
+      pool.query('SELECT 1').then(() => true, () => false),
+      redis.ping().then(() => true, () => false),
+    ]);
+    return { ok: true, db, cache };
+  });
+
+  // Autenticación: rutas de login/logout/me + guard global
+  await app.register(authRoutes);
+  registerAuthGuard(app);
+
+  // Frontend estático (dashboard). Se registra antes para poder usar sendFile.
+  // HTML, JS y CSS se revalidan siempre (no-cache + ETag): tras un despliegue
+  // el navegador recibe lo nuevo; si nada cambió, la respuesta es un 304 ligero.
+  const setHeaders = (res: { setHeader(name: string, value: string): unknown }, path: string) => {
+    if (/\.(html|js|css)$/.test(path)) res.setHeader('Cache-Control', 'no-cache');
+  };
+  await app.register(fastifyStatic, {
+    root: PUBLIC_DIR,
+    prefix: '/',
+    index: false,
+    setHeaders,
+  });
+
+  // Landing comercial (pública). Vive en /empresas/ porque sus rutas son
+  // relativas; quien entra a / sin sesión llega aquí (ver registerAuthGuard).
+  await app.register(fastifyStatic, {
+    root: LANDING_DIR,
+    prefix: '/empresas/',
+    index: ['index.html'],
+    decorateReply: false,
+    setHeaders,
+  });
+  app.get('/empresas', async (_req, reply) => reply.redirect(301, '/empresas/'));
+
+  // Perfiles digitales de clientes (públicos): la tarjeta NFC de cada persona
+  // abre /perfiles/<empresa>/?p=<persona>.
+  await app.register(fastifyStatic, {
+    root: PERFILES_DIR,
+    prefix: '/perfiles/',
+    index: ['index.html'],
+    decorateReply: false,
+    setHeaders,
+  });
+
+  // Páginas con sus archivos versionados. En producción se arman una vez por
+  // arranque; en desarrollo se releen en cada petición para ver los cambios.
+  const cached = { index: versionedPage('index.html'), login: versionedPage('login.html') };
+  const page = (name: 'index' | 'login') =>
+    process.env.NODE_ENV === 'production' ? cached[name] : versionedPage(`${name}.html`);
+  app.get('/', async (_req, reply) =>
+    reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('index'))
+  );
+
+  // Página de login (pública)
+  app.get('/login', async (req, reply) => {
+    if (await checkedSession(req)) return reply.redirect('/');
+    return reply.header('Cache-Control', 'no-cache').type('text/html; charset=utf-8').send(page('login'));
+  });
+
+  // API + motor de redirección
+  await app.register(apiRoutes);
+  await app.register(businessRoutes);
+  await app.register(competitionRoutes);
+  await app.register(redirectRoutes);
+
+  return app;
+}
