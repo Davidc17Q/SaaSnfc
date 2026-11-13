@@ -33,7 +33,8 @@ git a propósito: el repositorio de GitHub es público**).
 - **`npm test`**: 45 pruebas (`test/`, node:test, sin dependencias) del motor
   `/r/`, el aislamiento entre empresas y el login. Usa la base `nfc_test` y la
   base 15 de Redis locales. La app se construye en `src/app.ts` (`buildApp`).
-- Respaldos: `scriptsespaldo-produccion.ps1` (copia completa + tabla de
+- Respaldos: `scripts
+espaldo-produccion.ps1` (copia completa + tabla de
   redirecciones en `respaldos\`, fuera de git). `CONTINGENCIA-SERVIDOR.md`
   ampliado (respaldos, restauración, caída temporal).
 
@@ -48,9 +49,51 @@ git a propósito: el repositorio de GitHub es público**).
   externo sobre `/healthz`.
 - En Cloudflare: regla de "no guardar en caché" para `/api/*`.
 
-**Tarea 2 (alta masiva de una cadena): diseñada, a la espera de aprobación.**
-No se ha programado nada. `DIRECCIONES TIENDAS 2026.xlsx` no está en
-`cotizaciones/hogar-y-moda/sedes/` (hay que volver a copiarlo).
+## ALTA MASIVA Y FUNCIONES NUEVAS (13 de noviembre de 2026, publicado `f6ea5a3`)
+
+**Alta masiva de una cadena** (solo superadmin; `src/lib/chain-import.ts`,
+`src/routes/admin-import.ts`, `public/admin-import.js`):
+- Empresas → **Cargar sedes**. Hoja en CSV (Excel: Guardar como → CSV) con las
+  columnas `sede; ciudad; direccion; lote; ficha_google; whatsapp_credito`. La
+  ficha debe ir como enlace escrito (un "Ver ficha" con el enlace oculto se
+  pierde al exportar).
+- Plantilla de puntos: Reseñas (columna `ficha_google`), Crédito (WhatsApp de
+  `whatsapp_credito`, con mensaje inicial) y Canal de WhatsApp (un enlace para
+  todas). Cada punto admite un **destino provisional** para sedes sin dato
+  (p. ej. Junín Motos o las que aún no tienen ficha): entran con aviso.
+- Vista previa con errores primero; no guarda nada hasta que la hoja esté
+  limpia. La carga va en una transacción y es idempotente (`locations.import_key`
+  + `devices.role`): recargar actualiza, nunca cambia el código de un chip.
+- Descargas: **habladores para imprenta** (una hoja carta por sede con sus QR
+  reales, diseño B2 en `public/hablador/`, filtro por lote; se guarda como PDF
+  desde el navegador) y **enlaces de los chips** en CSV por lote y sede.
+  El logo se sube en la misma pantalla y se guarda en la base (no en git).
+  El hablador lleva el nombre de la sede en el pie para no confundirlos al
+  instalar; se quita añadiendo `&marca=0` a la dirección.
+- **Demo separada**: Empresas → "Marcar como demo" renombra a "Hogar y Moda
+  (demo)" y la marca (`companies.is_demo`). `demo.ts` solo actúa sobre empresas
+  marcadas. Los habladores de muestra de Junín siguen funcionando (van por
+  código). **Pendiente: marcar la demo en producción antes de crear la real.**
+
+**Funciones nuevas** (sección **Clientes** del panel; `src/routes/customers.ts`,
+`src/lib/customer-pages.ts`, `public/customers.js`). Se activan punto por punto
+en Puntos NFC → editar:
+- **Quién atiende** (vendedor, mesa o caja) → ranking por persona.
+- **Pedir el WhatsApp del cliente** antes de abrir el destino: opcional para el
+  cliente, con autorización de la Ley 1581; lista, Excel y eliminación.
+- **Cupón con canje en caja**: código único por cliente; el cajero escribe la
+  clave del cupón en el celular del cliente. Entregados, canjeados y por sede.
+
+`npm test`: 69 pruebas (motor, aislamiento, login, alta masiva, clientes).
+
+**No construido (necesita cuentas externas):** reseñas reales con Google
+Business Profile (requiere aprobación de la API de Google y el acceso a las
+fichas, que mercadeo aún está recuperando) y alta por cuenta propia con pago en
+línea (requiere pasarela de pagos).
+
+**Pendiente con Hogar y Moda:** `DIRECCIONES TIENDAS 2026.xlsx` no está en
+`cotizaciones/hogar-y-moda/sedes/`; falta armar la hoja real con los enlaces de
+las fichas y los WhatsApp de crédito, y el enlace del canal.
 
 **Sin hacer (propuestas):** respaldo diario automático a Cloudflare R2; Worker
 de Cloudflare que redirige las tarjetas si el servidor no responde; quitar los
